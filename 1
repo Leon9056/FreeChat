@@ -1,45 +1,783 @@
-
-
-(()=>{
-const C=window.FREECHAT_CONFIG||{},API=String(C.API_URL||'').replace(/\/$/,''),state={token:localStorage.getItem('fcToken')||'',user:JSON.parse(localStorage.getItem('fcUser')||'null'),mode:'login',page:'home',friends:[],selected:null,messages:[],socket:null,media:null,pc:null,call:null,remote:null,maintenance:false};
-const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
-const initials=n=>String(n||'?').split(/\s+/).map(x=>x[0]).slice(0,2).join('').toUpperCase();
-function toast(t){const e=document.createElement('div');e.className='toast';e.textContent=t;document.body.appendChild(e);setTimeout(()=>e.remove(),2600)}
-async function api(path,opt={}){if(!API)return null;try{const r=await fetch(API+path,{...opt,headers:{'Content-Type':'application/json',...(opt.headers||{}),...(state.token?{Authorization:'Bearer '+state.token}:{})}});const d=await r.json().catch(()=>({}));if(r.status===401){localStorage.removeItem('fcToken');localStorage.removeItem('fcUser');state.token='';state.user=null}if(!r.ok)throw Error(d.error||'request_failed');return d}catch(e){return {__error:e.message}}}
-function login(){document.getElementById('app').innerHTML=`<main class="login"><section class="login-card"><div class="brand"><div class="logo">FC</div><div><h1>FreeChat</h1><small>Comunicação em tempo real</small></div></div><div class="tabs"><button id="loginTab" class="${state.mode==='login'?'active':''}">Entrar</button><button id="registerTab" class="${state.mode==='register'?'active':''}">Criar conta</button></div><form id="authForm">${state.mode==='register'?'<div class="field"><label>Nome</label><input id="name" maxlength="24" required></div>':''}<div class="field"><label>E-mail</label><input id="email" type="email" maxlength="120" required></div><div class="field"><label>Senha</label><div class="password-wrap"><input id="password" type="password" maxlength="64" required><button class="eye" id="eye" type="button">◉</button></div></div>${state.mode==='register'?'<div class="field"><label>Confirmar senha</label><input id="confirm" type="password" maxlength="64" required></div>':''}<button class="primary" id="authBtn">${state.mode==='register'?'Criar conta':'Entrar'}</button><div id="authStatus" class="status"></div></form><div class="note">${API?'API configurada.':'Configure a URL da API em client/config.js antes de publicar.'}</div></section></main>`;
-$('loginTab').onclick=()=>{state.mode='login';login()};$('registerTab').onclick=()=>{state.mode='register';login()};$('eye').onclick=()=>{const p=$('password');p.type=p.type==='password'?'text':'password'};
-$('authForm').onsubmit=async e=>{e.preventDefault();const btn=$('authBtn'),st=$('authStatus');btn.disabled=true;st.className='status';st.textContent='Conectando...';const email=$('email').value.trim(),password=$('password').value,body={email,password};if(state.mode==='register'){body.name=$('name').value.trim();if(password!==$('confirm').value){st.className='status err';st.textContent='As senhas não coincidem.';btn.disabled=false;return}}
-let d=await api(state.mode==='register'?'/api/register':'/api/login',{method:'POST',body:JSON.stringify(body)});if(d?.token){save(d);showApp()}else if(C.DEMO_MODE){save({token:'demo-token',user:{id:'demo',name:body.name||'Você',email,code:'FC-DEMO',status:'active'}});showApp();toast('Modo demonstração')}else{st.className='status err';st.textContent=msg(d?.__error||d?.error)}btn.disabled=false};}
-function $(id){return document.getElementById(id)}function msg(x){return ({invalid_data:'Preencha os dados corretamente.',email_exists:'Este e-mail já está cadastrado.',invalid_credentials:'E-mail ou senha incorretos.',suspended:'Sua conta está suspensa.',maintenance:'O serviço está em manutenção.',database_unavailable:'Banco de dados indisponível.'}[x]||'Não foi possível concluir a operação.')}
-function save(d){state.token=d.token;state.user=d.user;localStorage.setItem('fcToken',state.token);localStorage.setItem('fcUser',JSON.stringify(state.user))}
-function logout(){state.socket?.disconnect();state.media?.getTracks().forEach(t=>t.stop());state.pc?.close();state.token='';state.user=null;localStorage.removeItem('fcToken');localStorage.removeItem('fcUser');login()}
-function layout(){document.getElementById('app').innerHTML=`<div class="shell"><aside class="side" id="side"><div class="brand"><div class="logo">FC</div><div><h1>FreeChat</h1><small>${esc(state.user.code)}</small></div></div><nav class="nav">${[['home','⌂','Início'],['friends','♙','Amigos'],['chat','◌','Mensagens'],['calls','⌁','Chamadas'],['streams','▶','Streams'],['settings','⚙','Configurações']].map(x=>`<button data-page="${x[0]}" class="${state.page===x[0]?'active':''}">${x[1]} <span>${x[2]}</span></button>`).join('')}</nav><div class="side-footer"><button class="logout" id="logout">↪ Sair</button></div></aside><main class="main"><header class="top"><button class="mobile-menu" id="menu">☰</button><b>FreeChat</b><div class="system"><i class="dot"></i><span id="systemText">Online</span></div></header><section class="content" id="content"></section></main></div>`;document.querySelectorAll('[data-page]').forEach(b=>b.onclick=()=>{state.page=b.dataset.page;$('side').classList.remove('open');renderPage()});$('logout').onclick=logout;$('menu').onclick=()=>$('side').classList.toggle('open');renderPage();loadStatus();loadFriends();connectSocket()}
-function renderPage(){({home,friends,chat,calls,streams,settings}[state.page]||home)()}
-async function loadStatus(){const d=await api('/api/public/status');if(d&&!d.__error){state.maintenance=!!d.maintenance;if($('systemText'))$('systemText').textContent=state.maintenance?'Manutenção':'Online'}}
-async function loadFriends(){const d=await api('/api/friends');if(Array.isArray(d))state.friends=d; if(state.page==='friends')drawFriends()}
-function home(){const u=state.user;document.getElementById('content').innerHTML=`<div class="page-title"><div><h2>Olá, ${esc(u.name)} 👋</h2><p>Seu espaço de comunicação.</p></div></div>${state.maintenance?'<div class="maintenance">⚠️ O sistema está em manutenção.</div>':''}<div class="cards"><div class="card"><span class="muted">Seu código</span><div class="metric">${esc(u.code)}</div></div><div class="card"><span class="muted">Amigos</span><div class="metric">${state.friends.length}</div></div><div class="card"><span class="muted">Conta</span><div class="metric">${u.status==='active'?'Ativa':'Suspensa'}</div></div><div class="card"><span class="muted">Serviço</span><div class="metric">${state.maintenance?'Manutenção':'Online'}</div></div></div><section class="panel"><div class="panel-head"><h3>Ações rápidas</h3></div><div class="section-pad"><div class="quick"><button onclick="go('friends')">♙ Amigos<br><small class="muted">Adicionar pelo código</small></button><button onclick="go('chat')">◌ Mensagens<br><small class="muted">Conversar</small></button><button onclick="go('calls')">⌁ Chamadas<br><small class="muted">Áudio/vídeo</small></button><button onclick="go('streams')">▶ Streams<br><small class="muted">Transmissões</small></button></div></div></section>`}
-function friends(){document.getElementById('content').innerHTML=`<div class="page-title"><div><h2>Amigos</h2><p>Use o código FreeChat para adicionar alguém.</p></div><button class="small" id="addFriend">＋ Adicionar</button></div><section class="panel"><div class="panel-head"><h3>Minha lista</h3><input class="search" id="friendSearch" placeholder="Buscar"></div><div class="list" id="friendList"></div></section>`;$('addFriend').onclick=addFriend; $('friendSearch').oninput=()=>drawFriends($('friendSearch').value);drawFriends()}
-function drawFriends(q=''){const l=$('friendList');if(!l)return;const a=state.friends.filter(f=>(f.name+' '+f.email+' '+f.code).toLowerCase().includes(q.toLowerCase()));l.innerHTML=a.map(f=>`<div class="item"><div class="avatar">${initials(f.name)}</div><div class="item-main"><b>${esc(f.name)}</b><small>${esc(f.code)} • ${f.status==='active'?'Ativo':'Suspenso'}</small></div><button class="small" onclick="openChat('${esc(f.id)}')">Mensagem</button></div>`).join('')||'<div class="empty">Nenhum amigo.</div>'}
-function addFriend(){modal(`<div class="modal-head"><h3>Adicionar amigo</h3><button class="close" onclick="closeModal()">×</button></div><p class="muted">Digite o código da pessoa.</p><div class="field"><input id="friendCode" placeholder="FC-ABC123"></div><button class="primary" id="sendFriend">Enviar</button>`);$('sendFriend').onclick=async()=>{const d=await api('/api/friends/request',{method:'POST',body:JSON.stringify({code:$('friendCode').value.trim()})});if(d&&!d.__error){closeModal();toast('Solicitação enviada')}else toast(msg(d?.error||d?.__error))}}
-function chat(){document.getElementById('content').innerHTML=`<div class="page-title"><div><h2>Mensagens</h2><p>Converse em tempo real.</p></div></div><div class="layout"><section class="panel chat"><div class="panel-head"><h3>${esc(state.selected?.name||'Selecione um amigo')}</h3></div><div class="messages" id="messages">${state.selected?'':'<div class="empty">Escolha um amigo.</div>'}</div><form class="composer" id="composer"><input id="msg" ${state.selected?'':'disabled'} placeholder="Escreva uma mensagem"><button class="icon-btn" ${state.selected?'':'disabled'}>➤</button></form></section><section class="panel"><div class="panel-head"><h3>Amigos</h3></div><div class="list">${state.friends.map(f=>`<div class="item" onclick="openChat('${esc(f.id)}')"><div class="avatar">${initials(f.name)}</div><div class="item-main"><b>${esc(f.name)}</b><small>${esc(f.code)}</small></div></div>`).join('')}</div></section></div>`;$('composer').onsubmit=e=>{e.preventDefault();const v=$('msg').value.trim();if(v&&state.selected){sendMessage(v);$('msg').value=''}};if(state.selected){state.messages.filter(m=>m.friendId===String(state.selected.id)).forEach(renderMessage)}}
-function openChat(id){state.selected=state.friends.find(f=>String(f.id)===String(id));state.page='chat';renderPage()}
-function sendMessage(text){const m={friendId:String(state.selected.id),text,time:new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),me:true};state.messages.push(m);renderMessage(m);state.socket?.emit('chat-message',{to:String(state.selected.id),text})}
-function renderMessage(m){const b=$('messages');if(!b)return;const e=document.createElement('div');e.className='bubble '+(m.me?'me':'');e.innerHTML=esc(m.text)+`<small>${esc(m.time||'agora')}</small>`;b.appendChild(e);b.scrollTop=b.scrollHeight}
-function calls(){document.getElementById('content').innerHTML=`<div class="page-title"><div><h2>Chamadas</h2><p>Chamadas 1:1 com WebRTC.</p></div><div><select class="search" id="callFriend"><option value="">Escolha um amigo</option>${state.friends.map(f=>`<option value="${esc(f.id)}">${esc(f.name)}</option>`).join('')}</select><button class="small" onclick="startCall('audio')">📞 Áudio</button><button class="small" onclick="startCall('video')">🎥 Vídeo</button></div></div><section class="panel"><div class="panel-head"><h3 id="callState">Nenhuma chamada</h3></div><div class="call-grid" id="callGrid"><div class="empty">Escolha um amigo e inicie.</div></div><div class="call-actions"><button class="small" onclick="toggleMic()">🎙️ Microfone</button><button class="small" onclick="toggleCam()">📷 Câmera</button><button class="small" onclick="shareScreen()">🖥️ Tela</button><button class="small danger" onclick="endCall()">Encerrar</button></div></section>`}
-async function startCall(type){const fid=$('callFriend')?.value;if(!fid)return toast('Escolha um amigo.');if(state.maintenance)return toast('Chamadas indisponíveis durante manutenção.');const f=state.friends.find(x=>String(x.id)===fid);try{state.media=await navigator.mediaDevices.getUserMedia({audio:true,video:type==='video'});state.call={id:'call_'+crypto.randomUUID(),peerId:fid,type,initiator:true};state.pc=makePeer(fid);state.media.getTracks().forEach(t=>state.pc.addTrack(t,state.media));localVideo();state.socket?.emit('call-invite',{to:fid,callId:state.call.id,type});$('callState').textContent='Chamando '+f.name+'…'}catch(e){toast('Não foi possível acessar câmera/microfone.')}}
-function makePeer(peerId){const pc=new RTCPeerConnection({iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'}]});pc.onicecandidate=e=>{if(e.candidate)state.socket?.emit('webrtc-ice',{to:peerId,callId:state.call.id,candidate:e.candidate})};pc.ontrack=e=>{if(!state.remote){const v=document.createElement('div');v.className='video';v.innerHTML='<video id="remoteVideo" autoplay playsinline></video><span>Remoto</span>';$('callGrid').appendChild(v);state.remote=$('remoteVideo')}state.remote.srcObject=e.streams[0]};pc.onconnectionstatechange=()=>{if(['failed','disconnected','closed'].includes(pc.connectionState))toast('Conexão da chamada perdida.')};return pc}
-function localVideo(){const g=$('callGrid');g.innerHTML='<div class="video"><video id="localVideo" autoplay muted playsinline></video><span>Você</span></div>';if(state.remote){g.insertAdjacentHTML('beforeend','<div class="video"><video id="remoteVideo" autoplay playsinline></video><span>Remoto</span></div>');state.remote=$('remoteVideo')}$('localVideo').srcObject=state.media}
-async function acceptCall(m){if(state.media)return;state.call={id:m.callId,peerId:m.from,type:m.type,initiator:false};state.media=await navigator.mediaDevices.getUserMedia({audio:true,video:m.type==='video'});state.pc=makePeer(m.from);state.media.getTracks().forEach(t=>state.pc.addTrack(t,state.media));state.page='calls';renderPage();localVideo();$('callState').textContent='Em chamada';state.socket?.emit('call-accept',{to:m.from,callId:m.callId})}
-function toggleMic(){const t=state.media?.getAudioTracks()[0];if(t)t.enabled=!t.enabled;else toast('Nenhuma chamada ativa.')}
-function toggleCam(){const t=state.media?.getVideoTracks()[0];if(t)t.enabled=!t.enabled;else toast('Esta chamada não usa vídeo.')}
-async function shareScreen(){if(!state.media||!state.pc)return toast('Entre em uma chamada primeiro.');try{const s=await navigator.mediaDevices.getDisplayMedia({video:true});const st=s.getVideoTracks()[0],sender=state.pc.getSenders().find(x=>x.track?.kind==='video');if(sender)sender.replaceTrack(st);else state.pc.addTrack(st,state.media);const v=$('localVideo');if(v)v.srcObject=s;st.onended=()=>{const cam=state.media.getVideoTracks()[0];const snd=state.pc.getSenders().find(x=>x.track?.kind==='video');if(snd&&cam)snd.replaceTrack(cam);if(v)v.srcObject=state.media}}catch{} }
-function endCall(){if(state.call)state.socket?.emit('call-end',{callId:state.call.id,to:state.call.peerId});state.pc?.close();state.media?.getTracks().forEach(t=>t.stop());state.pc=null;state.media=null;state.call=null;state.remote=null;const g=$('callGrid');if(g)g.innerHTML='<div class="empty">Nenhuma chamada ativa.</div>';const s=$('callState');if(s)s.textContent='Nenhuma chamada';toast('Chamada encerrada')}
-function streams(){document.getElementById('content').innerHTML=`<div class="page-title"><div><h2>Streams</h2><p>Área de transmissões.</p></div></div><section class="panel"><div class="empty">Streams serão ativados na próxima etapa. A estrutura administrativa já está preparada.</div></section>`}
-function settings(){document.getElementById('content').innerHTML=`<div class="page-title"><div><h2>Configurações</h2></div></div><section class="panel"><div class="section-pad"><div class="field"><label>Nome</label><input id="setName" value="${esc(state.user.name)}"></div><div class="field"><label>E-mail</label><input value="${esc(state.user.email)}" disabled></div><div class="field"><label>Código</label><input value="${esc(state.user.code)}" disabled></div><button class="primary" id="saveSettings">Salvar</button></div></section>`;$('saveSettings').onclick=async()=>{const d=await api('/api/me',{method:'PATCH',body:JSON.stringify({name:$('setName').value})});if(d?.user){state.user=d.user;localStorage.setItem('fcUser',JSON.stringify(state.user));toast('Perfil atualizado')}}}
-function modal(html){const e=document.createElement('div');e.className='modal';e.id='modal';e.innerHTML=`<div class="modal-card">${html}</div>`;document.body.appendChild(e)}function closeModal(){$('modal')?.remove()}
-function connectSocket(){if(!API||!state.token||state.token==='demo-token')return;const s=document.createElement('script');s.src=API+'/socket.io/socket.io.js';s.onload=()=>{if(!window.io)return;state.socket=window.io(API,{auth:{token:state.token},transports:['websocket','polling']});state.socket.on('connect_error',()=>toast('Não foi possível conectar ao servidor em tempo real.'));state.socket.on('presence',d=>{state.online=d||[]});state.socket.on('chat-message',m=>{const f=state.friends.find(x=>String(x.id)===String(m.from));if(f){const x={friendId:String(m.from),text:m.text,me:false,time:'agora'};state.messages.push(x);if(state.selected&&String(state.selected.id)===String(m.from))renderMessage(x)}});state.socket.on('call-invite',m=>{const f=state.friends.find(x=>String(x.id)===String(m.from));if(confirm((f?.name||'Alguém')+' está ligando. Aceitar?'))acceptCall(m)});state.socket.on('call-accept',async()=>{if(!state.call||!state.pc)return;const offer=await state.pc.createOffer();await state.pc.setLocalDescription(offer);state.socket.emit('webrtc-offer',{to:state.call.peerId,callId:state.call.id,offer})});state.socket.on('webrtc-offer',async m=>{if(!state.pc)return;await state.pc.setRemoteDescription(m.offer);const a=await state.pc.createAnswer();await state.pc.setLocalDescription(a);state.socket.emit('webrtc-answer',{to:m.from,callId:m.callId,answer:a})});state.socket.on('webrtc-answer',async m=>{if(state.pc)await state.pc.setRemoteDescription(m.answer)});state.socket.on('webrtc-ice',async m=>{try{if(state.pc&&m.candidate)await state.pc.addIceCandidate(m.candidate)}catch{}});state.socket.on('call-end',()=>{if(state.call)endCall()});state.socket.on('admin-action',a=>{if(a.type==='suspend'){toast('Sua conta foi suspensa pelo administrador.');logout()}if(a.type==='call-end'&&state.call?.id===a.callId)endCall()})};s.onerror=()=>toast('API não encontrada: confira client/config.js')}
-window.go=p=>{state.page=p;renderPage()};window.openChat=openChat;window.closeModal=closeModal;window.startCall=startCall;window.toggleMic=toggleMic;window.toggleCam=toggleCam;window.shareScreen=shareScreen;window.endCall=endCall;
-async function boot(){if(!state.token||!state.user){login();return}if(API&&!state.token.startsWith('demo-')){const d=await api('/api/me');if(d?.user){state.user=d.user;localStorage.setItem('fcUser',JSON.stringify(state.user))}else{logout();return}}showApp()}
-function showApp(){if(!state.token||!state.user)return login();layout()}
-boot();
+/* Conversa Live v1.7 — 2FA por e-mail + UI/UX aprimorada */
+function serverUrl(){return window.SIGNALING_URL?window.SIGNALING_URL.replace(/\/$/,""):(location.protocol==="https:"?"https://"+location.host:"http://"+location.host)}
+(function(){
+ const $=id=>document.getElementById(id),login=$("login"),menu=$("callMenu"),app=$("app"),email=$("email"),password=$("password"),name=$("name");
+ let mode="login",pendingChallenge="",pendingEmail="",pendingPassword="",resendTimer=null;
+ const setStatus=(msg,type="error")=>{const el=$("loginStatus");el.textContent=msg||"";el.className="status "+type};
+ const setBusy=(el,busy,label)=>{if(!el)return;el.disabled=busy;if(busy){el.dataset.originalText=el.textContent;el.textContent=label||"Aguarde..."}else if(el.dataset.originalText){el.textContent=el.dataset.originalText;delete el.dataset.originalText}};
+ function modeSet(m){
+   mode=m;
+   $("loginTab").classList.toggle("active",m==="login");$("registerTab").classList.toggle("active",m==="register");
+   $("registerFields").classList.toggle("hidden",m!=="register");$("confirmPasswordWrap").classList.toggle("hidden",m!=="register");
+   $("passwordStrength").classList.toggle("hidden",m!=="register");$("loginBtn").classList.remove("hidden");
+   $("loginBtn").textContent=m==="register"?"✨ Criar conta":"🚀 Entrar";
+   $("authSubtitle").textContent=m==="register"?"Crie sua conta e confirme seu e-mail.":"Entre na sua conta para continuar";
+   setStatus("");$("twoFactorFields").classList.add("hidden");pendingChallenge="";clearInterval(resendTimer);resendTimer=null;$("resend2faBtn").disabled=false;$("resend2faBtn").textContent="📨 Reenviar código";
+ }
+ function maskEmail(v){const [local,domain]=String(v||"").split("@");if(!domain)return v;const shown=local.length<=2?local[0]||"*":local.slice(0,2);return shown+"***@"+domain}
+ function show2FA(d,em,pw){
+   pendingChallenge=d.challenge;pendingEmail=em;pendingPassword=pw;
+   ["loginTab","registerTab","registerFields","emailLabel","passwordLabel","loginBtn","passwordStrength","confirmPasswordWrap"].forEach(id=>$(id)?.classList.add("hidden"));
+   email.classList.add("hidden");password.closest(".password-wrap")?.classList.add("hidden");
+   $("authSubtitle").textContent="Quase lá — confirme seu e-mail";$("twoFactorFields").classList.remove("hidden");
+   $("twoFactorHelp").textContent="Digite o código de 6 dígitos enviado para "+maskEmail(em)+". Ele expira em 10 minutos.";
+   $("twoFactorCode").value="";$("twoFactorCode").focus();setStatus(d.message||"Código enviado para seu e-mail.","ok");startResendCountdown(60);
+ }
+ function restoreAuth(){
+   email.classList.remove("hidden");password.closest(".password-wrap")?.classList.remove("hidden");
+   ["emailLabel","passwordLabel","loginTab","registerTab","loginBtn"].forEach(id=>$(id)?.classList.remove("hidden"));
+   modeSet("login");email.focus();
+ }
+ function showApp(d){localStorage.setItem("conversaLiveToken",d.token);localStorage.setItem("conversaLiveUser",JSON.stringify(d.user));window.CONVERSA_TOKEN=d.token;window.CONVERSA_USER=d.user;login.classList.add("hidden");menu.classList.remove("hidden");$("welcomeName").textContent=d.user.name;$("myCode").textContent=d.user.code;$("sideCode").textContent=d.user.code;window.renderFriends?.()}
+ function passwordScore(p){let n=0;if(p.length>=6)n++;if(p.length>=10)n++;if(/[a-z]/.test(p)&&/[A-Z]/.test(p))n++;if(/\d/.test(p))n++;if(/[^A-Za-z0-9]/.test(p))n++;return Math.min(n,4)}
+ function updatePasswordStrength(){const p=password.value,score=passwordScore(p),bar=$("strengthBar"),text=$("strengthText");if(!bar||!text)return;const labels=["Muito fraca","Fraca","Razoável","Boa","Forte"];bar.style.width=(p?score*25:0)+"%";text.textContent=p?labels[score]:"Digite uma senha";bar.dataset.score=score;text.dataset.score=score}
+ function togglePasswordField(inputId,buttonId){const input=$(inputId),btn=$(buttonId);if(!input||!btn)return;const visible=input.type==="password";input.type=visible?"text":"password";btn.setAttribute("aria-pressed",String(visible));btn.setAttribute("aria-label",visible?"Ocultar senha":"Mostrar senha");btn.classList.toggle("visible",visible);btn.querySelector(".eye-icon")?.replaceChildren(document.createTextNode(visible?"◉":"◉"));}
+ async function auth(){
+   const em=email.value.trim().toLowerCase(),pw=password.value,nm=name?.value.trim()||"",confirm=$("confirmPassword")?.value||"";
+   if(!/^\S+@\S+\.\S+$/.test(em)){setStatus("Digite um e-mail válido.");email.focus();return}
+   if(mode==="register"&&nm.length<2){setStatus("Digite um nome com pelo menos 2 caracteres.");name.focus();return}
+   if(mode==="register"&&pw.length<6){setStatus("A senha precisa ter pelo menos 6 caracteres.");password.focus();return}
+   if(mode==="register"&&pw!==confirm){setStatus("As senhas não coincidem.");$("confirmPassword").focus();return}
+   const btn=$("loginBtn");setBusy(btn,true,mode==="register"?"Criando conta...":"Entrando...");setStatus("Conectando ao servidor...","loading");
+   try{const r=await fetch(serverUrl()+"/api/"+(mode==="register"?"register":"login"),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(mode==="register"?{name:nm,email:em,password:pw}:{email:em,password:pw})});const d=await r.json().catch(()=>({}));if(!r.ok)throw Error(d.error||"Não foi possível concluir a operação.");show2FA(d,em,pw)}
+   catch(e){setStatus(e.message||"Erro ao conectar ao servidor.");}
+   finally{if(!$("twoFactorFields").classList.contains("hidden")){btn.disabled=true}else setBusy(btn,false,mode==="register"?"✨ Criar conta":"🚀 Entrar")}
+ }
+ async function verify2FA(){
+   const c=$("twoFactorCode").value.replace(/\D/g,"");if(!/^[0-9]{6}$/.test(c)){setStatus("Digite o código de 6 dígitos.");return}
+   const btn=$("verify2faBtn");setBusy(btn,true,"Verificando...");setStatus("Validando seu código...","loading");
+   try{const r=await fetch(serverUrl()+"/api/2fa/verify",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({challenge:pendingChallenge,code:c})});const d=await r.json().catch(()=>({}));if(!r.ok)throw Error(d.error||"Código inválido.");clearInterval(resendTimer);showApp(d)}catch(e){setStatus(e.message||"Código inválido.");$("twoFactorCode").select()}finally{setBusy(btn,false,"Verificar código")}
+ }
+ function startResendCountdown(seconds){clearInterval(resendTimer);let left=seconds;const btn=$("resend2faBtn");btn.disabled=true;const tick=()=>{if(left<=0){btn.disabled=false;btn.textContent="📨 Reenviar código";clearInterval(resendTimer);return}btn.textContent="📨 Reenviar em "+left+"s";left--};tick();resendTimer=setInterval(tick,1000)}
+ async function resend2FA(){if(!pendingEmail||!pendingPassword)return;const btn=$("resend2faBtn");setBusy(btn,true,"Enviando...");try{const r=await fetch(serverUrl()+"/api/2fa/resend",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:pendingEmail,password:pendingPassword})});const d=await r.json().catch(()=>({}));if(!r.ok)throw Error(d.error||"Não foi possível reenviar o código.");pendingChallenge=d.challenge;$("twoFactorCode").value="";setStatus(d.message||"Novo código enviado.","ok");$("twoFactorCode").focus();startResendCountdown(60)}catch(e){setStatus(e.message||"Não foi possível reenviar.");btn.disabled=false;btn.textContent="📨 Reenviar código"}}
+ function back2FA(){pendingChallenge="";pendingEmail="";pendingPassword="";clearInterval(resendTimer);restoreAuth()}
+ $("loginTab").onclick=()=>modeSet("login");$("registerTab").onclick=()=>modeSet("register");$("loginBtn").onclick=auth;
+ $("verify2faBtn").onclick=verify2FA;$("resend2faBtn").onclick=resend2FA;$("back2faBtn").onclick=back2FA;
+ $("togglePassword").onclick=()=>togglePasswordField("password","togglePassword");$("toggleConfirmPassword").onclick=()=>togglePasswordField("confirmPassword","toggleConfirmPassword");
+ password.addEventListener("input",updatePasswordStrength);$("confirmPassword")?.addEventListener("input",()=>{$("confirmPassword").setCustomValidity(password.value!==$("confirmPassword").value?"As senhas não coincidem.":"")});
+ $("twoFactorCode").addEventListener("input",()=>{const el=$("twoFactorCode");el.value=el.value.replace(/\D/g,"").slice(0,6);if(el.value.length===6)verify2FA()});
+ $("twoFactorCode").addEventListener("paste",()=>setTimeout(()=>{const el=$("twoFactorCode");el.value=el.value.replace(/\D/g,"").slice(0,6);if(el.value.length===6)verify2FA()},0));
+ [email,password,name,$("confirmPassword")].filter(Boolean).forEach(el=>el.addEventListener("keydown",e=>{if(e.key==="Enter"&&!$("twoFactorFields").classList.contains("hidden"))return;if(e.key==="Enter")auth()}));
+ const t=localStorage.getItem("conversaLiveToken"),u=localStorage.getItem("conversaLiveUser");if(t&&u)try{window.CONVERSA_TOKEN=t;window.CONVERSA_USER=JSON.parse(u);login.classList.add("hidden");menu.classList.remove("hidden");$("welcomeName").textContent=window.CONVERSA_USER.name;$("myCode").textContent=window.CONVERSA_USER.code;$("sideCode").textContent=window.CONVERSA_USER.code;window.renderFriends?.()}catch(e){localStorage.removeItem("conversaLiveToken");localStorage.removeItem("conversaLiveUser")}
+ async function api(path,opts={}){const r=await fetch(serverUrl()+path,{...opts,headers:{"Content-Type":"application/json",Authorization:"Bearer "+(window.CONVERSA_TOKEN||localStorage.getItem("conversaLiveToken")),...(opts.headers||{})}});const d=await r.json().catch(()=>({}));if(!r.ok)throw Error(d.error||"Erro.");return d}
+ window.renderFriends=async()=>{let d;try{d=await api("/api/friends")}catch(e){d={friends:[],requests:[]}};[$("friendsList"),$("friendsAppList")].filter(Boolean).forEach(list=>{list.innerHTML="";(d.requests||[]).forEach(u=>{const x=document.createElement("div");x.className="friend-item";x.innerHTML='<span class="friend-dot"></span><div class="friend-info"><b></b><small></small></div><button>✓</button>';x.querySelector("b").textContent=u.name;x.querySelector("small").textContent=u.code+" • solicitação";x.querySelector("button").onclick=async()=>{await api("/api/friends/accept",{method:"POST",body:JSON.stringify({code:u.code})});renderFriends()};list.appendChild(x)});(d.friends||[]).forEach(u=>{const online=[...people.values()].some(p=>p.code===u.code);const x=document.createElement("div");x.className="friend-item";x.innerHTML='<span class="friend-dot"></span><div class="friend-info"><b></b><small></small></div><button>×</button>';x.querySelector(".friend-dot").classList.toggle("online",online);x.querySelector("b").textContent=u.name;x.querySelector("small").textContent=u.code+" • "+(online?"online":"offline");x.querySelector("button").onclick=async()=>{await api("/api/friends/remove",{method:"POST",body:JSON.stringify({code:u.code})});renderFriends()};list.appendChild(x)});if(!list.children.length)list.innerHTML='<span class="muted">Nenhum amigo ainda.</span>'})};
+ async function addFriend(input,status){const code=input.value.trim().toUpperCase();if(!/^CL-[A-Z0-9]{6}$/.test(code)){status.textContent="Código inválido. Use CL-XXXXXX.";return}try{const d=await api("/api/friends/request",{method:"POST",body:JSON.stringify({code})});status.textContent=d.message||"Solicitação enviada!";input.value="";renderFriends()}catch(e){status.textContent=e.message}}
+ $("addFriendBtn").onclick=()=>addFriend($("friendCodeInput"),$("friendStatus"));$("addFriendApp").onclick=()=>addFriend($("friendCodeApp"),$("friendAppStatus"));$("refreshFriends").onclick=window.renderFriends;$("friendsBtn").onclick=()=>{$("friendsPanel").classList.remove("hidden");renderFriends()};$("friendsClose").onclick=()=>$('friendsPanel').classList.add("hidden");$("copyUserCode").onclick=()=>navigator.clipboard?.writeText($("myCode").textContent);
+ $("logoutBtn").onclick=()=>{localStorage.removeItem("conversaLiveToken");localStorage.removeItem("conversaLiveUser");location.href=location.pathname};
+ $("createCallBtn").onclick=()=>{const c=Math.random().toString(36).slice(2,8).toUpperCase();$("roomCodeInput").value=c;openApp(c)};$("joinCallBtn").onclick=()=>{$("joinBox").classList.toggle("hidden");if(!$("joinBox").classList.contains("hidden"))$("roomCodeInput").focus()};$("confirmJoinBtn").onclick=()=>{const c=$("roomCodeInput").value.trim().toUpperCase();if(c)openApp(c)};
 })();
+const $=id=>document.getElementById(id);
+const ICE={
+  iceServers:[
+    {urls:"stun:stun.l.google.com:19302"},
+    {urls:"stun:stun1.l.google.com:19302"},
+    ...(Array.isArray(window.TURN_SERVERS)?window.TURN_SERVERS:[])
+  ],
+  iceCandidatePoolSize:10
+};
+
+let socket=null,name="",room="",localStream=null,screenTrack=null;
+let peers=new Map(),people=new Map(),inCall=false;
+let micOn=true,camOn=true,callHostId=null,remoteMuted=new Set(),kicked=false,forcedMuted=false;
+let callReady=false;
+let joiningCall=false,pingTimer=null,pingStarted=0,lastRtt=null;
+let audioContext=null, micAnalyser=null, micSource=null, micMeterTimer=null;
+
+function joinRoom(roomValue,nameValue){
+  name=(nameValue||window.CONVERSA_USER_NAME||"Visitante").trim().slice(0,24)||"Visitante";
+  room=(roomValue||window.CONVERSA_ROOM||"geral").trim().toLowerCase().replace(/[^a-z0-9_-]/g,"").slice(0,32)||"geral";
+  $("app").classList.remove("hidden");
+  $("me").textContent=name;
+  $("avatar").textContent=name[0].toUpperCase();
+  $("roomName").textContent="# "+room;
+  $("headRoom").textContent=room;
+  connect();
+}
+window.addEventListener("conversa:open-room",e=>{
+  const d=e.detail||{};
+  joinRoom(d.room,d.name);
+});
+const urlRoom=new URLSearchParams(location.search).get("room");
+if(urlRoom){
+  const saved=localStorage.getItem("conversaLiveName")||"Visitante";
+  joinRoom(urlRoom,saved);
+}
+function serverUrl(){
+  if(window.SIGNALING_URL)return window.SIGNALING_URL.replace(/\/$/,"");
+  return location.protocol==="https:" ? "https://"+location.host : "http://"+location.host;
+}
+function setConnectionLevel(level,text){const m=$("connectionMeter"),s=$("sideConnection"),c=["off","bad","medium","ok","good"][Math.max(0,Math.min(4,level))];if(m){m.className="connection-meter "+c;$("connectionText").textContent=text||["Offline","Fraca","Média","Boa","Excelente"][level]}if(s)s.className="connection-mini "+c}
+function startConnectionMonitor(){clearInterval(pingTimer);const p=()=>{if(!socket?.connected){setConnectionLevel(0,"Offline");return}pingStarted=performance.now();socket.emit("client-ping",pingStarted)};p();pingTimer=setInterval(p,4000)}
+function connect(){
+  if(!window.io)loadSocketIO(); else startSocket();
+}
+function loadSocketIO(){
+  const s=document.createElement("script");
+  s.src=serverUrl()+"/socket.io/socket.io.js";
+  s.onload=startSocket;
+  s.onerror=()=>{$("status").textContent="Servidor não configurado";};
+  document.head.appendChild(s);
+}
+function startSocket(){
+  if(socket?.connected)return;
+  socket=io(serverUrl(),{auth:{token:window.CONVERSA_TOKEN||localStorage.getItem("conversaLiveToken")},
+    transports:["websocket","polling"],
+    upgrade:true,
+    reconnection:true,
+    reconnectionAttempts:Infinity,
+    reconnectionDelay:1000
+  });
+
+  socket.on("connect",()=>{
+    $("status").textContent="Conectado";setConnectionLevel(4,"Conectado");startConnectionMonitor();
+    socket.emit("join",{room});
+    if(inCall)setTimeout(()=>socket.emit("call-ready",{room}),250);
+  });
+  socket.on("connect_error",()=>{$("status").textContent="Servidor offline — tentando reconectar...";setConnectionLevel(0,"Offline")});
+  socket.on("disconnect",()=>{setConnectionLevel(0,"Offline")});
+  socket.on("client-pong",sent=>{const r=performance.now()-Number(sent);lastRtt=r;let l=r<90?4:r<160?3:r<250?2:r<500?1:0;setConnectionLevel(l,(l===4?"Excelente":l===3?"Boa":l===2?"Média":l===1?"Fraca":"Muito fraca")+" • "+Math.round(r)+" ms")});
+  socket.on("room-users",list=>{
+    people.clear();
+    list.forEach(u=>people.set(u.id,u));
+    renderPeople();window.renderFriends?.();
+    // A lista de usuários não é uma fonte confiável para eleger o criador localmente.
+    // O servidor envia o host de forma autoritativa via call-host/call-state.
+    if(callHostId===null){
+      const serverHost=list.find(u=>u.host)?.id||null;
+      if(serverHost) callHostId=serverHost;
+    }
+  });
+  socket.on("user-joined",u=>{
+    people.set(u.id,u);renderPeople();
+    addSystem(u.name+" entrou na sala.");
+  });
+  socket.on("user-left",u=>{
+    people.delete(u.id);renderPeople();closePeer(u.id);
+    if(u.id===callHostId)callHostId=null;
+    addSystem(u.name+" saiu da sala.");
+  });
+  socket.on("chat",m=>addMessage(m.name,m.text,m.time));
+  socket.on("signal",handleSignal);
+  socket.on("system",addSystem);
+
+  socket.on("call-host",id=>{
+    callHostId=id||null;
+    renderPeople();
+    if(inCall){
+      if(isHost()){
+        setCallStatus("Você é o criador da call. 🎙️📷","ok");
+        requestReadyPeers();
+      }else{
+        setCallStatus("Conectado à call. Aguardando os outros participantes...");
+      }
+      if(callReady) socket.emit("call-ready",{room});
+    }
+  });
+
+  socket.on("call-state",state=>{
+    if(!state)return;
+    callHostId=state.active ? (state.host||null) : null;
+    renderPeople();
+    if(inCall && callReady && state.active){
+      socket.emit("call-ready",{room});
+      if(isHost()) requestReadyPeers();
+    }
+  });
+
+  socket.on("call-ended",()=>{
+    callHostId=null;
+    if(inCall)leaveCall(false);
+    addSystem("A chamada foi encerrada pelo criador.");
+  });
+
+  socket.on("call-removed",()=>{
+    kicked=true;leaveCall(false);
+    addSystem("Você foi removido da chamada pelo criador.");
+  });
+  socket.on("call-participant-left",({id})=>{
+    if(id)closePeer(id);
+  });
+
+  socket.on("call-ready-users",ids=>{
+    if(!inCall)return;
+    ids.forEach(id=>{
+      if(id!==socket.id && !peers.has(id) && isHost()){
+        createPeer(id,true).catch(console.error);
+      }
+    });
+  });
+
+  socket.on("call-participant-ready",({id})=>{
+    if(inCall && isHost() && id!==socket.id && !peers.has(id)){
+      createPeer(id,true).catch(console.error);
+    }
+  });
+
+  socket.on("participant-muted",({id,name:mutedName,muted})=>{
+    if(id===socket.id){
+      forcedMuted=!!muted;
+      if(localStream)localStream.getAudioTracks().forEach(t=>t.enabled=!forcedMuted&&micOn);
+      updateMicButton();
+      $("callStatus").textContent=forcedMuted?"Você foi silenciado pelo criador.":"Seu microfone foi liberado.";
+    }
+    addSystem((mutedName||"Participante")+(muted?" foi silenciado pelo criador da call.":" foi liberado pelo criador da call."));
+    renderPeople();
+  });
+}
+function isHost(){return !!socket&&callHostId===socket.id;}
+
+function renderPeople(){
+  $("people").innerHTML="";
+  people.forEach(u=>{
+    const d=document.createElement("div");d.className="person";
+    const dot=document.createElement("i");
+    const span=document.createElement("span");span.className="person-name";
+    span.textContent=u.name+(u.id===socket?.id?" (você)":"");
+    if(u.id===callHostId){
+      const b=document.createElement("small");b.className="host-badge";b.textContent="CRIADOR";span.appendChild(b);
+    }
+    d.append(dot,span);
+    if(isHost()&&u.id!==socket.id&&inCall){
+      const actions=document.createElement("div");actions.className="person-actions";
+      const mute=document.createElement("button");mute.title="Silenciar";mute.textContent=remoteMuted.has(u.id)?"🔊":"🔇";
+      mute.onclick=()=>hostMute(u.id,u.name);
+      const kick=document.createElement("button");kick.className="kick";kick.title="Expulsar da call";kick.textContent="✕";
+      kick.onclick=()=>hostKick(u.id,u.name);
+      actions.append(mute,kick);d.appendChild(actions);
+    }
+    $("people").appendChild(d);
+  });
+}
+function hostMute(id,n){
+  if(!isHost())return;
+  const muted=!remoteMuted.has(id);
+  if(muted)remoteMuted.add(id);else remoteMuted.delete(id);
+  socket.emit("host-mute",{to:id,name:n,room,muted});
+  renderPeople();
+}
+function hostKick(id,n){
+  if(!isHost()||!confirm("Expulsar "+n+" da chamada?"))return;
+  socket.emit("host-kick",{to:id,name:n,room});
+  closePeer(id);renderPeople();
+}
+function addSystem(t){const d=document.createElement("div");d.className="system";d.textContent=t;$("messages").appendChild(d);scroll();}
+function addMessage(n,t,time){
+  const d=document.createElement("div");d.className="msg";
+  const b=document.createElement("b");b.textContent=n;
+  const tm=document.createElement("time");tm.textContent=time||"";
+  const p=document.createElement("p");p.textContent=t;d.append(b,tm,p);$("messages").appendChild(d);scroll();
+}
+function scroll(){$("messages").scrollTop=$("messages").scrollHeight;}
+$("form").onsubmit=e=>{
+  e.preventDefault();const t=$("msg").value.trim();
+  if(!t||!socket?.connected)return;
+  socket.emit("chat",{room,text:t});$("msg").value="";
+};
+
+// ---------------- Emoji picker ----------------
+const EMOJI_CATEGORIES = {
+  "😀": ["😀","😃","😄","😁","😆","😅","😂","🤣","😊","😇","🙂","🙃","😉","😌","😍","🥰","😘","😗","😙","😚","😋","😛","😝","😜","🤪","🤨","🧐","🤓","😎","🥳","🤩","😏","😒","😞","😔","😟","😕","🙁","☹️","😣","😖","😫","😩","🥺","😢","😭","😤","😠","😡","🤬","🤯","😳","🥵","🥶","😱","😨","😰","😥","😓","🤗","🤔","🫡","🤭","🤫","🤥","😶","😐","😑","😬","🙄","😯","😦","😧","😮","😲","🥱","😴","🤤","😪","😵","🤐","🥴","🤢","🤮","🤧","😷","🤒","🤕","🤑"],
+  "❤️": ["❤️","🧡","💛","💚","💙","💜","🖤","🤍","🤎","💔","❣️","💕","💞","💓","💗","💖","💘","💝","💟","❤️‍🔥","❤️‍🩹","💋","💯","💢","💥","💫","💦","💨"],
+  "👍": ["👍","👎","👌","✌️","🤞","🤟","🤘","🤙","👏","🙌","👐","🤝","🙏","💪","👊","✊","🤲","🫶","☝️","👇","👆","👉","👈","✋","🤚","🖐️","🖖","👋","🤏","✍️","💅","🫵"],
+  "🎮": ["🎮","🕹️","🎲","🎯","🏆","🥇","🥈","🥉","⚽","🏀","🏈","⚾","🎾","🏐","🎱","🎳","🏓","🎸","🎹","🥁","🎤","🎧","🎬","🎨","🧩","🚀","🔥","⭐","✨","💎","⚡","💡","🔔","🎉","🎊","🎁"],
+  "🍔": ["🍔","🍕","🍟","🌭","🌮","🌯","🍿","🍩","🍪","🍰","🧁","🍫","🍎","🍌","🍓","🍉","🍇","🍒","🥭","🍍","🥝","🍋","🥑","🍗","🍖","🍜","🍣","🍱","🍚","🍦","🍭","☕","🧃","🥤"],
+  "🐶": ["🐶","🐱","🐭","🐹","🐰","🦊","🐻","🐼","🐨","🐯","🦁","🐮","🐷","🐸","🐵","🙈","🙉","🙊","🐔","🐧","🐦","🦄","🐝","🦋","🐢","🐍","🦖","🐙","🦑","🦀","🐠","🐟","🐬","🦈"],
+  "🔧": ["🔧","🔨","⚙️","🛠️","🔒","🔓","🔑","💻","🖥️","📱","⌨️","🖱️","💾","📷","🎥","🎙️","📡","🔋","💡","📌","📎","✏️","📝","📚","🗑️","🧹","🚪","🏠","🌎","☀️","🌙","☁️","🌧️","❄️","🌈"]
+};
+let emojiCategory = Object.keys(EMOJI_CATEGORIES)[0];
+
+function insertAtCursor(text){
+  const input=$("msg");
+  const start=input.selectionStart ?? input.value.length;
+  const end=input.selectionEnd ?? input.value.length;
+  input.value=input.value.slice(0,start)+text+input.value.slice(end);
+  input.focus();
+  const pos=start+text.length;
+  input.setSelectionRange(pos,pos);
+}
+function renderEmojiPicker(){
+  const tabs=$("emojiTabs"), grid=$("emojiGrid"), search=($("emojiSearch").value||"").trim().toLowerCase();
+  tabs.innerHTML="";
+  Object.keys(EMOJI_CATEGORIES).forEach(cat=>{
+    const b=document.createElement("button"); b.type="button"; b.className="emoji-tab"+(cat===emojiCategory?" active":"");
+    b.textContent=cat; b.title="Categoria"; b.onclick=()=>{emojiCategory=cat;renderEmojiPicker();};
+    tabs.appendChild(b);
+  });
+  const base=EMOJI_CATEGORIES[emojiCategory]||[];
+  const list=search ? Object.values(EMOJI_CATEGORIES).flat() : base;
+  grid.innerHTML="";
+  [...new Set(list)].forEach(e=>{
+    const b=document.createElement("button"); b.type="button"; b.className="emoji-item"; b.textContent=e; b.title=e;
+    b.onclick=()=>insertAtCursor(e);
+    grid.appendChild(b);
+  });
+}
+$("emoji").onclick=()=>{
+  const p=$("emojiPicker"); p.classList.toggle("hidden");
+  if(!p.classList.contains("hidden")){renderEmojiPicker();$("emojiSearch").focus();}
+};
+$("emojiClose").onclick=()=>$("emojiPicker").classList.add("hidden");
+$("emojiSearch").addEventListener("input",renderEmojiPicker);
+document.addEventListener("click",e=>{
+  const p=$("emojiPicker"), btn=$("emoji");
+  if(!p.classList.contains("hidden")&&!p.contains(e.target)&&e.target!==btn)p.classList.add("hidden");
+});
+
+$("invite").onclick=async()=>{
+  const u=location.href.split("?")[0]+"?room="+encodeURIComponent(room);
+  try{await navigator.clipboard.writeText(u);$("invite").textContent="✓ Convite copiado";}
+  catch(e){prompt("Copie o convite:",u);}
+  setTimeout(()=>{$("invite").textContent="🔗 Copiar convite";},1600);
+};
+
+$("audioUnlock").onclick=unlockAllAudio;
+$("callOpen").onclick=openCall;
+$("callClose").onclick=()=>leaveCall(true);
+$("hang").onclick=()=>leaveCall(true);
+
+
+function setCallStatus(text,kind=""){
+  const el=$("callStatus"); if(!el)return;
+  el.textContent=text; el.className="callStatus"+(kind?" "+kind:"");
+}
+function stopMicMeter(){
+  if(micMeterTimer)cancelAnimationFrame(micMeterTimer);
+  micMeterTimer=null;
+  try{micSource?.disconnect();}catch(e){}
+  try{micAnalyser?.disconnect();}catch(e){}
+  micSource=null; micAnalyser=null;
+  const btn=$("mic"); if(btn)btn.classList.remove("speaking");
+  if(audioContext){audioContext.close().catch(()=>{});audioContext=null;}
+}
+async function startMicMeter(){
+  stopMicMeter();
+  const track=localStream?.getAudioTracks?.()[0];
+  if(!track)return;
+  try{
+    const Ctx=window.AudioContext||window.webkitAudioContext;
+    if(!Ctx)return;
+    audioContext=new Ctx();
+    if(audioContext.state==="suspended")await audioContext.resume().catch(()=>{});
+    micSource=audioContext.createMediaStreamSource(new MediaStream([track]));
+    micAnalyser=audioContext.createAnalyser();
+    micAnalyser.fftSize=512;
+    micAnalyser.smoothingTimeConstant=.75;
+    micSource.connect(micAnalyser);
+    const data=new Uint8Array(micAnalyser.fftSize);
+    const loop=()=>{
+      if(!micAnalyser||!localStream){return;}
+      micAnalyser.getByteTimeDomainData(data);
+      let sum=0;
+      for(let i=0;i<data.length;i++){const x=(data[i]-128)/128;sum+=x*x;}
+      const rms=Math.sqrt(sum/data.length);
+      const speaking=rms>.035 && micOn && !forcedMuted;
+      $("mic")?.classList.toggle("speaking",speaking);
+      micMeterTimer=requestAnimationFrame(loop);
+    };
+    loop();
+  }catch(e){
+    // O indicador é opcional; a chamada continua funcionando mesmo se Web Audio falhar.
+  }
+}
+function updateMicButton(){
+  const b=$("mic"); if(!b)return;
+  b.textContent="";
+  const icon=document.createElement("span");
+  icon.textContent=micOn&&!forcedMuted?"🎙️":"🔇";
+  b.appendChild(icon);
+  const label=document.createElement("span"); label.textContent="Microfone"; b.appendChild(label);
+  b.classList.toggle("muted",!micOn||forcedMuted);
+}
+function enableRemoteAudio(v){
+  if(!v)return;
+  v.autoplay=true;
+  v.playsInline=true;
+  v.muted=false;
+  v.volume=1;
+  const p=v.play();
+  if(p?.catch)p.catch(()=>{});
+}
+function unlockAllAudio(){
+  document.querySelectorAll("#videos video").forEach(v=>enableRemoteAudio(v));
+  $("audioUnlock")?.classList.add("hidden");
+  setCallStatus("Áudio ativado. 🎧","ok");
+}
+
+function refreshAudioStatus(){
+  if(!inCall)return;
+  const active=[...document.querySelectorAll("#videos video")].filter(v=>v.dataset?.id!=="local");
+  const hasRemoteAudio=active.some(v=>v.srcObject?.getAudioTracks?.().some(t=>t.readyState==="live"));
+  if(hasRemoteAudio && !active.some(v=>v.paused && !v.muted)){
+    // Do not overwrite a more useful status while connected.
+  }
+}
+
+async function openCall(){
+  if(inCall)return;
+  if(!socket?.connected){
+    $("callStatus").textContent="Conectando ao servidor...";
+    addSystem("Aguarde a conexão com o servidor.");
+    return;
+  }
+
+  joiningCall=true;
+  $("call").classList.remove("hidden");
+  $("app").classList.add("call-open");
+  setCallStatus("Entrando na call... 🎧");
+
+  if(!navigator.mediaDevices?.getUserMedia){
+    joiningCall=false;
+    $("callStatus").textContent="Câmera/microfone indisponíveis. Use o site em HTTPS.";
+    $("call").classList.add("hidden");
+    $("app").classList.remove("call-open");
+    return;
+  }
+
+  let stream=null;
+  try{
+    try{
+      stream=await navigator.mediaDevices.getUserMedia({
+      audio:{
+        echoCancellation:true,
+        noiseSuppression:true,
+        autoGainControl:true,
+        channelCount:1,
+        sampleRate:48000
+      },
+      video:{
+        width:{ideal:640,max:1280},
+        height:{ideal:360,max:720},
+        frameRate:{ideal:24,max:30}
+      }
+    });
+    }catch(e){
+      // Se a câmera estiver indisponível/bloqueada, ainda tentamos entrar só com áudio.
+      try{
+        stream=await navigator.mediaDevices.getUserMedia({audio:true});
+      }catch(e2){
+        throw e2;
+      }
+      try{
+        const v=await navigator.mediaDevices.getUserMedia({video:true});
+        v.getVideoTracks().forEach(t=>stream.addTrack(t));
+      }catch(e3){}
+    }
+  }catch(e){
+    joiningCall=false;
+    inCall=false;
+    $("videos").innerHTML="";
+    $("call").classList.add("hidden");
+    $("app").classList.remove("call-open");
+    const msg=e?.name==="NotAllowedError"
+      ?"Permissão negada. Libere o microfone/câmera no cadeado 🔒 do navegador e tente novamente."
+      :e?.name==="NotFoundError"
+        ?"Nenhum microfone/câmera foi encontrado. Conecte um dispositivo e tente novamente."
+        :"Não foi possível acessar seu microfone. Verifique as permissões do navegador.";
+    $("callStatus").textContent=msg;
+    addSystem(msg);
+    return;
+  }
+
+  localStream=stream;
+  const localAudio=localStream.getAudioTracks()[0];
+  if(localAudio){
+    try{await localAudio.applyConstraints({
+      echoCancellation:true,noiseSuppression:true,autoGainControl:true,
+      channelCount:1,sampleRate:48000
+    });}catch(e){}
+  }
+  micOn=localStream.getAudioTracks().length>0;
+  camOn=localStream.getVideoTracks().length>0;
+  forcedMuted=false;
+  updateMicButton();
+  $("cam").textContent=camOn?"📷":"🚫";
+  addVideo("Você",localStream,"local");
+  startMicMeter();
+
+  // Só agora consideramos que a pessoa realmente entrou na call.
+  inCall=true;
+  joiningCall=false;
+  setCallStatus("Conectando à chamada...");
+
+  // O servidor decide quem é o criador. Mesmo que o cliente ainda não saiba
+  // o host, call-start retorna o host atual. Isso evita eleger a própria pessoa
+  // por engano quando ela entra em uma call existente.
+  socket.emit("call-start",{room});
+  callReady=true;
+  socket.emit("call-ready",{room});
+
+  setTimeout(()=>{
+    if(!inCall)return;
+    if(isHost()){
+      setCallStatus("Você é o criador da call. 🎙️📷","ok");
+      requestReadyPeers();
+    }else if(callHostId){
+      setCallStatus("Conectado à call. Aguardando os outros participantes...");
+    }else{
+      $("callStatus").textContent="Entrando na call...";
+    }
+  },300);
+}
+function requestReadyPeers(){
+  if(socket?.connected)socket.emit("call-ready-request",{room});
+}
+
+async function createPeer(id,initiator){
+  if(peers.has(id)||!localStream||!socket?.connected)return peers.get(id);
+
+  const pc=new RTCPeerConnection(ICE);
+  pc.pendingIce=[];
+  peers.set(id,pc);
+
+  // Prefer Opus for voice and enable packet-loss resilience when supported.
+  try{
+    const caps=RTCRtpSender.getCapabilities?.("audio");
+    if(caps?.codecs){
+      const opus=caps.codecs.filter(c=>
+        /opus/i.test(c.mimeType) &&
+        (!c.channels || c.channels===2)
+      );
+      const rest=caps.codecs.filter(c=>!opus.includes(c));
+      if(opus.length)pc.getTransceivers()
+        .filter(t=>t.receiver?.track?.kind==="audio" || t.sender?.track?.kind==="audio")
+        .forEach(t=>{ try{t.setCodecPreferences([...opus,...rest]);}catch(e){} });
+    }
+  }catch(e){}
+
+  localStream.getTracks().forEach(t=>pc.addTrack(t,localStream));
+
+  // Tune the audio sender for stable conversational voice.
+  try{
+    const sender=pc.getSenders().find(s=>s.track?.kind==="audio");
+    if(sender){
+      const p=sender.getParameters();
+      p.encodings=p.encodings?.length?p.encodings:[{}];
+      p.encodings[0].maxBitrate=64000;
+      p.encodings[0].networkPriority="high";
+      await sender.setParameters(p);
+    }
+  }catch(e){}
+
+  pc.onicecandidate=e=>{
+    if(e.candidate)socket.emit("signal",{to:id,data:{type:"ice",candidate:e.candidate}});
+  };
+
+  pc.ontrack=e=>{
+    let stream=e.streams?.[0];
+    if(!stream){
+      stream=new MediaStream();
+      stream.addTrack(e.track);
+    }
+    e.track.enabled=true;
+    const u=people.get(id);
+    addVideo(u?.name||"Participante",stream,id);
+
+    if(e.track.kind==="audio"){
+      const tile=document.querySelector(`[data-id="${CSS.escape(id)}"]`);
+      const v=tile?.querySelector("video");
+      if(v){
+        v.muted=false;
+        v.volume=1;
+        const p=v.play();
+        if(p?.catch)p.catch(()=>{
+          showAudioButton(tile,v);
+          $("audioUnlock")?.classList.remove("hidden");
+        });
+      }
+    }
+  };
+
+  pc.onconnectionstatechange=()=>{
+    if(pc.connectionState==="connected"){
+      setCallStatus("Call conectada. 🎉 Áudio e vídeo conectados.","ok");
+    }
+    if(["failed","closed"].includes(pc.connectionState))closePeer(id);
+  };
+
+  pc.oniceconnectionstatechange=()=>{
+    if(pc.iceConnectionState==="failed"){
+      // One ICE restart gives the connection a chance to recover from a
+      // temporary network/NAT change without creating another peer.
+      if(initiator && pc.restartIce) {
+        try{
+          pc.restartIce();
+          setTimeout(async()=>{
+            if(pc.connectionState==="failed" && pc.signalingState!=="closed"){
+              try{
+                const offer=await pc.createOffer({iceRestart:true});
+                await pc.setLocalDescription(offer);
+                socket.emit("signal",{to:id,data:{type:"offer",sdp:pc.localDescription}});
+              }catch(e){}
+            }
+          },350);
+        }catch(e){}
+      }
+    }
+  };
+
+  if(initiator){
+    const offer=await pc.createOffer({
+      offerToReceiveAudio:true,
+      offerToReceiveVideo:true
+    });
+    await pc.setLocalDescription(offer);
+    socket.emit("signal",{to:id,data:{type:"offer",sdp:pc.localDescription}});
+  }
+  return pc;
+}
+async function handleSignal(m){
+  if(!inCall)return;
+  const id=m.from,d=m.data;
+  if(!id||!d)return;
+
+  if(d.type==="offer"){
+    const pc=await createPeer(id,false);
+    if(!pc)return;
+    await pc.setRemoteDescription(new RTCSessionDescription(d.sdp));
+    for(const c of pc.pendingIce.splice(0))await pc.addIceCandidate(c).catch(()=>{});
+    const answer=await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+    socket.emit("signal",{to:id,data:{type:"answer",sdp:pc.localDescription}});
+  }else if(d.type==="answer"){
+    const pc=peers.get(id);
+    if(pc && pc.signalingState==="have-local-offer"){
+      await pc.setRemoteDescription(new RTCSessionDescription(d.sdp));
+      for(const c of pc.pendingIce.splice(0))await pc.addIceCandidate(c).catch(()=>{});
+    }
+  }else if(d.type==="ice"){
+    const pc=peers.get(id);
+    if(pc){
+      if(pc.remoteDescription)await pc.addIceCandidate(d.candidate).catch(()=>{});
+      else pc.pendingIce.push(d.candidate);
+    }
+  }
+}
+
+function closePeer(id){
+  const pc=peers.get(id);
+  if(pc){try{pc.close();}catch(e){}peers.delete(id);}
+  removeVideo(id);
+}
+function addVideo(n,s,id){
+  let tile=document.querySelector(`[data-id="${CSS.escape(id)}"]`);
+  let v=tile?.querySelector("video");
+  if(!tile){
+    tile=document.createElement("div");
+    tile.className="tile";
+    tile.dataset.id=id;
+    v=document.createElement("video");
+    const label=document.createElement("span");
+    label.className="video-label";
+    label.textContent=n;
+    tile.append(v,label);
+    $("videos").appendChild(tile);
+  }
+  const u=people.get(id);
+  const label=tile.querySelector(".video-label");
+  if(label)label.textContent=(n||u?.name||"Participante")+(id==="local" && micOn && !forcedMuted ? " • 🎙️" : "");
+  v.autoplay=true;
+  v.playsInline=true;
+  v.muted=id==="local";
+  v.volume=1;
+  if(v.srcObject!==s)v.srcObject=s;
+  const tryPlay=()=>{
+    if(id!=="local")v.muted=false;
+    else v.muted=true;
+    v.volume=1;
+    const p=v.play();
+    if(id!=="local" && p?.catch){
+      p.catch(()=>{
+        showAudioButton(tile,v);
+        $("audioUnlock")?.classList.remove("hidden");
+      });
+    }
+  };
+  if(v.readyState>=2)tryPlay();
+  else v.onloadedmetadata=tryPlay;
+}
+function showAudioButton(tile,v){
+  if(tile.querySelector(".audio-unlock"))return;
+  const b=document.createElement("button");
+  b.className="audio-unlock";
+  b.type="button";
+  b.textContent="🔊 Ativar áudio";
+  b.onclick=()=>{
+    enableRemoteAudio(v);
+    v.play().then(()=>{b.remove();$("audioUnlock")?.classList.add("hidden");}).catch(()=>{});
+  };
+  tile.appendChild(b);
+}
+function removeVideo(id){document.querySelector(`[data-id="${CSS.escape(id)}"]`)?.remove();}
+
+function leaveCall(ending){
+  const wasHost=isHost();
+  if(ending&&wasHost&&socket)socket.emit("call-end",{room});
+  if(socket?.connected)socket.emit("call-leave",{room});
+  inCall=false;callReady=false;joiningCall=false;
+  peers.forEach(pc=>{try{pc.close();}catch(e){}});
+  peers.clear();
+  $("videos").innerHTML="";
+  if(screenTrack){try{screenTrack.stop();}catch(e){}screenTrack=null;}
+  if(localStream){localStream.getTracks().forEach(t=>t.stop());localStream=null;}
+  stopMicMeter();
+  $("call").classList.add("hidden");
+  $("app").classList.remove("call-open");
+  $("callStatus").textContent="Pronto.";
+  forcedMuted=false;
+  if(wasHost)callHostId=null;
+  renderPeople();
+}
+
+$("mic").onclick=()=>{
+  if(!localStream)return;
+  if(forcedMuted){$("callStatus").textContent="O criador silenciou seu microfone.";return;}
+  micOn=!micOn;
+  localStream.getAudioTracks().forEach(t=>t.enabled=micOn);
+  updateMicButton();
+};
+$("cam").onclick=()=>{
+  if(!localStream)return;
+  camOn=!camOn;
+  localStream.getVideoTracks().forEach(t=>t.enabled=camOn);
+  $("cam").textContent=camOn?"📷":"🚫";
+};
+$("screen").onclick=async()=>{
+  if(!localStream){$("callStatus").textContent="Entre na call antes de compartilhar a tela.";return;}
+  if(!navigator.mediaDevices?.getDisplayMedia){
+    $("callStatus").textContent="Seu navegador não oferece compartilhamento de tela.";
+    return;
+  }
+  try{
+    const s=await navigator.mediaDevices.getDisplayMedia({video:true,audio:false});
+    const track=s.getVideoTracks()[0];
+    screenTrack=track;
+    peers.forEach(async pc=>{
+      const sender=pc.getSenders().find(x=>x.track?.kind==="video");
+      if(sender)try{await sender.replaceTrack(track);}catch(e){}
+    });
+    const v=document.querySelector('[data-id="local"] video');
+    if(v){v.srcObject=s;v.play().catch(()=>{});}
+    $("callStatus").textContent="Transmitindo sua tela. 🖥️";
+    track.onended=()=>{
+      const cameraTrack=localStream?.getVideoTracks()[0];
+      if(cameraTrack){
+        peers.forEach(pc=>{
+          const sender=pc.getSenders().find(x=>x.track?.kind==="video");
+          if(sender)sender.replaceTrack(cameraTrack).catch(()=>{});
+        });
+        const localVideo=document.querySelector('[data-id="local"] video');
+        if(localVideo){localVideo.srcObject=localStream;localVideo.play().catch(()=>{});}
+      }
+      screenTrack=null;
+      $("callStatus").textContent="Câmera restaurada.";
+    };
+  }catch(e){
+    $("callStatus").textContent=e?.name==="NotAllowedError"?"Compartilhamento cancelado.":"Não foi possível compartilhar a tela.";
+  }
+};
+
+document.addEventListener("keydown",e=>{
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="e"){
+    e.preventDefault();$("emoji").click();
+  }
+});
