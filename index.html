@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0a1020"><meta name="color-scheme" content="dark light">
+<meta name="description" content="Conversa Live — chat, chamadas, música e compartilhamento de tela.">
+<title>Conversa Live v2.5.0</title>
+<link rel="manifest" href="manifest.json"><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%236d5dfc'/%3E%3Cpath d='M17 19h30v22H29l-8 7v-7h-4z' fill='white'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<section id="login" class="screen">
+  <div class="auth-card">
+    <div class="brand-icon">💬</div><div class="auth-brand">CONVERSA LIVE <span>v2.5.0</span></div><h1>Conversa Live</h1>
+    <p id="authSubtitle" class="muted">Entre na sua conta para continuar</p>
+    <div class="auth-tabs"><button id="loginTab" class="auth-tab active" type="button">Entrar</button><button id="registerTab" class="auth-tab" type="button">Criar conta</button></div>
+    <div id="registerFields" class="hidden"><label for="name">👤 Nome de usuário</label><input id="name" maxlength="24" autocomplete="name" placeholder="Como quer ser chamado?"></div>
+    <label id="emailLabel" for="email">📧 E-mail</label><input id="email" type="email" maxlength="120" autocomplete="email" inputmode="email" placeholder="voce@email.com">
+    <label id="passwordLabel" for="password">🔒 Senha</label><div class="password-wrap"><input id="password" type="password" maxlength="64" autocomplete="current-password" placeholder="Digite sua senha"><button id="togglePassword" class="icon-btn password-toggle" type="button" aria-label="Mostrar senha" aria-pressed="false"><span class="eye-icon" aria-hidden="true">◉</span></button></div>
+    <div id="passwordStrength" class="password-strength hidden"><div class="strength-track"><span id="strengthBar"></span></div><span id="strengthText">Senha</span></div>
+    <div id="confirmPasswordWrap" class="hidden"><label for="confirmPassword">🔐 Confirmar senha</label><div class="password-wrap"><input id="confirmPassword" type="password" maxlength="64" autocomplete="new-password" placeholder="Digite a senha novamente"><button id="toggleConfirmPassword" class="icon-btn password-toggle" type="button" aria-label="Mostrar confirmação da senha" aria-pressed="false"><span class="eye-icon" aria-hidden="true">◉</span></button></div></div>
+    <button id="loginBtn" class="primary-btn" type="button">🚀 Entrar</button><div id="loginStatus" class="status" role="status" aria-live="polite"></div>
+    <small class="auth-note">🔒 Sua senha é protegida no servidor.</small>
+  </div>
+</section>
+<section id="callMenu" class="screen hidden">
+  <div class="call-menu-card">
+    <div class="brand-icon">📞</div>
+    <h1>Olá, <span id="welcomeName">usuário</span>! 👋</h1>
+    <p class="muted">Crie uma chamada ou entre em uma existente.</p>
+    <div class="profile-code"><span>Seu código de usuário</span><b id="myCode">CL-000000</b><button id="copyUserCode" type="button">📋 Copiar</button></div>
+    <div class="friend-add-row"><input id="friendCodeInput" maxlength="20" placeholder="Código do amigo (ex.: CL-A1B2C3)"><button id="addFriendBtn" class="secondary-btn" type="button">📨 Convidar</button></div>
+    <div id="friendStatus" class="status"></div><small class="friend-help">Digite o código de alguém para enviar um convite de amizade.</small>
+    <div class="friends-box"><div class="friends-title"><b>👥 Amigos</b><button id="refreshFriends" type="button">↻</button></div><div class="friends-toolbar"><input id="friendsSearch" class="friends-search" placeholder="🔎 Procurar amigo por nome ou código" autocomplete="off"></div><div id="friendsList" class="friends-list"></div></div>
+
+    <button id="createCallBtn" class="primary-btn big-btn">📞 Criar nova call</button>
+    <div class="call-actions-divider">ou</div>
+    <button id="joinCallBtn" class="secondary-btn big-btn">🔗 Entrar em uma call</button>
+
+    <div id="joinBox" class="join-box hidden">
+      <label>🔑 Código da call</label>
+      <input id="roomCodeInput" maxlength="32" placeholder="Ex.: ABC123">
+      <button id="confirmJoinBtn" class="primary-btn">🎧 Entrar na call</button>
+    </div>
+
+    <div class="quick-emojis">😀 😎 🎮 🎤 🎥 🔥 ❤️ 🚀 👍 😂 🥳 👀 ✨</div>
+    <div id="menuStatus" class="status"></div><button id="logoutBtn" class="logout-btn" type="button">Sair da conta</button>
+  </div>
+</section>
+
+<div id="app" class="hidden">
+<aside class="side">
+  <div class="brand"><span class="mini">CL</span><b>Conversa Live</b></div>
+  <div class="label">SALA</div><div class="room" id="roomName"># geral</div>
+  <div class="status" id="status">Desconectado</div>
+  <div class="side-tools"><span class="side-code">ID: <b id="sideCode">CL-000000</b></span><button id="friendsBtn" class="icon-header" type="button" title="Amigos">👥</button><button id="socialBtn" class="icon-header" type="button" title="Social">🌎</button><button id="themeToggle" class="icon-header" type="button" title="Alternar tema" aria-label="Alternar tema">☀️</button><button id="invite" class="secondary">🔗 Copiar convite</button></div>
+  <button id="leaveChat" class="leave-chat-btn" type="button" title="Sair do chat e voltar ao menu">🚪 Sair do chat</button>
+  <div class="label">PARTICIPANTES</div><div id="people"></div>
+  <div class="me"><span id="avatar">?</span><div><b id="me">Você</b><small>Online</small></div></div>
+</aside>
+<div id="friendsPanel" class="friends-panel hidden"><div class="friends-panel-head"><b>👥 Amigos</b><button id="friendsClose" type="button">×</button></div><div class="friend-add-row"><input id="friendCodeApp" maxlength="20" placeholder="Código CL-XXXXXX"><button id="addFriendApp" class="secondary-btn" type="button" title="Enviar convite">📨</button></div><div id="friendAppStatus" class="status"></div><div class="friends-toolbar"><input id="friendsSearchApp" class="friends-search" placeholder="🔎 Procurar amigo..." autocomplete="off"></div><div id="friendsAppList" class="friends-list"></div></div>
+<main class="main">
+<header><div><b># <span id="headRoom">geral</span></b><small>Conversa em tempo real</small></div>
+<div class="header-actions"><div id="connectionMeter" class="connection-meter"><div class="connection-bars"><i></i><i></i><i></i><i></i><i></i></div><span id="connectionText">Conectando...</span></div><button id="callOpen">🎥 Call</button></div></header>
+<section id="messages" class="messages"><div class="empty-chat" id="emptyChat"><div>💬</div><b>Comece a conversa</b><span>Envie uma mensagem para a sala.</span></div></section>
+<div id="emojiPicker" class="emoji-picker hidden" aria-label="Seletor de emojis">
+  <div class="emoji-picker-head">
+    <b>Emojis</b>
+    <button type="button" id="emojiClose" class="emoji-close">×</button>
+  </div>
+  <input id="emojiSearch" class="emoji-search" placeholder="Pesquisar emoji..." autocomplete="off">
+  <div class="emoji-tabs" id="emojiTabs"></div>
+  <div class="emoji-grid" id="emojiGrid"></div>
+</div>
+<div id="typingStatus" class="typing-status" aria-live="polite"></div>
+<form id="form" class="composer"><button type="button" id="emoji" class="tool" title="Emojis" aria-label="Abrir emojis">☺</button><input id="msg" maxlength="1000" autocomplete="off" placeholder="Escreva uma mensagem..." aria-label="Mensagem"><span id="msgCount" class="msg-count">0/1000</span><button type="submit" class="send" title="Enviar" aria-label="Enviar mensagem">➤</button></form>
+</main>
+
+<section id="call" class="call hidden">
+ <div class="callHead">
+   <div class="call-head-title"><span class="call-live-dot"></span><div><b>Chamada ao vivo</b><small id="callRoomLabel"># geral</small></div></div>
+   <div class="call-head-actions">
+     <span class="mobile-call-position" id="mobileCallPosition">1/3 • Call</span>
+     <button id="callParticipantsBtn" class="call-head-btn" type="button" title="Participantes">👥 <span id="callParticipantCount">0</span></button>
+     <button id="callChatBtn" class="call-head-btn" type="button" title="Chat da call">💬</button>
+     <button id="callSettingsBtn" class="call-head-btn" type="button" title="Configurações">⚙️</button>
+     <button id="callClose" class="call-head-btn close-call" type="button" aria-label="Fechar">×</button>
+   </div>
+ </div>
+ <div class="mobile-swipe-hint" id="mobileSwipeHint">Deslize ← para o chat • deslize novamente para Social</div>
+ <div class="call-stage">
+   <div id="callStageBadge" class="call-stage-badge">● AO VIVO <span id="callQualityText">Conectando...</span></div>
+   <div id="screenShareBanner" class="screen-share-banner hidden">🖥️ <span>Tela compartilhada</span><button id="focusStageBtn" type="button">Focar</button></div>
+   <div id="videos" class="videos"></div>
+   <div id="callEmptyState" class="call-empty-state"><div class="call-empty-icon">🎥</div><b>Aguardando participantes</b><span>Quando alguém entrar, o vídeo aparecerá aqui.</span></div>
+ </div>
+ <div id="callSidePanel" class="call-side-panel hidden">
+   <div class="call-panel-head"><b id="callPanelTitle">Participantes</b><button id="callPanelClose" class="icon-btn" type="button">×</button></div>
+   <div id="callPanelContent" class="call-panel-content"></div>
+ </div>
+ <div id="musicBot" class="music-bot idle"><div class="music-icon">🎵</div><div class="music-info"><b class="music-title">Nenhuma música tocando</b><small class="music-meta">Use /m nome da música no chat</small><div class="music-progress"><div class="music-progress-fill"></div></div></div><span class="music-queue-count"></span><button id="musicSkip" class="music-skip" type="button" disabled title="Próxima">⏭</button><button id="musicStop" class="music-stop" type="button" disabled title="Parar e limpar fila">⏹</button></div>
+ <div class="call-controls-wrap">
+   <div class="call-controls-top"><span id="callStatus" class="callStatus" aria-live="polite">Pronto.</span><span id="callStatsMini">-- ms • -- fps</span></div>
+   <div class="controls">
+    <button id="mic" title="Microfone"><span class="control-icon">🎙️</span><span>Microfone</span></button>
+    <button id="cam" title="Câmera"><span class="control-icon">📷</span><span>Câmera</span></button>
+    <button id="screen" title="Compartilhar tela"><span class="control-icon">🖥️</span><span>Tela</span></button>
+    <button id="audioUnlock" class="audio-global hidden" title="Ativar áudio"><span class="control-icon">🔊</span><span>Áudio</span></button>
+    <button id="callMusicBtn" title="Música"><span class="control-icon">🎵</span><span>Música</span></button>
+    <button id="callChatBtnBottom" title="Chat"><span class="control-icon">💬</span><span>Chat</span></button>
+    <button id="callParticipantsBtnBottom" title="Participantes"><span class="control-icon">👥</span><span>Pessoas</span></button>
+    <button id="hang" class="danger" title="Sair da chamada"><span class="control-icon">☎</span><span>Sair</span></button>
+   </div>
+ </div>
+ <div id="callMusicPanel" class="call-float-panel hidden">
+   <div><b>🎵 Música da call</b><button id="callMusicClose" class="icon-btn" type="button">×</button></div>
+   <p>Digite uma busca e adicione uma faixa à fila.</p>
+   <div class="call-music-search"><input id="callMusicSearch" placeholder="Ex.: música, artista..." autocomplete="off"><button id="callMusicSearchBtn" type="button">Buscar</button></div>
+   <div id="callMusicResults"></div>
+ </div>
+ <div id="callSettingsPanel" class="call-float-panel hidden">
+   <div><b>⚙️ Qualidade da call</b><button id="callSettingsClose" class="icon-btn" type="button">×</button></div>
+   <label class="call-setting-row"><span>Qualidade automática</span><input id="autoQualityToggle" type="checkbox" checked></label>
+   <label class="call-setting-row"><span>Reduzir animações</span><input id="reduceCallMotion" type="checkbox"></label>
+   <div class="call-stats-grid"><span>Ping <b id="callPingValue">--</b></span><span>FPS <b id="callFpsValue">--</b></span><span>Vídeo <b id="callResValue">--</b></span><span>Perda <b id="callLossValue">--</b></span></div>
+ </div>
+</section>
+<div id="mobileNav" class="mobile-nav hidden" aria-label="Navegação mobile durante a call">
+  <button type="button" data-mobile-view="0" class="active"><span>🎥</span><small>Call</small></button>
+  <button type="button" data-mobile-view="1"><span>💬</span><small>Chat</small></button>
+  <button type="button" data-mobile-view="2"><span>👥</span><small>Social</small></button>
+</div>
+</div>
+
+<div id="socialPanel" class="modal hidden" role="dialog" aria-modal="true">
+ <div class="modal-card social-card">
+  <div class="social-head"><div><b>🌎 Social</b><small>Seu espaço no FreeChat</small></div><button id="socialClose" class="icon-btn" type="button" aria-label="Fechar">×</button></div>
+  <div class="social-tabs"><button class="social-tab active" data-social-tab="feed">📰 Feed</button><button class="social-tab" data-social-tab="friends">👥 Amigos</button><button class="social-tab" data-social-tab="notifications">🔔 Avisos <span id="notificationBadge" class="mini-badge hidden">0</span></button><button class="social-tab" data-social-tab="profile">👤 Perfil</button></div>
+  <section id="socialFeed" class="social-section">
+   <form id="postForm" class="post-composer">
+  <textarea id="postBody" maxlength="1000" rows="3" placeholder="O que você quer compartilhar?"></textarea>
+  <input id="postMedia" type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime" hidden>
+  <div id="postMediaPreview" class="post-media-preview hidden"></div>
+  <div class="post-compose-foot"><div class="post-compose-tools"><small id="postCount">0/1000</small><button id="postMediaBtn" class="secondary-btn small-btn" type="button">📷 Foto/vídeo</button></div><button class="primary-btn" type="submit">Publicar</button></div>
+</form>
+   <div id="feedList" class="feed-list"></div>
+  </section>
+  <section id="socialFriends" class="social-section hidden"><div class="social-section-title"><b>👥 Seus amigos</b><button id="socialRefreshFriends" class="icon-btn" type="button">↻</button></div><div class="friends-toolbar"><input id="socialFriendsSearch" class="friends-search" placeholder="🔎 Procurar amigo..." autocomplete="off"></div><div id="socialFriendsList" class="friends-list"></div></section>
+  <section id="socialNotifications" class="social-section hidden"><div class="social-section-title"><b>🔔 Notificações</b><button id="markNotificationsRead" class="secondary-btn small-btn" type="button">Marcar como lidas</button></div><div id="notificationList" class="notification-list"></div></section>
+  <section id="socialProfile" class="social-section hidden"><div class="profile-hero"><div id="profileAvatar" class="profile-avatar">?</div><div><h2 id="profileName">Usuário</h2><p id="profileCode">CL-000000</p></div></div><label>Nome de usuário</label><input id="profileNameInput" maxlength="24" placeholder="Seu nome"><button id="saveProfileBtn" class="primary-btn" type="button">Salvar perfil</button><div id="profileStatus" class="status"></div><div class="profile-tip">Seu código é seu identificador para adicionar amigos.</div></section>
+ </div>
+</div>
+
+<script src="config.js?v=2.5.0"></script><script src="app.js?v=2.5.0"></script>
+<div id="messagesPanel" class="modal hidden" role="dialog" aria-modal="true">
+<div class="modal-card messages-card">
+<div class="messages-head"><button id="messagesBack" class="icon-btn" aria-label="Voltar">‹</button><div class="messages-person"><div id="messagesFriendAvatar" class="dm-avatar">?</div><div><strong id="messagesFriendName">Selecione um amigo</strong><small id="messagesFriendState">Conversa privada</small></div></div><button id="messagesClose" class="icon-btn" aria-label="Fechar">×</button></div>
+<div class="messages-toolbar"><input id="messagesSearch" class="friends-search" placeholder="🔎 Buscar mensagens" autocomplete="off"></div><div id="messagesList" class="messages-list"><div class="muted">Escolha um amigo para começar.</div></div>
+<form id="messageForm" class="message-form">
+  <button id="messageAttach" class="dm-tool" type="button" title="Foto ou vídeo">＋</button>
+  <input id="messageFile" type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime" hidden>
+  <input id="messageInput" maxlength="4000" autocomplete="off" placeholder="Escreva uma mensagem...">
+  <button class="dm-send" type="submit" aria-label="Enviar">➤</button>
+  <div id="messageFileInfo" class="dm-file-preview hidden"></div>
+</form>
+<div id="messageStatus" class="status"></div>
+</div></div></body></html>
