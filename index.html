@@ -4,14 +4,14 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#0a1020"><meta name="color-scheme" content="dark light">
 <meta name="description" content="FreeChat — chat, chamadas, música e compartilhamento de tela.">
-<title>FreeChat v3.2.8</title>
+<title>FreeChat v3.2.9</title>
 <link rel="manifest" href="manifest.json"><link rel="icon" type="image/svg+xml" href="icon.svg">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <section id="login" class="screen">
   <div class="auth-card">
-    <div class="brand-icon brand-logo-icon"><img src="icon.svg" alt="FreeChat" width="46" height="46"></div><div class="auth-brand">FREECHAT <span>v3.2.8</span></div><h1>FreeChat</h1>
+    <div class="brand-icon brand-logo-icon"><img src="icon.svg" alt="FreeChat" width="46" height="46"></div><div class="auth-brand">FREECHAT <span>v3.2.9</span></div><h1>FreeChat</h1>
     <p id="authSubtitle" class="muted">Entre na sua conta para continuar</p>
     <div class="auth-tabs"><button id="loginTab" class="auth-tab active" type="button">Entrar</button><button id="registerTab" class="auth-tab" type="button">Criar conta</button></div>
     <div id="registerFields" class="hidden"><label for="name">👤 Nome de usuário</label><input id="name" maxlength="24" autocomplete="name" placeholder="Como quer ser chamado?"></div>
@@ -25,26 +25,44 @@
 </section>
 <section id="callMenu" class="screen hidden">
   <div class="call-menu-card menu-main-card">
-    <div class="brand-icon brand-logo-icon"><img src="icon.svg" alt="FreeChat" width="46" height="46"></div>
-    <h1>Olá, <span id="welcomeName">usuário</span>! 👋</h1>
-    <p class="muted">Crie uma chamada ou entre em uma existente.</p>
-    <div class="profile-code"><span>Seu código de usuário</span><b id="myCode">CL-000000</b><button id="copyUserCode" type="button">📋 Copiar</button></div>
-    <div class="friend-add-row"><input id="friendCodeInput" maxlength="20" placeholder="Código do amigo (ex.: CL-A1B2C3)"><button id="addFriendBtn" class="secondary-btn" type="button">📨 Convidar</button></div>
-    <div id="friendStatus" class="status"></div><small class="friend-help">Digite o código de alguém para enviar um convite de amizade.</small>
-    <div class="friends-box"><div class="friends-title"><b>👥 Amigos</b><button id="refreshFriends" type="button">↻</button></div><div class="friends-toolbar"><input id="friendsSearch" class="friends-search" placeholder="🔎 Procurar amigo por nome ou código" autocomplete="off"></div><div id="friendsList" class="friends-list"></div></div>
-
-    <button id="createCallBtn" class="primary-btn big-btn">📞 Criar nova call</button>
-    <div class="call-actions-divider">ou</div>
-    <button id="joinCallBtn" class="secondary-btn big-btn">🔗 Entrar em uma call</button>
-
-    <div id="joinBox" class="join-box hidden">
-      <label>🔑 Código da call</label>
-      <input id="roomCodeInput" maxlength="32" placeholder="Ex.: ABC123">
-      <button id="confirmJoinBtn" class="primary-btn">🎧 Entrar na call</button>
+    <div class="menu-header">
+      <div class="brand-icon brand-logo-icon"><img src="icon.svg" alt="FreeChat" width="46" height="46"></div>
+      <div>
+        <h1>Olá, <span id="welcomeName">usuário</span>! 👋</h1>
+        <p class="muted">Crie uma chamada ou entre em uma existente.</p>
+      </div>
+      <div class="profile-code menu-header-code"><span>Seu código</span><b id="myCode">CL-000000</b><button id="copyUserCode" type="button">📋 Copiar</button></div>
+      <button id="feedBtnMenu" class="feed-main-btn feed-main-btn-menu" type="button" title="Abrir Feed">📰 <span>Feed</span></button>
     </div>
 
-    <div class="quick-emojis">😀 😎 🎮 🎤 🎥 🔥 ❤️ 🚀 👍 😂 🥳 👀 ✨</div>
-    <div id="menuStatus" class="status"></div><button id="logoutBtn" class="logout-btn" type="button">Sair da conta</button>
+    <div class="menu-grid">
+      <div class="menu-col menu-col-actions">
+        <div class="menu-section-title">📞 Chamada</div>
+        <button id="createCallBtn" class="primary-btn big-btn">📞 Criar nova call</button>
+        <div class="call-actions-divider">ou</div>
+        <button id="joinCallBtn" class="secondary-btn big-btn">🔗 Entrar em uma call</button>
+        <div id="joinBox" class="join-box hidden">
+          <label>🔑 Código da call</label>
+          <input id="roomCodeInput" maxlength="32" placeholder="Ex.: ABC123">
+          <button id="confirmJoinBtn" class="primary-btn">🎧 Entrar na call</button>
+        </div>
+        <div id="menuStatus" class="status"></div>
+
+        <div class="menu-section-title menu-section-title-spaced">➕ Adicionar amigo</div>
+        <div class="friend-add-row"><input id="friendCodeInput" maxlength="20" placeholder="Código do amigo (ex.: CL-A1B2C3)"><button id="addFriendBtn" class="secondary-btn" type="button">📨 Convidar</button></div>
+        <div id="friendStatus" class="status"></div><small class="friend-help">Digite o código de alguém para enviar um convite de amizade.</small>
+      </div>
+
+      <div class="menu-col menu-col-friends">
+        <div class="friends-box">
+          <div class="friends-title"><b>👥 Amigos</b><button id="refreshFriends" type="button" title="Atualizar">↻</button></div>
+          <div class="friends-toolbar"><input id="friendsSearch" class="friends-search" placeholder="🔎 Procurar amigo por nome ou código" autocomplete="off"></div>
+          <div id="friendsList" class="friends-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <button id="logoutBtn" class="logout-btn" type="button">Sair da conta</button>
   </div>
 </section>
 
@@ -173,7 +191,7 @@
  <header class="feed-topbar">
   <button id="feedBack" class="icon-btn" type="button" aria-label="Voltar">‹</button>
   <b class="feed-topbar-title">FreeChat</b>
-  <button id="feedNewPostBtn" class="icon-btn" type="button" aria-label="Nova publicação" title="Nova publicação">➕</button>
+  <div class="feed-topbar-actions"><button id="feedRefreshBtn" class="icon-btn" type="button" aria-label="Atualizar" title="Atualizar">↻</button><button id="feedNewPostBtn" class="icon-btn" type="button" aria-label="Nova publicação" title="Nova publicação">➕</button></div>
  </header>
  <div class="feed-scroll">
   <div id="feedList" class="feed-ig-list"></div>
@@ -206,5 +224,5 @@
 </form>
 <div id="messageStatus" class="status"></div>
 </div></div>
-<script src="config.js?v=3.2.5"></script><script src="app.js?v=3.2.5"></script>
+<script src="config.js?v=3.2.9"></script><script src="app.js?v=3.2.9"></script>
 </body></html>

@@ -1095,8 +1095,20 @@ function updateCallQualityUI(q){
  $("callQualityText")?.replaceChildren(document.createTextNode(quality));
  const qel=$("callQualityText");if(qel)qel.className=quality==="Instável"?"quality-bad":quality==="Boa"?"quality-good":"quality-best";
 }
+function watchdogRemoteAudio(){
+  remoteAudioEls.forEach((audio,id)=>{
+    if(!audio.paused)return;
+    const p=audio.play();
+    if(p?.catch)p.catch(()=>{
+      const tile=document.querySelector(`[data-id="${CSS.escape(id)}"]`);
+      if(tile)showAudioButton(tile,audio);
+      $("audioUnlock")?.classList.remove("hidden");
+    });
+  });
+}
 async function collectCallStats(){
  if(!inCall)return;
+ watchdogRemoteAudio();
  if(!peers?.size){
    $("callStatsMini")?.replaceChildren(document.createTextNode("-- ms • -- fps"));
    const qel=$("callQualityText");
@@ -1153,26 +1165,32 @@ if(!window[oldChatHandlerMarker]){
 /* FreeChat 2.5.1 — Social, notificações e PWA */
 let socialLoaded=false;
 function openSocial(tab="friends"){const panel=$("socialPanel");if(!panel)return;panel.classList.remove("hidden");switchSocialTab(tab);if(tab==="friends")window.renderFriends?.();if(tab==="notifications")loadNotifications();if(tab==="profile")loadProfile();}
+let feedReturnScreen="callMenu";
 function openFeed(){
+  feedReturnScreen = ($("app") && !$("app").classList.contains("hidden")) ? "app" : "callMenu";
   $("login")?.classList.add("hidden");$("callMenu")?.classList.add("hidden");$("app")?.classList.add("hidden");
   $("feedScreen")?.classList.remove("hidden");
   loadFeed();
 }
 function closeFeed(){
   $("feedScreen")?.classList.add("hidden");
-  if(window.CONVERSA_TOKEN)$("app")?.classList.remove("hidden");else $("callMenu")?.classList.remove("hidden");
+  $(feedReturnScreen)?.classList.remove("hidden");
 }
 function closeSocialPanel(){$("socialPanel")?.classList.add("hidden");}
 function switchSocialTab(tab){document.querySelectorAll(".social-tab").forEach(b=>b.classList.toggle("active",b.dataset.socialTab===tab));["friends","notifications","profile"].forEach(x=>$("social"+x.charAt(0).toUpperCase()+x.slice(1))?.classList.toggle("hidden",x!==tab));}
-function openPostComposer(){$("postComposerModal")?.classList.remove("hidden");setTimeout(()=>$("postBody")?.focus(),80);}
-function closePostComposer(){$("postComposerModal")?.classList.add("hidden");}
+function openPostComposer(){$("postComposerModal")?.classList.remove("hidden");document.body.classList.add("modal-open");setTimeout(()=>$("postBody")?.focus(),80);}
+function closePostComposer(){$("postComposerModal")?.classList.add("hidden");document.body.classList.remove("modal-open");}
 let feedDoubleTapTimer=null;
+const feedLikeLock=new Set();
 async function toggleLike(id,fromCard){
+  if(feedLikeLock.has(String(id)))return; // já tem uma chamada em andamento pra esse post
+  feedLikeLock.add(String(id));
   try{
     const d=await api("/api/feed/"+id+"/like",{method:"POST"});
-    document.querySelectorAll(`[data-like="${id}"]`).forEach(b=>{b.classList.toggle("liked",d.liked);const s=b.querySelector("span");if(s)s.textContent=d.likes;});
+    document.querySelectorAll(`[data-like="${id}"]`).forEach(b=>{b.classList.toggle("liked",d.liked);const s=b.querySelector("span");if(s)s.textContent=d.likes;const icon=b.firstChild;if(icon&&icon.nodeType===3)icon.textContent=d.liked?"❤️ ":"🤍 ";});
     if(d.liked && fromCard)burstHeart(fromCard);
   }catch(e){appToast(e.message,"error")}
+  finally{feedLikeLock.delete(String(id));}
 }
 function burstHeart(card){
   const media=card.querySelector(".post-media");if(!media)return;
@@ -1181,8 +1199,10 @@ function burstHeart(card){
   media.appendChild(heart);
   setTimeout(()=>heart.remove(),900);
 }
-async function loadFeed(){try{
- const d=await api("/api/feed");const list=$("feedList");if(!list)return;
+async function loadFeed(showSpinner=true){try{
+ const list=$("feedList");if(!list)return;
+ if(showSpinner && !list.children.length)list.innerHTML='<div class="feed-loading"><span class="feed-spinner"></span>Carregando publicações...</div>';
+ const d=await api("/api/feed");
  if(!d.posts?.length){list.innerHTML='<div class="social-empty">📰<b>Seu feed está vazio</b><span>Publique texto, fotos ou vídeos de até 1 minuto.</span></div>';return}
  list.innerHTML=d.posts.map(p=>{
    const safe=messageEscape(p.body||"");const initial=messageEscape((p.name||"?").trim().charAt(0).toUpperCase());
@@ -1203,7 +1223,12 @@ async function loadFeed(){try{
    let lastTap=0;
    media.addEventListener("touchend",()=>{const now=Date.now();if(now-lastTap<320){if(btn && !btn.classList.contains("liked"))toggleLike(btn.dataset.like,card);else if(btn)burstHeart(card);}lastTap=now;});
  });
-}catch(e){appToast(e.message,"error")}}
+}catch(e){
+  appToast(e.message,"error");
+  const list=$("feedList");
+  if(list && !list.children.length)list.innerHTML=`<div class="social-empty">📡<b>Não foi possível carregar o feed</b><span>${messageEscape(e.message||"Verifique sua conexão.")}</span><button id="feedRetryBtn" class="secondary-btn small-btn" type="button">↻ Tentar de novo</button></div>`;
+  $("feedRetryBtn")?.addEventListener("click",()=>loadFeed());
+}}
 async function loadNotifications(){try{const d=await api("/api/notifications");const list=$("notificationList"),badge=$("notificationBadge");if(badge){badge.textContent=d.unread||0;badge.classList.toggle("hidden",!d.unread)}if(!list)return;if(!d.notifications?.length){list.innerHTML='<div class="social-empty">🔔<b>Nenhuma notificação</b><span>Quando algo acontecer, aparecerá aqui.</span></div>';return}list.innerHTML=d.notifications.map(n=>`<div class="notification-item ${n.read_at?"":"unread"}"><span class="notification-icon">${n.type==="message"?"💬":n.type==="friend"?"👥":"✨"}</span><div><b>${messageEscape(n.title)}</b><p>${messageEscape(n.body||"")}</p><small>${new Date(n.created_at).toLocaleString([],{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}</small></div></div>`).join("")}catch(e){}}
 async function loadProfile(){try{const d=await api("/api/me");const u=d.user||{};window.CONVERSA_USER={...window.CONVERSA_USER,...u};$('profileName').textContent=u.name||"Usuário";$('profileCode').textContent=u.code||"";$('profileNameInput').value=u.name||"";window.applyAvatar?.($('profileAvatar'),u.avatarUrl,u.name);$('removeAvatarBtn')?.classList.toggle("hidden",!u.avatarUrl);window.applyAvatar?.($('avatar'),u.avatarUrl,u.name);}catch(e){}}
 async function saveProfile(){const input=$("profileNameInput"),name=input?.value.trim();if(!name)return;try{const d=await api("/api/me",{method:"PATCH",body:JSON.stringify({name})});window.CONVERSA_USER={...window.CONVERSA_USER,...d.user};localStorage.setItem("conversaLiveUser",JSON.stringify(window.CONVERSA_USER));$("welcomeName").textContent=d.user.name;$("sideWelcomeName").textContent=d.user.name;$("me").textContent=d.user.name;appToast("Perfil atualizado!","success");loadProfile();renderFriends();}catch(e){$("profileStatus").textContent=e.message||"Erro ao salvar."}}
@@ -1244,7 +1269,7 @@ $("removeAvatarBtn")?.addEventListener("click",async()=>{
   renderFriends();
  }catch(e){appToast(e.message||"Não foi possível remover a foto.","error")}
 });
-$("socialBtn")?.addEventListener("click",()=>openSocial("friends"));$("feedBtn")?.addEventListener("click",openFeed);$("feedBack")?.addEventListener("click",closeFeed);$("feedFab")?.addEventListener("click",openPostComposer);$("feedNewPostBtn")?.addEventListener("click",openPostComposer);$("postComposerClose")?.addEventListener("click",closePostComposer);$("socialClose")?.addEventListener("click",closeSocialPanel);$("saveProfileBtn")?.addEventListener("click",saveProfile);$("socialRefreshFriends")?.addEventListener("click",()=>renderFriends());$("socialFriendsSearch")?.addEventListener("input",e=>{window.friendSearchTerm=e.target.value;renderFriends()});$("postBody")?.addEventListener("input",e=>$("postCount").textContent=e.target.value.length+"/1000");document.querySelectorAll(".social-tab").forEach(b=>b.addEventListener("click",()=>{switchSocialTab(b.dataset.socialTab);const t=b.dataset.socialTab;if(t==="friends")renderFriends();if(t==="notifications")loadNotifications();if(t==="profile")loadProfile()}));$("postForm")?.addEventListener("submit",async e=>{
+$("socialBtn")?.addEventListener("click",()=>openSocial("friends"));$("feedBtn")?.addEventListener("click",openFeed);$("feedBtnMenu")?.addEventListener("click",openFeed);$("feedRefreshBtn")?.addEventListener("click",()=>loadFeed());$("feedBack")?.addEventListener("click",closeFeed);$("feedFab")?.addEventListener("click",openPostComposer);$("feedNewPostBtn")?.addEventListener("click",openPostComposer);$("postComposerClose")?.addEventListener("click",closePostComposer);$("socialClose")?.addEventListener("click",closeSocialPanel);$("saveProfileBtn")?.addEventListener("click",saveProfile);$("socialRefreshFriends")?.addEventListener("click",()=>renderFriends());$("socialFriendsSearch")?.addEventListener("input",e=>{window.friendSearchTerm=e.target.value;renderFriends()});$("postBody")?.addEventListener("input",e=>$("postCount").textContent=e.target.value.length+"/1000");document.querySelectorAll(".social-tab").forEach(b=>b.addEventListener("click",()=>{switchSocialTab(b.dataset.socialTab);const t=b.dataset.socialTab;if(t==="friends")renderFriends();if(t==="notifications")loadNotifications();if(t==="profile")loadProfile()}));$("postForm")?.addEventListener("submit",async e=>{
  e.preventDefault();
  const body=$("postBody").value.trim(),file=$("postMedia")?.files?.[0];
  if(!body&&!file){appToast("Escreva algo ou escolha uma foto/vídeo.","error");return}
@@ -1339,6 +1364,7 @@ $("markNotificationsRead")?.addEventListener("click",async()=>{try{await api("/a
   joiningCall=false;
   if(isMobileLayout())setMobileView(0);
   setCallStatus(mediaWarning||"Conectando à chamada...");
+  if(callVolumeMuted)appToast("O som da call está mudo (ficou assim de uma call anterior). Toque no botão 🔇 pra ligar de novo.","warn");
 
   // O servidor decide quem é o criador. Mesmo que o cliente ainda não saiba
   // o host, call-start retorna o host atual. Isso evita eleger a própria pessoa
@@ -1773,7 +1799,8 @@ let screenAudioTrack=null,screenAudioSource=null,screenAudioCtx=null,screenMixDe
 function applyAudioTrackToPeers(track){
   if(!track)return;
   peers.forEach(pc=>{
-    const sender=pc.getSenders().find(x=>x.track?.kind==="audio");
+    const sender=pc.getTransceivers().find(t=>t.sender?.track?.kind==="audio"||(t.receiver?.track?.kind==="audio"&&t.sender))?.sender
+      || pc.getSenders().find(x=>x.track?.kind==="audio");
     if(sender)sender.replaceTrack(track).catch(()=>{});
   });
 }
@@ -1784,6 +1811,7 @@ async function setupScreenAudioMix(track){
       // Já existe uma mixagem rolando pra música — só soma o áudio da tela nela,
       // em vez de abrir um segundo grafo de áudio concorrente.
       screenAudioCtx=musicAudioContext;
+      if(screenAudioCtx.state==="suspended")await screenAudioCtx.resume().catch(()=>{});
       screenAudioSource=musicAudioContext.createMediaStreamSource(new MediaStream([track]));
       const g=musicAudioContext.createGain();g.gain.value=1;
       screenAudioSource.connect(g);g.connect(musicDestination);
@@ -1792,6 +1820,11 @@ async function setupScreenAudioMix(track){
       const Ctx=window.AudioContext||window.webkitAudioContext;
       if(!Ctx)return;
       screenAudioCtx=new Ctx();
+      // Sem isso, se o navegador criar o contexto suspenso (comum quando isso
+      // roda depois do usuário escolher a janela/tela no seletor nativo, um
+      // instante "fora" do clique original), a trilha de saída fica sem som —
+      // ela existe e chega no outro participante, mas carrega só silêncio.
+      if(screenAudioCtx.state==="suspended")await screenAudioCtx.resume().catch(()=>{});
       screenMixDestination=screenAudioCtx.createMediaStreamDestination();
       const micTrack=localStream?.getAudioTracks?.()[0];
       if(micTrack){
