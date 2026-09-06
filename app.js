@@ -97,15 +97,18 @@ document.addEventListener("pointerdown",unlockNotificationAudio,{passive:true});
 window.playFriendNotificationSound=playFriendNotificationSound;
 
 // Sons curtos e não repetitivos da call.
-let callSoundLast=0, callSoundNodes=[];
+let callSoundLast=0, callSoundNodes=[], callSoundSeen=new Set();
 function stopCallSound(){
   for(const n of callSoundNodes){try{n.osc.stop()}catch(e){} try{n.gain.disconnect()}catch(e){}}
   callSoundNodes=[];
 }
-function playCallSound(kind){
+function playCallSound(kind,onceKey=""){
   const nowMs=Date.now();
+  const key=String(onceKey||kind);
+  if(callSoundSeen.has(key))return;
   const cooldown={invite:1800,create:900,join:900,leave:900}[kind]||900;
   if(nowMs-callSoundLast<cooldown)return;
+  callSoundSeen.add(key);
   callSoundLast=nowMs;
   try{
     const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;
@@ -519,10 +522,12 @@ function startSocket(){
   });
 
   socket.on("call-created",({byId})=>{
-    if(inCall)window.playCallSound?.("create");
+    if(inCall)window.playCallSound?.("create",`create:${room}`);
   });
   socket.on("call-participant-joined",({id})=>{
-    if(inCall && id!==socket?.id)window.playCallSound?.("join");
+    // call-ready pode ser reenviado várias vezes (inclusive após reconexão).
+    // O som de entrada deve tocar somente uma vez por participante nesta call.
+    if(inCall && id!==socket?.id)window.playCallSound?.("join",`join:${room}:${id}`);
   });
 
   socket.on("music-state",async state=>{
@@ -550,7 +555,7 @@ function startSocket(){
     setTileCamOff(id,!on);
   });
   socket.on("call-participant-left",({id})=>{
-    if(id){closePeer(id); if(inCall)window.playCallSound?.("leave");}
+    if(id){closePeer(id); if(inCall)window.playCallSound?.("leave",`leave:${room}:${id}`);}
   });
 
   socket.on("call-ready-users",ids=>{
@@ -584,7 +589,7 @@ function startSocket(){
   });
 
   socket.on("call-invite",({room:invitedRoom,fromCode,fromName})=>{
-    window.playCallSound?.("invite");
+    window.playCallSound?.("invite",`invite:${invitedRoom}:${fromCode}`);
     showCallInvite(invitedRoom,fromCode,fromName);
   });
   socket.on("call-invite-declined",({byName})=>{
@@ -1715,7 +1720,9 @@ function leaveCall(ending){
   const wasHost=isHost();
   if(ending&&wasHost&&socket)socket.emit("call-end",{room});
   if(socket?.connected)socket.emit("call-leave",{room});
-  if(inCall)window.playCallSound?.("leave");
+  if(inCall)window.playCallSound?.("leave",`self-leave:${room}`);
+  // O próximo ciclo de call começa limpo, sem herdar eventos da call anterior.
+  callSoundSeen=new Set();
   inCall=false;callReady=false;joiningCall=false;
   peers.forEach(pc=>{try{pc.close();}catch(e){}});
   peers.clear();
