@@ -98,7 +98,7 @@
    <div class="call-panel-head"><b id="callPanelTitle">Participantes</b><button id="callPanelClose" class="icon-btn" type="button">×</button></div>
    <div id="callPanelContent" class="call-panel-content"></div>
  </div>
- <div id="musicBot" class="music-bot idle"><div class="music-icon">🎵</div><div class="music-info"><b class="music-title">Nenhuma música tocando</b><small class="music-meta">Use /m nome da música no chat</small><div class="music-progress"><div class="music-progress-fill"></div></div></div><span class="music-queue-count"></span><button id="musicSkip" class="music-skip" type="button" disabled title="Próxima">⏭</button><button id="musicStop" class="music-stop" type="button" disabled title="Parar e limpar fila">⏹</button></div>
+ <div id="musicBot" class="music-bot idle"><div class="music-icon">🎵</div><div class="music-info"><b class="music-title">Nenhuma música tocando</b><small class="music-meta">Abra 🎵 Música para buscar e controlar</small><div class="music-progress"><div class="music-progress-fill"></div></div></div><span class="music-queue-count"></span><button id="musicSkip" class="music-skip" type="button" disabled title="Próxima">⏭</button><button id="musicStop" class="music-stop" type="button" disabled title="Parar e limpar fila">⏹</button></div>
  <div class="call-controls-wrap">
    <div class="call-controls-top"><span id="callStatus" class="callStatus" aria-live="polite">Pronto.</span><span id="callStatsMini">-- ms • -- fps</span></div>
    <div class="controls">
@@ -135,7 +135,6 @@
    <div><b>⚙️ Áudio e transmissão</b><button id="callSettingsClose" class="icon-btn" type="button">×</button></div>
    <div class="settings-subtitle">Microfone</div>
    <label class="call-setting-field"><span>Entrada</span><select id="micDeviceSelect"><option value="">Microfone padrão</option></select></label>
-   <label class="call-setting-field"><span>Volume de entrada <b id="micInputVolumeValue">100%</b></span><input id="micInputVolume" type="range" min="0" max="150" value="100"></label>
    <label class="call-setting-row"><span>Cancelamento de eco</span><input id="echoCancellationToggle" type="checkbox" checked></label>
    <label class="call-setting-row"><span>Redução de ruído</span><input id="noiseSuppressionToggle" type="checkbox" checked></label>
    <label class="call-setting-row"><span>Ganho automático</span><input id="autoGainToggle" type="checkbox" checked></label>

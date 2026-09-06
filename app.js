@@ -653,8 +653,7 @@ $("invite").onclick=async()=>{
 };
 
 $("audioUnlock").onclick=async()=>{unlockAllAudio();await new Promise(r=>setTimeout(r,180));const blocked=[...remoteAudioEls.values()].some(v=>v.paused&&!v.muted);if(blocked){$("callSettingsPanel")?.classList.remove("hidden");setCallStatus("O navegador bloqueou o áudio. Verifique a saída de áudio nas configurações.","warn");}};
-$("musicStop")?.addEventListener("click",()=>{$("callMusicPanel")?.classList.remove("hidden");renderMusicPanel(musicState)});
-$("musicSkip")?.addEventListener("click",()=>{$("callMusicPanel")?.classList.remove("hidden");renderMusicPanel(musicState)});
+$("musicStop")?.addEventListener("click",()=>musicControl("music-stop"));$("musicSkip")?.addEventListener("click",()=>musicControl("music-next"));
 $("callOpen").onclick=openCall;
 $("callClose").onclick=()=>leaveCall(true);
 $("hang").onclick=()=>leaveCall(true);
@@ -754,13 +753,14 @@ function renderMusicPanel(state){
  if(time)time.textContent=formatMusicTime(pos)+" / "+(dur?formatMusicTime(dur):"--:--");if(fill)fill.style.width=(dur?Math.min(100,pos/dur*100):0)+"%";
  const q=state.queue||[];if(count)count.textContent=q.length+(q.length===1?" faixa":" faixas");
  if(queue)queue.innerHTML=q.length?q.map((t,i)=>`<div class="music-queue-item"><span>${i+1}</span><div><b>${messageEscape(t.title||"Sem título")}</b><small>${messageEscape(t.artist||"Artista")}</small></div></div>`).join(""): '<div class="music-queue-empty">Nenhuma faixa na fila.</div>';
- if(hint)hint.textContent=musicHost?"Você controla a música desta call.":(state.hostId===socket?.id?"Você controla a música desta call.":"Som controlado pelo criador da call.");
- $("musicPause")?.toggleAttribute("disabled",!musicHost||!!state.paused);$("musicResume")?.toggleAttribute("disabled",!musicHost||!state.paused);$("musicSkipPanel")?.toggleAttribute("disabled",!musicHost);$("musicStopPanel")?.toggleAttribute("disabled",!musicHost);$("musicSharedVolume")?.toggleAttribute("disabled",!musicHost);
+ if(hint)hint.textContent=canControlMusic()?"Você controla a música desta call.":"Som controlado pelo criador da call.";
+ const canCtl=canControlMusic();
+ $("musicPause")?.toggleAttribute("disabled",!canCtl||!!state.paused);$("musicResume")?.toggleAttribute("disabled",!canCtl||!state.paused);$("musicSkipPanel")?.toggleAttribute("disabled",!canCtl);$("musicStopPanel")?.toggleAttribute("disabled",!canCtl);$("musicSharedVolume")?.toggleAttribute("disabled",!canCtl);
 }
 function updateMusicUI(state){
  const b=$("musicBot");if(!b)return;const t=b.querySelector(".music-title"),m=b.querySelector(".music-meta"),q=b.querySelector(".music-queue-count"),x=b.querySelector(".music-stop"),sk=b.querySelector(".music-skip"),fill=b.querySelector(".music-progress-fill");
  clearInterval(musicUiTickTimer);musicUiTickTimer=null;
- if(state?.track){b.classList.remove("idle");if(t)t.textContent="🎵 "+state.track.title;const dur=Number(state.track.duration||0),basePos=Number(state.position||0),syncAt=Date.now();const renderTick=()=>{const pos=state.paused?basePos:basePos+(Date.now()-syncAt)/1000;if(m)m.textContent=(state.paused?"⏸ pausada":"▶ tocando")+" • "+(state.track.artist||"Artista")+" • "+formatMusicTime(pos)+(dur?"/"+formatMusicTime(dur):"");if(fill)fill.style.width=(dur>0?Math.min(100,pos/dur*100):0)+"%";};renderTick();if(!state.paused)musicUiTickTimer=setInterval(renderTick,1000);if(q)q.textContent=(state.queue?.length||0)+" na fila";if(x)x.disabled=false;if(sk)sk.disabled=false;}else{b.classList.add("idle");if(t)t.textContent="Nenhuma música tocando";if(m)m.textContent="Abra 🎵 Música para buscar e controlar";if(q)q.textContent="";if(x)x.disabled=true;if(sk)sk.disabled=true;if(fill)fill.style.width="0%";}
+ if(state?.track){b.classList.remove("idle");if(t)t.textContent="🎵 "+state.track.title;const dur=Number(state.track.duration||0),basePos=Number(state.position||0),syncAt=Date.now();const renderTick=()=>{const pos=state.paused?basePos:basePos+(Date.now()-syncAt)/1000;if(m)m.textContent=(state.paused?"⏸ pausada":"▶ tocando")+" • "+(state.track.artist||"Artista")+" • "+formatMusicTime(pos)+(dur?"/"+formatMusicTime(dur):"");if(fill)fill.style.width=(dur>0?Math.min(100,pos/dur*100):0)+"%";};renderTick();if(!state.paused)musicUiTickTimer=setInterval(renderTick,1000);if(q)q.textContent=(state.queue?.length||0)+" na fila";const ctl=canControlMusic();if(x)x.disabled=!ctl;if(sk)sk.disabled=!ctl;}else{b.classList.add("idle");if(t)t.textContent="Nenhuma música tocando";if(m)m.textContent="Abra 🎵 Música para buscar e controlar";if(q)q.textContent="";if(x)x.disabled=true;if(sk)sk.disabled=true;if(fill)fill.style.width="0%";}
  renderMusicPanel(state);
 }
 
@@ -819,7 +819,6 @@ function handleMusicCommand(t){t=String(t||"").trim();if(!/^\/(m|skip|pause|resu
 let musicAudioContext=null,musicElement=null,musicSource=null,musicDestination=null,musicMicSource=null,musicLocalGainNode=null,musicTransmitGainNode=null,musicTrack=null,musicHost=false,musicVolume=.7,musicState=null,musicMediaToken="",localMusicVolume=Number(localStorage.getItem("freechatLocalMusicVolume")??70)/100,localMusicMuted=false;
 const callAudioSettings={
   micDevice:localStorage.getItem("freechatMicDevice")||"",
-  micVolume:Number(localStorage.getItem("freechatMicVolume")??100),
   echoCancellation:localStorage.getItem("freechatEchoCancellation")!=="0",
   noiseSuppression:localStorage.getItem("freechatNoiseSuppression")!=="0",
   autoGainControl:localStorage.getItem("freechatAutoGain")!=="0",
@@ -833,27 +832,52 @@ function renderLocalMusicVolume(){const v=Math.round(localMusicVolume*100);$("mu
 function updateMusicGains(){const local=(localMusicMuted?0:localMusicVolume)*musicVolume;if(musicLocalGainNode)musicLocalGainNode.gain.value=local;if(musicTransmitGainNode)musicTransmitGainNode.gain.value=musicVolume;renderLocalMusicVolume();}
 function setLocalMusicVolume(v){localMusicVolume=Math.max(0,Math.min(1,Number(v)/100));localStorage.setItem("freechatLocalMusicVolume",String(Math.round(localMusicVolume*100)));localMusicMuted=localMusicVolume===0;if(localMusicVolume>0)localMusicMuted=false;updateMusicGains();}
 function toggleLocalMusicMute(){localMusicMuted=!localMusicMuted;updateMusicGains();}
-function setSharedMusicVolume(v){const n=Math.max(0,Math.min(1,Number(v)/100));if(!musicHost){renderLocalMusicVolume();return;}musicControl("music-volume",{volume:n});musicVolume=n;updateMusicGains();}
+// Quem PODE controlar a música (pausar/pular/parar/volume geral) é o criador da
+// call — é essa a regra que o servidor aplica em musicController(). Isso é
+// diferente de musicHost, que indica apenas quem está com o áudio carregado no
+// próprio navegador e mixando na call. Confundir os dois deixava os botões
+// habilitados para quem o servidor ia recusar (e desabilitados para o criador).
+function canControlMusic(){return isHost();}
+function setSharedMusicVolume(v){const n=Math.max(0,Math.min(1,Number(v)/100));if(!canControlMusic()){renderLocalMusicVolume();return;}musicControl("music-volume",{volume:n});musicVolume=n;updateMusicGains();}
 function stopMusic(){if(socket?.connected&&musicHost)socket.emit("music-stop",{room});stopMusicLocal();}
-function saveCallAudioSettings(){localStorage.setItem("freechatMicDevice",callAudioSettings.micDevice);localStorage.setItem("freechatMicVolume",String(callAudioSettings.micVolume));localStorage.setItem("freechatEchoCancellation",callAudioSettings.echoCancellation?"1":"0");localStorage.setItem("freechatNoiseSuppression",callAudioSettings.noiseSuppression?"1":"0");localStorage.setItem("freechatAutoGain",callAudioSettings.autoGainControl?"1":"0");localStorage.setItem("freechatVideoQuality",callAudioSettings.videoQuality);localStorage.setItem("freechatAutoQuality",callAudioSettings.autoQuality?"1":"0");localStorage.setItem("freechatOutputDevice",callAudioSettings.outputDevice);}
-function micConstraints(){const a={echoCancellation:callAudioSettings.echoCancellation,noiseSuppression:callAudioSettings.noiseSuppression,autoGainControl:callAudioSettings.autoGainControl,channelCount:1,sampleRate:48000,volume:Math.max(0,Math.min(1.5,callAudioSettings.micVolume/100))};if(callAudioSettings.micDevice)a.deviceId={exact:callAudioSettings.micDevice};return a;}
+function saveCallAudioSettings(){localStorage.setItem("freechatMicDevice",callAudioSettings.micDevice);localStorage.setItem("freechatEchoCancellation",callAudioSettings.echoCancellation?"1":"0");localStorage.setItem("freechatNoiseSuppression",callAudioSettings.noiseSuppression?"1":"0");localStorage.setItem("freechatAutoGain",callAudioSettings.autoGainControl?"1":"0");localStorage.setItem("freechatVideoQuality",callAudioSettings.videoQuality);localStorage.setItem("freechatAutoQuality",callAudioSettings.autoQuality?"1":"0");localStorage.setItem("freechatOutputDevice",callAudioSettings.outputDevice);}
+function micConstraints(){const a={echoCancellation:callAudioSettings.echoCancellation,noiseSuppression:callAudioSettings.noiseSuppression,autoGainControl:callAudioSettings.autoGainControl,channelCount:1,sampleRate:48000};if(callAudioSettings.micDevice)a.deviceId={exact:callAudioSettings.micDevice};return a;}
 async function applyMicTrackSettings(track){if(!track)return;const c=micConstraints();try{await track.applyConstraints(c)}catch(e){const fallback={echoCancellation:c.echoCancellation,noiseSuppression:c.noiseSuppression,autoGainControl:c.autoGainControl};try{await track.applyConstraints(fallback)}catch(_){} } refreshMusicMicSource();startMicMeter();}
 async function replaceMicrophoneDevice(){if(!inCall||!navigator.mediaDevices?.getUserMedia)return;try{const stream=await withTimeout(navigator.mediaDevices.getUserMedia({audio:micConstraints(),video:false}),7000);const next=stream.getAudioTracks()[0];if(!next)throw Error("Microfone não encontrado.");const old=localStream?.getAudioTracks?.()[0];if(old)localStream.removeTrack(old);localStream?.addTrack(next);await applyMicTrackSettings(next);micOn=true;forcedMuted=false;updateMicButton();if(!musicTrack){peers.forEach(pc=>{const sender=pc.getSenders().find(x=>x.track?.kind==="audio");if(sender)sender.replaceTrack(next).catch(()=>{})});}else refreshMusicMicSource();if(old)try{old.stop()}catch(e){}appToast("Microfone alterado.","success");}catch(e){appToast(e.message||"Não foi possível trocar o microfone.","error");loadAudioDevices();}}
 async function loadAudioDevices(){if(!navigator.mediaDevices?.enumerateDevices)return;try{const devices=await navigator.mediaDevices.enumerateDevices();const mic=$("micDeviceSelect"),out=$("audioOutputSelect");if(mic){const current=callAudioSettings.micDevice;mic.innerHTML='<option value="">Microfone padrão</option>';devices.filter(d=>d.kind==="audioinput").forEach((d,i)=>{const o=document.createElement("option");o.value=d.deviceId;o.textContent=d.label||`Microfone ${i+1}`;mic.appendChild(o)});mic.value=current;if(mic.value!==current)callAudioSettings.micDevice="";}if(out){out.innerHTML='<option value="">Saída padrão</option>';devices.filter(d=>d.kind==="audiooutput").forEach((d,i)=>{const o=document.createElement("option");o.value=d.deviceId;o.textContent=d.label||`Saída ${i+1}`;out.appendChild(o)});out.value=callAudioSettings.outputDevice;}}catch(e){}}
 async function applyOutputDevice(){const id=callAudioSettings.outputDevice;if(!id)return;const els=[...remoteAudioEls.values(),musicElement].filter(Boolean);for(const el of els){try{if(typeof el.setSinkId==="function")await el.setSinkId(id)}catch(e){}}}
 async function applyTransmissionProfile(profile=callAudioSettings.videoQuality){const p=VIDEO_PROFILES[profile]||VIDEO_PROFILES.high;callAudioSettings.videoQuality=profile;saveCallAudioSettings();const track=screenTrack||localStream?.getVideoTracks?.()[0];if(track){try{await track.applyConstraints({width:{ideal:p.width,max:p.width},height:{ideal:p.height,max:p.height},frameRate:{ideal:p.fps,max:p.fps}})}catch(e){}}peers.forEach(pc=>{const sender=pc.getSenders().find(x=>x.track?.kind==="video");if(!sender)return;try{const params=sender.getParameters();params.encodings=params.encodings?.length?params.encodings:[{}];params.encodings[0].maxBitrate=p.bitrate;params.encodings[0].maxFramerate=p.fps;sender.setParameters(params).catch(()=>{});}catch(e){}});setCallStatus(`Transmissão: ${p.label} • ${p.width}×${p.height} • ${p.fps} FPS`,"ok");}
-function updateAudioSettingsUI(){const set=(id,v)=>{const e=$(id);if(e)e.value=v;};set("micDeviceSelect",callAudioSettings.micDevice);set("micInputVolume",callAudioSettings.micVolume);set("videoQualitySelect",callAudioSettings.videoQuality);set("audioOutputSelect",callAudioSettings.outputDevice);set("callOutputVolume",Math.round(callVolumeLevel*100));set("echoCancellationToggle",callAudioSettings.echoCancellation);set("noiseSuppressionToggle",callAudioSettings.noiseSuppression);set("autoGainToggle",callAudioSettings.autoGainControl);set("autoQualityToggle",callAudioSettings.autoQuality);const mv=$("micInputVolumeValue");if(mv)mv.textContent=Math.round(callAudioSettings.micVolume)+"%";const cv=$("callOutputVolumeValue");if(cv)cv.textContent=Math.round(callVolumeLevel*100)+"%";}
+function updateAudioSettingsUI(){const set=(id,v)=>{const e=$(id);if(e)e.value=v;};set("micDeviceSelect",callAudioSettings.micDevice);set("videoQualitySelect",callAudioSettings.videoQuality);set("audioOutputSelect",callAudioSettings.outputDevice);set("callOutputVolume",Math.round(callVolumeLevel*100));set("echoCancellationToggle",callAudioSettings.echoCancellation);set("noiseSuppressionToggle",callAudioSettings.noiseSuppression);set("autoGainToggle",callAudioSettings.autoGainControl);set("autoQualityToggle",callAudioSettings.autoQuality);const cv=$("callOutputVolumeValue");if(cv)cv.textContent=Math.round(callVolumeLevel*100)+"%";}
 async function testMicrophone(){if(micTestStream){stopMicrophoneTest();return;}try{micTestStream=await navigator.mediaDevices.getUserMedia({audio:micConstraints(),video:false});const Ctx=window.AudioContext||window.webkitAudioContext;if(!Ctx)throw Error("Web Audio indisponível.");micTestCtx=new Ctx();if(micTestCtx.state==="suspended")await micTestCtx.resume().catch(()=>{});const src=micTestCtx.createMediaStreamSource(micTestStream),an=micTestCtx.createAnalyser();an.fftSize=256;src.connect(an);micTestAnalyser=an;$("testMicBtn").textContent="⏹ Parar teste";const data=new Uint8Array(an.fftSize);micTestTimer=setInterval(()=>{if(!micTestAnalyser)return;an.getByteTimeDomainData(data);let sum=0;for(const x of data){const n=(x-128)/128;sum+=n*n}const rms=Math.min(1,Math.sqrt(sum/data.length)*4);const bar=$("micTestMeter")?.firstElementChild;if(bar)bar.style.width=Math.round(rms*100)+"%";},70);}catch(e){appToast(e.message||"Não foi possível testar o microfone.","error");stopMicrophoneTest();}}
 function stopMicrophoneTest(){if(micTestTimer)clearInterval(micTestTimer);micTestTimer=null;try{micTestStream?.getTracks?.().forEach(t=>t.stop())}catch(e){}micTestStream=null;try{micTestCtx?.close?.()}catch(e){}micTestCtx=null;micTestAnalyser=null;const bar=$("micTestMeter")?.firstElementChild;if(bar)bar.style.width="0%";const b=$("testMicBtn");if(b)b.textContent="🎙️ Testar microfone";}
 function initCallAudioSettings(){
  $("callSettingsPanel")?.addEventListener("change",async e=>{const id=e.target.id;if(id==="micDeviceSelect"){callAudioSettings.micDevice=e.target.value;saveCallAudioSettings();await replaceMicrophoneDevice();}else if(id==="echoCancellationToggle"){callAudioSettings.echoCancellation=e.target.checked;saveCallAudioSettings();await applyMicTrackSettings(localStream?.getAudioTracks?.()[0]);}else if(id==="noiseSuppressionToggle"){callAudioSettings.noiseSuppression=e.target.checked;saveCallAudioSettings();await applyMicTrackSettings(localStream?.getAudioTracks?.()[0]);}else if(id==="autoGainToggle"){callAudioSettings.autoGainControl=e.target.checked;saveCallAudioSettings();await applyMicTrackSettings(localStream?.getAudioTracks?.()[0]);}else if(id==="videoQualitySelect"){await applyTransmissionProfile(e.target.value);}else if(id==="autoQualityToggle"){callAudioSettings.autoQuality=e.target.checked;saveCallAudioSettings();}else if(id==="audioOutputSelect"){callAudioSettings.outputDevice=e.target.value;saveCallAudioSettings();await applyOutputDevice();}});
- $("micInputVolume")?.addEventListener("input",async e=>{callAudioSettings.micVolume=Number(e.target.value);const v=$("micInputVolumeValue");if(v)v.textContent=callAudioSettings.micVolume+"%";saveCallAudioSettings();await applyMicTrackSettings(localStream?.getAudioTracks?.()[0]);});
+ 
  $("callOutputVolume")?.addEventListener("input",e=>{callVolumeLevel=Math.max(0,Math.min(1,Number(e.target.value)/100));callVolumeMuted=callVolumeLevel===0;if(callVolumeLevel>0)callVolumeMuted=false;const v=$("callOutputVolumeValue");if(v)v.textContent=Math.round(callVolumeLevel*100)+"%";applyCallVolumeState();});
  $("refreshAudioDevices")?.addEventListener("click",async()=>{await loadAudioDevices();appToast("Dispositivos atualizados.","success")});
  $("testMicBtn")?.addEventListener("click",testMicrophone);
  updateAudioSettingsUI();loadAudioDevices();
 }
-function maybeAutoQuality(q){if(!callAudioSettings.autoQuality||!q)return;const bad=(q.loss??0)>8||(q.rtt??0)>280;const veryBad=(q.loss??0)>15||(q.rtt??0)>450;const order=["low","medium","high","ultra"];let cur=order.indexOf(callAudioSettings.videoQuality);if(cur<0)cur=2;let next=cur;if(veryBad)next=0;else if(bad)next=Math.max(0,cur-1);else if((q.loss??0)<1&&(q.rtt??0)<100&&cur<2)next=cur+1;if(next!==cur){applyTransmissionProfile(order[next]);}}
+let lastAutoQualityAt=0;
+function maybeAutoQuality(q){
+ if(!callAudioSettings.autoQuality||!q)return;
+ // Sem medição real ainda: null??0 daria "0ms / 0% de perda", ou seja, uma rede
+ // perfeita, e a qualidade subia sozinha sem nenhum dado para justificar.
+ const rtt=Number.isFinite(q.rtt)?q.rtt:null,loss=Number.isFinite(q.loss)?q.loss:null;
+ if(rtt==null&&loss==null)return;
+ // Evita ficar trocando de perfil a cada leitura (a cada 2,2s), o que enche o
+ // status de mensagens e faz o encoder oscilar sem parar.
+ if(Date.now()-lastAutoQualityAt<12000)return;
+ const bad=(loss??0)>8||(rtt??0)>280;
+ const veryBad=(loss??0)>15||(rtt??0)>450;
+ const order=["low","medium","high","ultra"];
+ let cur=order.indexOf(callAudioSettings.videoQuality);if(cur<0)cur=2;
+ let next=cur;
+ if(veryBad)next=0;
+ else if(bad)next=Math.max(0,cur-1);
+ else if((loss??99)<1&&(rtt??999)<100&&cur<2)next=cur+1;
+ if(next!==cur){lastAutoQualityAt=Date.now();applyTransmissionProfile(order[next]);}
+}
 function withTimeout(promise,ms){
   return Promise.race([promise,new Promise((_,reject)=>setTimeout(()=>reject(Object.assign(new Error("MEDIA_TIMEOUT"),{name:"TimeoutError"})),ms))]);
 }
@@ -975,7 +999,13 @@ function updateCallQualityUI(q){
  const qel=$("callQualityText");if(qel)qel.className=quality==="Instável"?"quality-bad":quality==="Boa"?"quality-good":"quality-best";
 }
 async function collectCallStats(){
- if(!inCall||!peers?.size)return;
+ if(!inCall)return;
+ if(!peers?.size){
+   $("callStatsMini")?.replaceChildren(document.createTextNode("-- ms • -- fps"));
+   const qel=$("callQualityText");
+   if(qel){qel.replaceChildren(document.createTextNode("Sozinho na call"));qel.className="";}
+   return;
+ }
  let best=null;
  for(const pc of peers.values()){
    try{
