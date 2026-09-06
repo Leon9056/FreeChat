@@ -1,4 +1,4 @@
-/* FreeChat v3.1.0 — conexão resiliente, WebRTC, feed, segurança e estabilidade */
+/* FreeChat v1.1.0 — conexão resiliente, WebRTC, feed, segurança e estabilidade */
 function serverUrl(){return window.SIGNALING_URL?window.SIGNALING_URL.replace(/\/$/,""):(location.protocol==="https:"?"https://"+location.host:"http://"+location.host)}
 (function(){
  const $=id=>document.getElementById(id),
@@ -95,6 +95,7 @@ function unlockNotificationAudio(){
 }
 document.addEventListener("pointerdown",unlockNotificationAudio,{passive:true});
 window.playFriendNotificationSound=playFriendNotificationSound;
+window.resetCallSoundSeen=function(){callSoundSeen=new Set();};
 
 // Sons curtos e não repetitivos da call.
 let callSoundLast=0, callSoundNodes=[], callSoundSeen=new Set();
@@ -618,11 +619,9 @@ function startSocket(){
     appToast((accName||"Seu amigo")+" aceitou seu convite de amizade!","success");window.renderFriends?.();
   });
   socket.on("dm-new",({code:fromCode,message,fromName})=>{
-    if(fromCode===activeFriendCode && !$("messagesPanel")?.classList.contains("hidden")){
-      lastLoadedMessages.push(message);
-      saveMessagesCache(activeFriendCode,lastLoadedMessages);
-      renderMessagesList(true);
-      api("/api/messages/"+encodeURIComponent(activeFriendCode)).then(d=>{lastLoadedMessages=d.messages||lastLoadedMessages;renderMessagesList(true)}).catch(()=>{});
+    if(!fromCode||!message?.id)return;
+    if(fromCode===activeFriendCode && !( $("messagesPanel")?.classList.contains("hidden") )){
+      appendDirectMessage(message,true);
     }else{
       window.bumpUnread?.(fromCode);
       window.notifyIncomingMessage?.(fromName||fromCode,message);
@@ -739,7 +738,7 @@ $("invite").onclick=async()=>{
   setTimeout(()=>{$("invite").textContent="🔗 Copiar convite";},1600);
 };
 
-$("audioUnlock").onclick=async()=>{unlockAllAudio();await new Promise(r=>setTimeout(r,180));const blocked=[...remoteAudioEls.values()].some(v=>v.paused&&!v.muted);if(blocked){$("callSettingsPanel")?.classList.remove("hidden");setCallStatus("O navegador bloqueou o áudio. Verifique a saída de áudio nas configurações.","warn");}};
+if($("audioUnlock"))$("audioUnlock").onclick=async()=>{unlockAllAudio();await new Promise(r=>setTimeout(r,180));const blocked=[...remoteAudioEls.values()].some(v=>v.paused&&!v.muted);if(blocked){$("callSettingsPanel")?.classList.remove("hidden");setCallStatus("O navegador bloqueou o áudio. Verifique a saída de áudio nas configurações.","warn");}};
 $("musicStop")?.addEventListener("click",()=>musicControl("music-stop"));$("musicSkip")?.addEventListener("click",()=>musicControl("music-next"));
 $("callOpen").onclick=openCall;
 $("callClose").onclick=()=>leaveCall(true);
@@ -910,8 +909,9 @@ function syncMusicPlayback(state){if(!musicElement||!state?.track)return;musicVo
 function restoreMicTrack(){const mic=localStream?.getAudioTracks?.()[0];if(musicTrack&&musicDestination){refreshMusicMicSource();return;}if(screenAudioTrack&&screenMixDestination){applyAudioTrackToPeers(screenMixDestination.stream.getAudioTracks()[0]);return;}peers.forEach(pc=>{const snd=pc.getSenders().find(x=>x.track?.kind==="audio");if(snd)snd.replaceTrack(mic||null).catch(()=>{})});setPeersAudioProfile("voice");}
 function refreshMusicMicSource(){if(!musicAudioContext||!musicDestination||!localStream?.getAudioTracks?.().length)return;try{if(musicMicSource)musicMicSource.disconnect()}catch(e){}try{musicMicSource=musicAudioContext.createMediaStreamSource(new MediaStream([localStream.getAudioTracks()[0]]));const g=musicAudioContext.createGain();g.gain.value=1;musicMicSource.connect(g);g.connect(musicDestination);const mixed=musicDestination.stream.getAudioTracks()[0];peers.forEach(pc=>{const snd=pc.getSenders().find(x=>x.track?.kind==="audio");if(snd&&mixed)snd.replaceTrack(mixed).catch(()=>{})})}catch(e){}}
 function stopMusicLocal(clear=true){musicHost=false;musicTrack=null;musicMediaToken="";if(clear)musicState=null;if(musicElement){try{musicElement.pause()}catch(e){}musicElement.removeAttribute("src");musicElement.load();musicElement=null;}if(musicSource)try{musicSource.disconnect()}catch(e){}musicSource=null;if(musicLocalGainNode)try{musicLocalGainNode.disconnect()}catch(e){}musicLocalGainNode=null;if(musicTransmitGainNode)try{musicTransmitGainNode.disconnect()}catch(e){}musicTransmitGainNode=null;if(musicMicSource)try{musicMicSource.disconnect()}catch(e){}musicMicSource=null;restoreMicTrack();updateMusicUI(null);renderMusicPanel(null);}
-async function searchAndPlayMusic(term){if(!inCall||!socket?.connected){appToast("Entre em uma call para usar o bot de música.","error");return false;}const q=String(term||"").trim();if(q.length<2){appToast("Use /m nome da música","error");return false;}try{const d=await api("/api/music/search?q="+encodeURIComponent(q));const track=d.tracks?.[0];if(!track)throw Error("Não encontrei essa música.");socket.emit("music-play",{room,track});return true}catch(e){setCallStatus(e.message||"Não foi possível tocar a música.","error");return false;}}
-function musicControl(ev,p={}){if(!inCall||!socket?.connected){appToast("Entre em uma call para usar o bot de música.","error");return;}socket.emit(ev,{room,...p});}
+function emitMusicCommand(ev,p={}){return new Promise((resolve,reject)=>{if(!inCall||!socket?.connected){reject(new Error("Entre em uma call para usar o bot de música."));return;}let settled=false;const done=(res)=>{if(settled)return;settled=true;if(res?.ok)resolve(res);else reject(new Error(res?.error||"Não foi possível concluir o comando de música."));};try{socket.emit(ev,{room,...p},done);setTimeout(()=>{if(!settled){settled=true;reject(new Error("O servidor não confirmou o comando de música. Tente novamente."));}},7000);}catch(e){reject(e);}})}
+async function searchAndPlayMusic(term){if(!inCall||!socket?.connected){appToast("Entre em uma call para usar o bot de música.","error");return false;}const q=String(term||"").trim();if(q.length<2){appToast("Use /m nome da música","error");return false;}try{const d=await api("/api/music/search?q="+encodeURIComponent(q));const track=d.tracks?.[0];if(!track)throw Error("Não encontrei essa música.");await emitMusicCommand("music-play",{track});appToast("Música adicionada.","success");return true}catch(e){setCallStatus(e.message||"Não foi possível tocar a música.","error");return false;}}
+async function musicControl(ev,p={}){try{const d=await emitMusicCommand(ev,p);if(ev==="music-volume")appToast("Volume da música atualizado.","success");return d}catch(e){appToast(e.message||"Não foi possível concluir o comando de música.","error");setCallStatus(e.message||"Erro no bot de música.","error");return null;}}
 function handleMusicCommand(t){t=String(t||"").trim();if(!/^\/(m|skip|pause|resume|volume|queue|stop|music)\b/i.test(t))return false;let m=t.match(/^\/m\s+(.+)$/i);if(m){try{const c=ensureMusicAudio();if(c.state==="suspended")c.resume().catch(()=>{});}catch(e){}searchAndPlayMusic(m[1]);return true;}if(/^\/skip$/i.test(t)){musicControl("music-next");return true;}if(/^\/pause$/i.test(t)){musicControl("music-pause");return true;}if(/^\/resume$/i.test(t)){musicControl("music-resume");return true;}if(/^\/queue$/i.test(t)){musicControl("music-queue");return true;}if(/^\/stop$/i.test(t)){musicControl("music-stop");return true;}m=t.match(/^\/volume\s+(\d{1,3})$/i);if(m){const n=Number(m[1]);if(n>100){appToast("Volume entre 0 e 100.","error");return true;}musicControl("music-volume",{volume:n/100});return true;}if(/^\/music$/i.test(t)){appToast("/m música • /queue • /skip • /pause • /resume • /volume 0-100 • /stop","info");return true;}return true;}
 let musicAudioContext=null,musicElement=null,musicSource=null,musicDestination=null,musicMicSource=null,musicLocalGainNode=null,musicTransmitGainNode=null,musicTrack=null,musicHost=false,musicVolume=.7,musicState=null,musicMediaToken="",localMusicVolume=Number(localStorage.getItem("freechatLocalMusicVolume")??70)/100,localMusicMuted=false;
 const callAudioSettings={
@@ -1092,8 +1092,8 @@ $("callMusicSearchBtn")?.addEventListener("click",async()=>{
  const box=$("callMusicResults");if(box)box.innerHTML='<div class="music-search-loading">🔎 Procurando músicas...</div>';
  try{
    const d=await api("/api/music/search?q="+encodeURIComponent(q));
-   box.innerHTML=(d.tracks||[]).map(t=>`<div class="music-result"><div class="music-result-main">${t.artwork?`<img src="${messageEscape(t.artwork)}" alt="" loading="lazy">`:'<span class="music-result-art">🎵</span>'}<div><b>${messageEscape(t.title)}</b><small>${messageEscape(t.artist)}${t.duration?" • "+formatMusicTime(t.duration):""}</small></div></div><button type="button" data-track="${messageEscape(JSON.stringify(t))}">＋ Fila</button></div>`).join("")||'<span class="muted">Nenhum resultado.</span>';
-   box.querySelectorAll("[data-track]").forEach(b=>b.onclick=()=>{try{socket.emit("music-play",{room,track:JSON.parse(b.dataset.track)});appToast("Faixa adicionada à fila.","success")}catch(e){appToast("Não foi possível adicionar a faixa.","error")}});
+   const tracks=(d.tracks||[]); box.innerHTML=tracks.map((t,i)=>`<div class="music-result"><div class="music-result-main">${t.artwork?`<img src="${messageEscape(t.artwork)}" alt="" loading="lazy">`:'<span class="music-result-art">🎵</span>'}<div><b>${messageEscape(t.title)}</b><small>${messageEscape(t.artist)}${t.duration?" • "+formatMusicTime(t.duration):""}</small></div></div><button type="button" data-track-index="${i}">＋ Fila</button></div>`).join("")||'<span class="muted">Nenhum resultado.</span>';
+   box.querySelectorAll("[data-track-index]").forEach(b=>b.onclick=async()=>{const track=tracks[Number(b.dataset.trackIndex)];if(!track)return;const old=b.textContent;b.disabled=true;b.textContent="Adicionando…";try{await emitMusicCommand("music-play",{track});b.textContent="✓ Adicionada";appToast("Faixa adicionada à fila.","success");setTimeout(()=>{if(document.body.contains(b)){b.disabled=false;b.textContent="＋ Fila"}},900)}catch(e){b.disabled=false;b.textContent=old;appToast(e.message||"Não foi possível adicionar a faixa.","error");setCallStatus(e.message||"Não foi possível adicionar a faixa.","error")}});
  }catch(e){if(box)box.innerHTML="";appToast(e.message||"Não foi possível buscar música.","error")}
 });
 $("callSettingsPanel")?.addEventListener("change",e=>{if(e.target.id==="reduceCallMotion")document.documentElement.classList.toggle("reduce-call-motion",e.target.checked)});
@@ -1194,7 +1194,7 @@ function closeSocialPanel(){$("socialPanel")?.classList.add("hidden");}
 function switchSocialTab(tab){document.querySelectorAll(".social-tab").forEach(b=>b.classList.toggle("active",b.dataset.socialTab===tab));["friends","notifications","profile"].forEach(x=>$("social"+x.charAt(0).toUpperCase()+x.slice(1))?.classList.toggle("hidden",x!==tab));}
 function openPostComposer(){$("postComposerModal")?.classList.remove("hidden");document.body.classList.add("modal-open");setTimeout(()=>$("postBody")?.focus(),80);}
 function closePostComposer(){$("postComposerModal")?.classList.add("hidden");document.body.classList.remove("modal-open");}
-let feedDoubleTapTimer=null,feedOffset=0,feedLoading=false,feedHasMore=true,feedFilter="friends";
+let feedDoubleTapTimer=null,feedOffset=0,feedLoading=false,feedHasMore=true,feedFilter="recent";
 const feedLikeLock=new Set(),feedSaveLock=new Set(),feedCommentCache=new Map();
 function formatFeedDate(v){const d=new Date(v),now=Date.now(),diff=Math.max(0,now-d.getTime());if(diff<60000)return"agora";if(diff<3600000)return Math.floor(diff/60000)+" min";if(diff<86400000)return Math.floor(diff/3600000)+" h";if(diff<604800000)return Math.floor(diff/86400000)+" d";return d.toLocaleDateString([],{day:"2-digit",month:"short"})}
 function feedAvatar(u,cls="post-avatar"){const initial=messageEscape((u.name||"?").trim().charAt(0).toUpperCase());const style=u.avatarUrl?` style="background-image:url(&quot;${serverUrl()+u.avatarUrl}&quot;);background-size:cover;background-position:center"`:"";return `<div class="${cls}"${style}>${u.avatarUrl?"":initial}</div>`}
@@ -1748,7 +1748,7 @@ function leaveCall(ending){
   if(socket?.connected)socket.emit("call-leave",{room});
   if(inCall)window.playCallSound?.("leave",`self-leave:${room}`);
   // O próximo ciclo de call começa limpo, sem herdar eventos da call anterior.
-  callSoundSeen=new Set();
+  window.resetCallSoundSeen?.();
   inCall=false;callReady=false;joiningCall=false;
   peers.forEach(pc=>{try{pc.close();}catch(e){}});
   peers.clear();
@@ -1853,6 +1853,7 @@ function restoreCameraAfterScreenShare(){
     if(localVideo)localVideo.srcObject=null;
   }
   document.querySelector('[data-id="local"]')?.classList.remove("sharing");
+  if(!camOn)document.querySelector('[data-id="local"]')?.classList.add("cam-off");
   if(socket?.connected)socket.emit("call-screen-state",{room,sharing:false});
   screenTrack=null;
   updateScreenShareBanner();
@@ -1893,6 +1894,10 @@ $("screen").onclick=async()=>{
     screenTrack=track;
     updateScreenButton();
     document.querySelector('[data-id="local"]')?.classList.add("sharing");
+    // A pessoa que compartilha também precisa ver a própria tela, não o
+    // avatar — isso não chega automaticamente porque o evento de tela
+    // não volta para quem enviou (só os outros participantes recebem).
+    document.querySelector('[data-id="local"]')?.classList.remove("cam-off");
     updateScreenShareBanner();
     if(socket?.connected)socket.emit("call-screen-state",{room,sharing:true});
     peers.forEach(async(pc,id)=>{
@@ -1978,6 +1983,15 @@ function dmDateLabel(v){
  const today=new Date();today.setHours(0,0,0,0);const x=new Date(d);x.setHours(0,0,0,0);const days=Math.round((today-x)/86400000);
  if(days===0)return 'Hoje';if(days===1)return 'Ontem';return d.toLocaleDateString([], {day:'2-digit',month:'long',year:d.getFullYear()===today.getFullYear()?undefined:'numeric'});
 }
+function appendDirectMessage(message,scrollToBottom=false){
+  if(!message?.id)return;
+  const key=String(message.id);
+  if(lastLoadedMessages.some(m=>String(m.id)===key))return;
+  lastLoadedMessages.push(message);
+  lastLoadedMessages.sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
+  saveMessagesCache(activeFriendCode,lastLoadedMessages);
+  renderMessagesList(scrollToBottom);
+}
 function renderMessagesList(scroll=true){
  const list=$("messagesList");if(!list)return;
  const term=($("messagesSearch")?.value||'').trim().toLowerCase();
@@ -1998,15 +2012,15 @@ function renderMessagesList(scroll=true){
  }).join('');
  list.querySelectorAll('[data-copy-id]').forEach(btn=>btn.addEventListener('click',async()=>{const m=lastLoadedMessages.find(x=>String(x.id)===String(btn.dataset.copyId));if(!m)return;try{await navigator.clipboard.writeText(m.body||m.media?.name||'');appToast('Mensagem copiada.','success')}catch(e){appToast('Não foi possível copiar.','error')}}));
  if(scroll){
-   requestAnimationFrame(()=>{
-     list.scrollTop=list.scrollHeight;
-     setTimeout(()=>{list.scrollTop=list.scrollHeight},0);
-   });
+   requestAnimationFrame(()=>{ list.scrollTop=list.scrollHeight; });
  }
 }
 async function loadMessages(scroll=true){
  if(!activeFriendCode)return;
  const code=activeFriendCode;
+ const list=$("messagesList");
+ const wasAtBottom=list?list.scrollHeight-list.scrollTop-list.clientHeight<80:true;
+ const oldMessages=Array.isArray(lastLoadedMessages)?lastLoadedMessages.slice():[];
  const cached=loadMessagesCache(code);
  if(cached?.length){
    lastLoadedMessages=cached;
@@ -2016,9 +2030,17 @@ async function loadMessages(scroll=true){
  try{
    const d=await api("/api/messages/"+encodeURIComponent(code));
    if(code!==activeFriendCode)return;
-   lastLoadedMessages=d.messages||[];
+   const incoming=Array.isArray(d.messages)?d.messages:[];
+   const byId=new Map();
+   for(const m of oldMessages)if(m?.id!=null)byId.set(String(m.id),m);
+   for(const m of (cached||[]))if(m?.id!=null)byId.set(String(m.id),m);
+   for(const m of incoming)if(m?.id!=null)byId.set(String(m.id),m);
+   const merged=[...byId.values()].sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
+   const changed=merged.length!==lastLoadedMessages.length || merged.some((m,i)=>String(m.id)!==String(lastLoadedMessages[i]?.id)||m.read_at!==lastLoadedMessages[i]?.read_at);
+   lastLoadedMessages=merged;
    saveMessagesCache(code,lastLoadedMessages);
-   renderMessagesList(scroll);
+   if(changed)renderMessagesList(false);
+   if(list&&wasAtBottom&&scroll)requestAnimationFrame(()=>{list.scrollTop=list.scrollHeight});
    $("messagesFriendState").textContent=d.friend?.online?"● Online":"Conversa privada";
    $("messageStatus").textContent="";
  }catch(e){
@@ -2048,10 +2070,10 @@ $("messageForm")?.addEventListener("submit",async e=>{
  e.preventDefault();const input=$("messageInput"),body=input.value.trim(),file=selectedMessageFile;if(!activeFriendCode||(!body&&!file))return;const btn=e.currentTarget.querySelector("button[type=submit]");btn.disabled=true;$("messageStatus").textContent=file?"Enviando arquivo...":"Enviando...";
  try{
    const target=activeFriendCode;
-   if(file){const fd=new FormData();fd.append("code",target);if(body)fd.append("body",body);fd.append("file",file);if(file._freechatDuration)fd.append("duration",String(file._freechatDuration));await api("/api/messages/media",{method:"POST",body:fd});$("messageFile").value="";setSelectedMessageFile(null)}
-   else{await api("/api/messages",{method:"POST",body:JSON.stringify({code:target,body})})}
-   input.value="";$("messageStatus").textContent="Salvo ✓";
-   await loadMessages(true);
+   let sent;
+   if(file){const fd=new FormData();fd.append("code",target);if(body)fd.append("body",body);fd.append("file",file);if(file._freechatDuration)fd.append("duration",String(file._freechatDuration));const d=await api("/api/messages/media",{method:"POST",body:fd});sent=d.message;$("messageFile").value="";setSelectedMessageFile(null)}
+   else{const d=await api("/api/messages",{method:"POST",body:JSON.stringify({code:target,body})});sent=d.message}
+   input.value="";appendDirectMessage(sent,true);$("messageStatus").textContent="Enviada ✓";
  }catch(err){$("messageStatus").textContent=err.message||"Erro ao enviar."}
  finally{btn.disabled=false;input.focus()}
 });
@@ -2064,7 +2086,7 @@ function initPrivateChatUI(){
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",initPrivateChatUI,{once:true});else initPrivateChatUI();
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("messagesPanel")?.classList.contains("hidden"))closePrivateChat();});
 $("messageInput")?.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();$("messageForm")?.requestSubmit()}});
-messageTimer=setInterval(()=>{if(!window.CONVERSA_TOKEN)return;refreshUnreadCounts();if(activeFriendCode&&!$("messagesPanel")?.classList.contains("hidden"))loadMessages(false)},4000);
+messageTimer=setInterval(()=>{if(!window.CONVERSA_TOKEN)return;refreshUnreadCounts()},10000);
 document.addEventListener("DOMContentLoaded",()=>{$("friendsSearch")?.addEventListener("input",e=>{window.friendSearchTerm=e.target.value;renderFriends()});$("friendsSearchApp")?.addEventListener("input",e=>{window.friendSearchTerm=e.target.value;renderFriends()});$("messagesSearch")?.addEventListener("input",()=>renderMessagesList(false))});
 
 /* FreeChat 2.5.1 — estabilidade global, rede e mobile polish */

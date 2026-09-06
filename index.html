@@ -1,17 +1,17 @@
 <!doctype html>
 <html lang="pt-BR">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0a1020"><meta name="color-scheme" content="dark light">
 <meta name="description" content="FreeChat — chat, chamadas, música e compartilhamento de tela.">
-<title>FreeChat 1.0.0</title>
+<title>FreeChat 1.1.0</title>
 <link rel="manifest" href="manifest.json"><link rel="icon" type="image/svg+xml" href="icon.svg">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <section id="login" class="screen">
   <div class="auth-card">
-    <div class="brand-icon brand-logo-icon"><img src="icon.svg" alt="FreeChat" width="46" height="46"></div><div class="auth-brand">FREECHAT <span>v1.0.0</span></div><h1>FreeChat</h1>
+    <div class="brand-icon brand-logo-icon"><img src="icon.svg" alt="FreeChat" width="46" height="46"></div><div class="auth-brand">FREECHAT <span>v1.1.0</span></div><h1>FreeChat</h1>
     <p id="authSubtitle" class="muted">Entre na sua conta para continuar</p>
     <div class="auth-tabs"><button id="loginTab" class="auth-tab active" type="button">Entrar</button><button id="registerTab" class="auth-tab" type="button">Criar conta</button></div>
     <div id="registerFields" class="hidden"><label for="name">👤 Nome de usuário</label><input id="name" maxlength="24" autocomplete="name" placeholder="Como quer ser chamado?"></div>
@@ -136,15 +136,14 @@
  </div>
  <div id="musicBot" class="music-bot idle"><div class="music-icon">🎵</div><div class="music-info"><b class="music-title">Nenhuma música tocando</b><small class="music-meta">Abra 🎵 Música para buscar e controlar</small><div class="music-progress"><div class="music-progress-fill"></div></div></div><span class="music-queue-count"></span><button id="musicSkip" class="music-skip" type="button" disabled title="Próxima">⏭</button><button id="musicStop" class="music-stop" type="button" disabled title="Parar e limpar fila">⏹</button></div>
  <div class="call-controls-wrap">
+   <button id="audioUnlock" class="audio-unlock-banner hidden" type="button"><span class="control-icon">🔊</span><span>Toque para ativar o áudio</span></button>
    <div class="call-controls-top"><span id="callStatus" class="callStatus" aria-live="polite">Pronto.</span><span id="callStatsMini">-- ms • -- fps</span></div>
    <div class="controls">
     <button id="mic" title="Microfone"><span class="control-icon">🎙️</span><span>Microfone</span></button>
     <button id="cam" title="Câmera"><span class="control-icon">📷</span><span>Câmera</span></button>
     <button id="screen" title="Compartilhar tela"><span class="control-icon">🖥️</span><span>Tela</span></button>
-    <button id="audioUnlock" class="audio-global hidden" title="Ativar áudio"><span class="control-icon">🔊</span><span>Áudio</span></button>
     <button id="callVolumeBtn" title="Volume da call"><span class="control-icon">🔊</span><span>Volume</span></button>
     <button id="callMusicBtn" title="Música"><span class="control-icon">🎵</span><span>Música</span></button>
-    <button id="callChatBtnBottom" title="Chat"><span class="control-icon">💬</span><span>Chat</span></button>
     <button id="callParticipantsBtnBottom" title="Participantes"><span class="control-icon">👥</span><span>Pessoas</span></button>
     <button id="hang" class="danger" title="Sair da chamada"><span class="control-icon">☎</span><span>Sair</span></button>
    </div>
@@ -212,7 +211,7 @@
   <div class="feed-topbar-actions"><button id="feedRefreshBtn" class="icon-btn" type="button" aria-label="Atualizar" title="Atualizar">↻</button><button id="feedNewPostBtn" class="icon-btn" type="button" aria-label="Nova publicação" title="Nova publicação">➕</button></div>
  </header>
  <div class="feed-scroll">
-  <nav class="feed-tabs" aria-label="Filtro do feed"><button class="feed-tab active" data-feed-filter="friends">Amigos</button><button class="feed-tab" data-feed-filter="recent">Mais recentes</button></nav>
+  <nav class="feed-tabs" aria-label="Filtro do feed"><button class="feed-tab" data-feed-filter="friends">Amigos</button><button class="feed-tab active" data-feed-filter="recent">Mais recentes</button></nav>
   <section class="feed-stories" aria-label="Amigos recentes"><div class="stories-title"><b>Momentos</b><small>Amigos ativos e recentes</small></div><div id="feedStories" class="stories-row"></div></section>
   <section class="feed-composer-inline"><div id="feedComposerAvatar" class="composer-avatar">?</div><button id="feedInlineComposer" type="button">Compartilhe algo com seus amigos...</button><button id="feedInlineMedia" class="composer-media" type="button" aria-label="Adicionar mídia">＋</button></section>
   <div id="feedList" class="feed-ig-list"></div>
@@ -247,5 +246,5 @@
 </form>
 <div id="messageStatus" class="status"></div>
 </div></div>
-<script src="config.js?v=1.0.0"></script><script src="app.js?v=1.0.0"></script>
+<script src="config.js?v=1.1.0"></script><script src="app.js?v=1.1.0"></script>
 </body></html>
