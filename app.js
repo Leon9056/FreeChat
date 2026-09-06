@@ -13,6 +13,7 @@ function serverUrl(){return window.SIGNALING_URL?window.SIGNALING_URL.replace(/\
 let mode="login";
 const setStatus=(msg,type="error")=>{const el=$("loginStatus");el.textContent=msg||"";el.className="status "+type};
 const setBusy=(el,busy,label)=>{if(!el)return;el.disabled=busy;if(busy){el.dataset.originalText=el.textContent;el.textContent=label||"Aguarde..."}else if(el.dataset.originalText){el.textContent=el.dataset.originalText;delete el.dataset.originalText}};
+window.setBusy=setBusy;
 function modeSet(m){
  mode=m;
  $("loginTab").classList.toggle("active",m==="login");$("registerTab").classList.toggle("active",m==="register");
@@ -58,6 +59,7 @@ async function changeSecurityPassword(){const status=$("securityStatus");try{set
 async function savePrivacy(){try{const d=await api("/api/security/privacy",{method:"PATCH",body:JSON.stringify({message_policy:$("privacyMessages").value,call_policy:$("privacyCalls").value,friend_policy:$("privacyFriends").value,random_enabled:!!$("privacyRandom")?.checked})});appToast("Privacidade atualizada.","success")}catch(e){appToast(e.message,"error")}}
 function openSettings(){const p=$("settingsPanel");if(!p)return;p.classList.remove("hidden");renderThemeChoices();loadSecuritySettings();}
 function closeSettings(){$("settingsPanel")?.classList.add("hidden");}
+window.closeSettings=closeSettings;
 function initSettings(){
  $("settingsBtn")?.addEventListener("click",openSettings);$("settingsClose")?.addEventListener("click",closeSettings);$("securityRefresh")?.addEventListener("click",loadSecuritySettings);$("changePasswordBtn")?.addEventListener("click",changeSecurityPassword);$("savePrivacyBtn")?.addEventListener("click",savePrivacy);$("securityRevokeAll")?.addEventListener("click",async()=>{try{await api("/api/security/revoke-all",{method:"POST"});appToast("Outras sessões encerradas.","success");loadSecuritySettings()}catch(e){appToast(e.message,"error")}});
  $("modeToggle")?.addEventListener("click",toggleTheme);
@@ -763,11 +765,17 @@ document.addEventListener("click",(e)=>{
     settingsClose:()=>closeSettings?.(),
     socialClose:()=>closeSocialPanel?.(),
     serversClose:()=>closeServers?.(),
-    randomCallClose:()=>leaveRandomQueue?.(),
+    randomCallClose:()=>closeRandomCall?.(),
     postComposerClose:()=>closePostComposer?.(),
     messagesClose:()=>closePrivateChat?.()
   };
-  actions[btn.id]?.();
+  try{actions[btn.id]?.();}
+  catch(err){
+    console.error("close-fallback",btn.id,err);
+    // Mesmo se a ação específica falhar, garante que o modal feche —
+    // um modal de tela cheia travado aberto bloqueia o app inteiro.
+    btn.closest?.(".modal")?.classList.add("hidden");
+  }
 },true);
 $("callClose").onclick=()=>leaveCall(true);
 $("hang").onclick=()=>leaveCall(true);
@@ -2365,6 +2373,10 @@ if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.ser
     try{await api("/api/random/leave",{method:"POST"})}catch(e){}
     randomQueueActive=false;showRandomState("ready");randomMatch=null;
   }
+  async function closeRandomCall(){
+    await leaveRandomQueue();
+    $("randomCallPanel")?.classList.add("hidden");
+  }
   function setRandomMatch(m){
     randomMatch=m;randomQueueActive=false;showRandomState("match");
     $("randomMatchName").textContent=m.name||"Conexão encontrada";
@@ -2399,7 +2411,7 @@ if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.ser
       clearInterval(watchSocket);
     }catch(e){}
   },250);
-  window.openServers=openServers;window.openRandomCall=openRandomCall;
+  window.openServers=openServers;window.openRandomCall=openRandomCall;window.closeServers=closeServers;window.leaveRandomQueue=leaveRandomQueue;window.closeRandomCall=closeRandomCall;
 
   $("serversBtn")?.addEventListener("click",openServers);
   $("serversClose")?.addEventListener("click",closeServers);
@@ -2413,7 +2425,7 @@ if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.ser
   document.querySelectorAll(".servers-tab").forEach(b=>b.addEventListener("click",()=>switchServersTab(b.dataset.serversTab)));
 
   $("randomCallBtn")?.addEventListener("click",openRandomCall);
-  $("randomCallClose")?.addEventListener("click",leaveRandomQueue);
+  $("randomCallClose")?.addEventListener("click",closeRandomCall);
   $("randomCallStartBtn")?.addEventListener("click",startRandomQueue);
   $("randomCallCancelBtn")?.addEventListener("click",leaveRandomQueue);
   $("randomCallJoinBtn")?.addEventListener("click",joinRandomMatch);
