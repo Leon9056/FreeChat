@@ -340,8 +340,10 @@ html[data-theme="light"] .msg p{color:#334155}html[data-theme="light"] .main hea
    (aparecia solto no fluxo da página em vez de flutuar centralizado). */
 .modal{position:fixed;inset:0;z-index:9000;display:flex;align-items:center;justify-content:center;background:rgba(2,6,15,.62);backdrop-filter:blur(6px);padding:16px;box-sizing:border-box;opacity:1;transition:opacity .2s ease}
 .modal .modal-card{transition:transform .22s ease,opacity .22s ease;transform:scale(1);opacity:1}
-.modal.hidden{display:flex!important;opacity:0;pointer-events:none}
-.modal.hidden .modal-card{transform:scale(.96);opacity:0}
+.modal:not(.hidden){animation:modal-fade-in .18s ease}
+@keyframes modal-fade-in{from{opacity:0}to{opacity:1}}
+.modal:not(.hidden) .modal-card{animation:modal-card-in .2s ease}
+@keyframes modal-card-in{from{transform:scale(.96);opacity:0}to{transform:scale(1);opacity:1}}
 
 /* Micro-interação em botões */
 button{transition:transform .12s ease,filter .12s ease,background .15s ease,box-shadow .15s ease}
@@ -875,7 +877,7 @@ html[data-theme="light"] .message-form{background:#e1e7ef!important}
   .messages-card,.social-card{width:min(100%,680px);height:min(92dvh,860px)}
 }
 /* v2.6 — Feed principal */
-.feed-main-btn{position:relative;display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto;align-items:center;column-gap:9px;width:100%;margin:9px 0 2px;padding:11px 13px;border:1px solid color-mix(in srgb,var(--accent-main) 42%,var(--line));border-radius:14px;background:linear-gradient(135deg,color-mix(in srgb,var(--accent-main) 18%,transparent),color-mix(in srgb,var(--accent-hot) 10%,var(--panel2)));color:var(--text);font-weight:900;text-align:left;cursor:pointer;overflow:hidden;transition:.18s ease;box-shadow:0 8px 24px #0003}.feed-main-btn::before{content:"";position:absolute;inset:0;background:linear-gradient(100deg,var(--accent-main),var(--accent-hot));opacity:.06;pointer-events:none}.feed-main-btn:hover{transform:translateY(-1px);border-color:color-mix(in srgb,var(--accent-main) 70%,var(--line));box-shadow:0 10px 28px #0004}.feed-main-btn:active{transform:scale(.985)}.feed-main-btn>span{font-size:14px;line-height:1}.feed-main-btn>small{grid-column:2;color:var(--muted);font-size:10px;margin-top:3px;font-weight:650}.feed-main-btn:first-letter{font-size:20px}.social-panel{}body.feed-open{overflow:hidden}.social-card.feed-mode{width:min(980px,calc(100% - 28px));height:min(92vh,940px);max-height:none;padding:20px}.social-card.feed-mode .social-head{position:sticky;top:0;z-index:4;padding:2px 0 15px;background:var(--panel)}.social-card.feed-mode .social-head b{font-size:20px}.social-card.feed-mode .social-head small::after{content:" • Fotos e vídeos de até 1 minuto"}.social-card.feed-mode .social-tabs{display:none}.social-card.feed-mode #socialFeed{display:block;max-width:760px;margin:0 auto;width:100%;padding-top:15px}.social-card.feed-mode #socialFriends,.social-card.feed-mode #socialNotifications,.social-card.feed-mode #socialProfile{display:none}.social-card.feed-mode .post-composer{padding:16px;border-radius:18px}.social-card.feed-mode .feed-list{gap:14px}.social-card.feed-mode .post-card{padding:16px;border-radius:18px}.social-card.feed-mode .post-media img,.social-card.feed-mode .post-media video{max-height:560px}.social-card.feed-mode .post-compose-foot{flex-wrap:wrap;gap:8px}.social-card.feed-mode .post-compose-tools{display:flex;align-items:center;gap:8px}@media(max-width:700px){.feed-main-btn{margin-top:8px}.social-card.feed-mode{width:100%;height:100dvh;border-radius:0;padding:14px;padding-bottom:calc(14px + env(safe-area-inset-bottom))}.social-card.feed-mode #socialFeed{padding-top:10px}.social-card.feed-mode .post-media img,.social-card.feed-mode .post-media video{max-height:52dvh}}
+.feed-main-btn{position:relative;display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto;align-items:center;column-gap:9px;width:100%;margin:9px 0 2px;padding:11px 13px;border:1px solid color-mix(in srgb,var(--accent-main) 42%,var(--line));border-radius:14px;background:linear-gradient(135deg,color-mix(in srgb,var(--accent-main) 18%,transparent),color-mix(in srgb,var(--accent-hot) 10%,var(--panel2)));color:var(--text);font-weight:900;text-align:left;cursor:pointer;overflow:hidden;transition:.18s ease;box-shadow:0 8px 24px #0003}.feed-main-btn::before{content:"";position:absolute;inset:0;background:linear-gradient(100deg,var(--accent-main),var(--accent-hot));opacity:.06;pointer-events:none}.feed-main-btn:hover{transform:translateY(-1px);border-color:color-mix(in srgb,var(--accent-main) 70%,var(--line));box-shadow:0 10px 28px #0004}.feed-main-btn:active{transform:scale(.985)}.feed-main-btn>span{font-size:14px;line-height:1}.feed-main-btn>small{grid-column:2;color:var(--muted);font-size:10px;margin-top:3px;font-weight:650}.feed-main-btn:first-letter{font-size:20px}.social-panel{}@media(max-width:700px){.feed-main-btn{margin-top:8px}}
 
 
 /* =========================================================
@@ -907,12 +909,12 @@ html[data-accent] .call-stage-badge{border-color:var(--accent-main)!important}
 .settings-card{width:min(700px,calc(100% - 24px));padding:22px;max-height:88dvh;overflow:auto}.settings-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;padding-bottom:16px;border-bottom:1px solid var(--line)}.settings-head b{font-size:20px}.settings-head small{display:block;color:var(--muted);margin-top:4px}.settings-section{padding:18px 0;border-bottom:1px solid var(--line)}.settings-section:last-child{border-bottom:0}.settings-section h3{margin:0 0 5px}.settings-section>p{margin:0 0 14px;color:var(--muted);font-size:13px}.theme-choices{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.theme-choice{border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:15px;padding:13px;text-align:left;cursor:pointer;display:grid;grid-template-columns:auto 1fr;gap:7px 10px;align-items:center;transition:.18s ease}.theme-choice:hover{transform:translateY(-2px);border-color:var(--accent-main);box-shadow:0 8px 22px var(--accent-glow)}.theme-choice.active{border-color:var(--accent-main);background:linear-gradient(145deg,var(--accent-soft),var(--panel2))}.theme-choice i{width:34px;height:34px;border-radius:11px;background:linear-gradient(135deg,var(--accent-main),var(--accent-hot));grid-row:1/3}.theme-choice.purple i{background:linear-gradient(135deg,#a855f7,#7c3aed)}.theme-choice.blue i{background:linear-gradient(135deg,#3b82f6,#1d4ed8)}.theme-choice.cyan i{background:linear-gradient(135deg,#06b6d4,#0891b2)}.theme-choice.green i{background:linear-gradient(135deg,#22c55e,#15803d)}.theme-choice.orange i{background:linear-gradient(135deg,#f97316,#c2410c)}.theme-choice.pink i{background:linear-gradient(135deg,#ec4899,#be185d)}.theme-choice span{font-weight:800}.theme-choice small{grid-column:2;color:var(--muted)}.settings-toggle{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:13px 0;border-bottom:1px solid color-mix(in srgb,var(--line) 65%,transparent)}.settings-toggle:last-child{border-bottom:0}.settings-toggle input{accent-color:var(--accent-main)}
 
 /* Feed como página real, sem aparência de modal */
-#socialPanel.feed-mode{padding:0;display:block;background:var(--bg);backdrop-filter:none}.social-card.feed-mode{width:100%;height:100dvh;max-height:none;border:0;border-radius:0;box-shadow:none;background:var(--bg);padding:0;display:flex;flex-direction:column}.social-card.feed-mode .social-head{flex:none;padding:18px max(20px,calc((100vw - 1180px)/2));border-bottom:1px solid var(--line);background:color-mix(in srgb,var(--panel) 94%,transparent);backdrop-filter:blur(20px)}.social-card.feed-mode .social-head b{font-size:22px}.social-card.feed-mode #socialFeed{flex:1;overflow:auto;max-width:none;width:100%;padding:22px max(20px,calc((100vw - 900px)/2)) 80px;margin:0;box-sizing:border-box}.social-card.feed-mode .post-composer,.social-card.feed-mode .post-card{background:color-mix(in srgb,var(--panel) 88%,transparent);box-shadow:0 12px 40px rgba(0,0,0,.18)}.social-card.feed-mode .post-composer{margin-bottom:18px}.social-card.feed-mode .feed-list{max-width:760px;margin:0 auto}.social-card.feed-mode .post-composer{max-width:760px;margin-left:auto;margin-right:auto}.social-card.feed-mode .post-media img,.social-card.feed-mode .post-media video{width:100%;max-height:620px;object-fit:contain;background:#05070c}.social-card.feed-mode .post-card{padding:18px;border-radius:20px}.social-card.feed-mode .post-like{cursor:pointer}.feed-page-open .social-card.feed-mode{animation:feedPageIn .35s ease both}@keyframes feedPageIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+
 
 /* Áudio remoto e vídeo */
 #videos .tile video{background:#020409}.local-tile video{filter:saturate(.98)}#videos .tile:not(.local-tile) video{outline:1px solid color-mix(in srgb,var(--accent-main) 14%,transparent)}
 
-@media(max-width:700px){.call-menu-card.menu-main-card{width:100%;padding:24px 16px;border-radius:22px}.call-menu-card .call-actions{grid-template-columns:1fr}.call-menu-card .call-actions-divider,.call-menu-card .join-box{grid-column:auto}.theme-choices{grid-template-columns:1fr 1fr}.settings-card{width:100%;height:100dvh;max-height:none;border-radius:0;padding:18px}.social-card.feed-mode .social-head{padding:14px 14px}.social-card.feed-mode #socialFeed{padding:14px 12px 60px}.social-card.feed-mode .post-card{border-radius:16px;padding:13px}}
+@media(max-width:700px){.call-menu-card.menu-main-card{width:100%;padding:24px 16px;border-radius:22px}.call-menu-card .call-actions{grid-template-columns:1fr}.call-menu-card .call-actions-divider,.call-menu-card .join-box{grid-column:auto}.theme-choices{grid-template-columns:1fr 1fr}.settings-card{width:100%;height:100dvh;max-height:none;border-radius:0;padding:18px}}
 @media(prefers-reduced-motion:reduce),html.reduce-motion *{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important}
 
 /* FreeChat 3.0.6 — dedicated remote audio output */
@@ -1043,4 +1045,75 @@ html[data-accent] .call-stage-badge{border-color:var(--accent-main)!important}
 
 @media(prefers-reduced-motion:reduce){
   .auth-tab,.auth-card input,.call-menu-card input{transition:none}
+}
+
+/* FreeChat — substituição da marca antiga (emoji/sigla "CL") pela logo real */
+.brand-logo-icon{display:inline-flex;align-items:center;justify-content:center;line-height:0}
+.brand-logo-icon img{width:46px;height:46px;border-radius:14px;display:block;box-shadow:0 8px 24px rgba(155,92,255,.35)}
+.mini-logo{background:none!important;padding:0}
+.mini-logo img{width:20px;height:20px;border-radius:6px;display:block}
+
+/* Botão de trocar foto de perfil */
+.profile-avatar-btn{position:relative;border:0;padding:0;cursor:pointer;overflow:visible}
+.profile-avatar-edit{position:absolute;right:-2px;bottom:-2px;width:26px;height:26px;display:grid;place-items:center;border-radius:50%;background:linear-gradient(135deg,var(--accent-main),var(--accent-hot));font-size:13px;box-shadow:0 0 0 3px var(--panel,#101827),0 4px 10px rgba(0,0,0,.4)}
+.profile-avatar-btn.uploading .profile-avatar-edit{animation:avatar-pulse 1s ease-in-out infinite}
+@keyframes avatar-pulse{0%,100%{opacity:.5}50%{opacity:1}}
+.profile-hero .text-btn{padding:4px 0;margin-top:4px;font-size:11px;color:#ff9db3;background:none;border:0;cursor:pointer}
+.profile-hero .text-btn:hover{text-decoration:underline}
+
+/* Avatar exibido no lugar da tela preta quando a câmera está desligada,
+   com brilho roxo pulsante ao redor enquanto a pessoa está falando. */
+.tile-avatar{display:none;position:absolute;inset:0;z-index:2;align-items:center;justify-content:center;background:linear-gradient(160deg,#150c22,#07050c)}
+.tile.cam-off .tile-avatar{display:flex}
+.tile.cam-off video{visibility:hidden}
+.tile-avatar-ring{width:34%;aspect-ratio:1/1;min-width:64px;max-width:150px;border-radius:50%;display:grid;place-items:center;padding:4px;box-shadow:0 0 0 3px rgba(192,132,252,.22);transition:box-shadow .15s ease}
+.tile-avatar-ring.speaking{box-shadow:0 0 0 4px rgba(192,132,252,.55),0 0 28px 6px rgba(155,92,255,.55);animation:tile-speaking-pulse 1.1s ease-in-out infinite}
+@keyframes tile-speaking-pulse{0%,100%{box-shadow:0 0 0 4px rgba(192,132,252,.5),0 0 22px 4px rgba(155,92,255,.45)}50%{box-shadow:0 0 0 6px rgba(192,132,252,.7),0 0 34px 10px rgba(155,92,255,.7)}}
+.tile-avatar-photo{width:100%;height:100%;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,var(--accent-main),var(--accent-hot));color:#fff;font-weight:900;font-size:clamp(18px,4vw,34px)}
+@media(prefers-reduced-motion:reduce){.tile-avatar-ring.speaking{animation:none}}
+
+/* ============================================================
+   Feed independente, estilo Instagram — tela própria (não é mais
+   uma aba do modal Social), coluna central, cards maiores, curtir
+   com duplo toque e botão flutuante de nova publicação.
+   ============================================================ */
+.feed-screen{background:var(--bg);display:flex;flex-direction:column}
+.feed-topbar{flex:none;height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 8px 0 4px;border-bottom:1px solid var(--line);background:color-mix(in srgb,var(--panel) 94%,transparent);backdrop-filter:blur(20px);position:sticky;top:0;z-index:5}
+.feed-topbar-title{font-size:17px;font-weight:900;background:linear-gradient(135deg,var(--accent-main),var(--accent-hot));-webkit-background-clip:text;background-clip:text;color:transparent}
+.feed-scroll{flex:1;overflow:auto;padding:14px 12px 100px}
+.feed-ig-list{display:grid;gap:18px;max-width:470px;margin:0 auto;width:100%}
+.post-card{background:var(--panel,#150e22);border:1px solid var(--line);border-radius:16px;overflow:hidden;padding:0}
+.post-card .post-head{display:flex;gap:10px;align-items:center;padding:11px 13px}
+.post-card .post-avatar{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,var(--accent-main),var(--accent-hot));font-weight:900;box-shadow:0 0 0 2px rgba(192,132,252,.25)}
+.post-card .post-head small{color:var(--muted);font-size:11px}
+.post-media{position:relative;background:#000;line-height:0}
+.post-media img,.post-media video{width:100%;max-height:min(72vh,640px);object-fit:contain;background:#000;display:block}
+.post-media small{position:absolute;left:9px;bottom:9px;padding:3px 8px;border-radius:8px;background:rgba(0,0,0,.55);color:#fff;font-size:10px}
+.post-body{padding:11px 13px 4px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px}
+.post-actions{padding:9px 13px 13px}
+.post-like{border:0;background:none;padding:4px 6px 4px 0;font-size:22px;display:inline-flex;align-items:center;gap:7px;color:var(--text);transition:transform .12s ease}
+.post-like span{font-size:13px;font-weight:800;color:var(--muted)}
+.post-like:active{transform:scale(.88)}
+.post-like.liked{animation:like-pop .28s ease}
+@keyframes like-pop{0%{transform:scale(1)}40%{transform:scale(1.3)}100%{transform:scale(1)}}
+.post-heart-burst{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:78px;pointer-events:none;animation:heart-burst .8s ease forwards;text-shadow:0 6px 30px rgba(0,0,0,.5)}
+@keyframes heart-burst{0%{opacity:0;transform:scale(.4)}18%{opacity:1;transform:scale(1.15)}30%{transform:scale(1)}85%{opacity:1}100%{opacity:0;transform:scale(1.05)}}
+
+.feed-fab{position:fixed;right:20px;bottom:24px;z-index:20;width:56px;height:56px;border-radius:50%;border:0;display:grid;place-items:center;font-size:24px;color:#fff;background:linear-gradient(135deg,var(--accent-main),var(--accent-hot));box-shadow:0 14px 34px rgba(155,92,255,.45);transition:transform .15s ease}
+.feed-fab:hover{transform:translateY(-2px) scale(1.04)}
+.feed-fab:active{transform:scale(.94)}
+
+.post-composer-card{width:min(520px,calc(100% - 28px));background:var(--panel,#150e22);border:1px solid var(--line);border-radius:20px;padding:0;overflow:hidden}
+.post-composer-head{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line)}
+.post-composer{padding:16px}
+.post-composer textarea{width:100%;resize:vertical;min-height:90px;border:1px solid var(--line);border-radius:12px;background:#0a1220;color:#fff;padding:11px;outline:none;font-size:14px}
+
+@media(max-width:700px){
+  .feed-ig-list{max-width:none}
+  .post-card{border-radius:0;border-left:0;border-right:0}
+  .feed-scroll{padding:0 0 100px}
+}
+@media(prefers-reduced-motion:reduce){
+  .post-like.liked{animation:none}
+  .post-heart-burst{animation:none;opacity:0}
 }

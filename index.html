@@ -3,15 +3,15 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#0a1020"><meta name="color-scheme" content="dark light">
-<meta name="description" content="Conversa Live — chat, chamadas, música e compartilhamento de tela.">
-<title>Conversa Live v3.1.0</title>
-<link rel="manifest" href="manifest.json"><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%236d5dfc'/%3E%3Cpath d='M17 19h30v22H29l-8 7v-7h-4z' fill='white'/%3E%3C/svg%3E">
+<meta name="description" content="FreeChat — chat, chamadas, música e compartilhamento de tela.">
+<title>FreeChat v3.1.3</title>
+<link rel="manifest" href="manifest.json"><link rel="icon" type="image/svg+xml" href="icon.svg">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <section id="login" class="screen">
   <div class="auth-card">
-    <div class="brand-icon">💬</div><div class="auth-brand">CONVERSA LIVE <span>v3.1.0</span></div><h1>Conversa Live</h1>
+    <div class="brand-icon brand-logo-icon"><img src="icon.svg" alt="FreeChat" width="46" height="46"></div><div class="auth-brand">FREECHAT <span>v3.1.3</span></div><h1>FreeChat</h1>
     <p id="authSubtitle" class="muted">Entre na sua conta para continuar</p>
     <div class="auth-tabs"><button id="loginTab" class="auth-tab active" type="button">Entrar</button><button id="registerTab" class="auth-tab" type="button">Criar conta</button></div>
     <div id="registerFields" class="hidden"><label for="name">👤 Nome de usuário</label><input id="name" maxlength="24" autocomplete="name" placeholder="Como quer ser chamado?"></div>
@@ -25,7 +25,7 @@
 </section>
 <section id="callMenu" class="screen hidden">
   <div class="call-menu-card menu-main-card">
-    <div class="brand-icon">📞</div>
+    <div class="brand-icon brand-logo-icon"><img src="icon.svg" alt="FreeChat" width="46" height="46"></div>
     <h1>Olá, <span id="welcomeName">usuário</span>! 👋</h1>
     <p class="muted">Crie uma chamada ou entre em uma existente.</p>
     <div class="profile-code"><span>Seu código de usuário</span><b id="myCode">CL-000000</b><button id="copyUserCode" type="button">📋 Copiar</button></div>
@@ -50,10 +50,10 @@
 
 <div id="app" class="hidden">
 <aside class="side">
-  <div class="brand"><span class="mini">CL</span><b>Conversa Live</b></div>
+  <div class="brand"><span class="mini mini-logo"><img src="icon.svg" alt="" width="20" height="20"></span><b>FreeChat</b></div>
   <div class="label">SALA</div><div class="room" id="roomName"># geral</div>
   <div class="status" id="status">Desconectado</div>
-  <div class="menu-welcome"><div class="menu-welcome-icon">💬</div><div><small>Bem-vindo de volta</small><b id="welcomeName">Usuário</b></div></div><div class="side-tools"><button id="invite" class="secondary">🔗 Copiar convite</button><span class="side-code">ID: <b id="sideCode">CL-000000</b></span><button id="feedBtn" class="feed-main-btn" type="button" title="Abrir Feed">📰 <span>Feed</span><small>Fotos e vídeos até 1 min</small></button><div class="side-action-row"><button id="friendsBtn" class="icon-header" type="button" title="Amigos">👥<span>Amigos</span></button><button id="socialBtn" class="icon-header" type="button" title="Social">🌎<span>Social</span></button><button id="settingsBtn" class="icon-header" type="button" title="Configurações" aria-label="Configurações">⚙️<span>Config.</span></button></div></div>
+  <div class="menu-welcome"><div class="menu-welcome-icon">💬</div><div><small>Bem-vindo de volta</small><b id="sideWelcomeName">Usuário</b></div></div><div class="side-tools"><button id="invite" class="secondary">🔗 Copiar convite</button><span class="side-code">ID: <b id="sideCode">CL-000000</b></span><button id="feedBtn" class="feed-main-btn" type="button" title="Abrir Feed">📰 <span>Feed</span><small>Fotos e vídeos até 1 min</small></button><div class="side-action-row"><button id="friendsBtn" class="icon-header" type="button" title="Amigos">👥<span>Amigos</span></button><button id="socialBtn" class="icon-header" type="button" title="Social">🌎<span>Social</span></button><button id="settingsBtn" class="icon-header" type="button" title="Configurações" aria-label="Configurações">⚙️<span>Config.</span></button></div></div>
   <button id="leaveChat" class="leave-chat-btn" type="button" title="Sair do chat e voltar ao menu">🚪 Sair do chat</button>
   <div class="label">PARTICIPANTES</div><div id="people"></div>
   <div class="me"><span id="avatar">?</span><div><b id="me">Você</b><small>Online</small></div></div>
@@ -161,20 +161,35 @@
 
 <div id="socialPanel" class="modal hidden" role="dialog" aria-modal="true">
  <div class="modal-card social-card">
-  <div class="social-head"><div><b>📰 Feed</b><small>Publicações de amigos • fotos e vídeos de até 1 minuto</small></div><button id="socialClose" class="icon-btn" type="button" aria-label="Voltar">×</button></div>
-  <div class="social-tabs"><button class="social-tab active" data-social-tab="feed">📰 Feed</button><button class="social-tab" data-social-tab="friends">👥 Amigos</button><button class="social-tab" data-social-tab="notifications">🔔 Avisos <span id="notificationBadge" class="mini-badge hidden">0</span></button><button class="social-tab" data-social-tab="profile">👤 Perfil</button></div>
-  <section id="socialFeed" class="social-section">
-   <form id="postForm" class="post-composer">
-  <textarea id="postBody" maxlength="1000" rows="3" placeholder="O que você quer compartilhar?"></textarea>
-  <input id="postMedia" type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime" hidden>
-  <div id="postMediaPreview" class="post-media-preview hidden"></div>
-  <div class="post-compose-foot"><div class="post-compose-tools"><small id="postCount">0/1000</small><button id="postMediaBtn" class="secondary-btn small-btn" type="button">📷 Foto/vídeo</button></div><button class="primary-btn" type="submit">Publicar</button></div>
-</form>
-   <div id="feedList" class="feed-list"></div>
-  </section>
-  <section id="socialFriends" class="social-section hidden"><div class="social-section-title"><b>👥 Seus amigos</b><button id="socialRefreshFriends" class="icon-btn" type="button">↻</button></div><div class="friends-toolbar"><input id="socialFriendsSearch" class="friends-search" placeholder="🔎 Procurar amigo..." autocomplete="off"></div><div id="socialFriendsList" class="friends-list"></div></section>
+  <div class="social-head"><div><b>🌎 Social</b><small>Amigos, avisos e seu perfil</small></div><button id="socialClose" class="icon-btn" type="button" aria-label="Voltar">×</button></div>
+  <div class="social-tabs"><button class="social-tab active" data-social-tab="friends">👥 Amigos</button><button class="social-tab" data-social-tab="notifications">🔔 Avisos <span id="notificationBadge" class="mini-badge hidden">0</span></button><button class="social-tab" data-social-tab="profile">👤 Perfil</button></div>
+  <section id="socialFriends" class="social-section"><div class="social-section-title"><b>👥 Seus amigos</b><button id="socialRefreshFriends" class="icon-btn" type="button">↻</button></div><div class="friends-toolbar"><input id="socialFriendsSearch" class="friends-search" placeholder="🔎 Procurar amigo..." autocomplete="off"></div><div id="socialFriendsList" class="friends-list"></div></section>
   <section id="socialNotifications" class="social-section hidden"><div class="social-section-title"><b>🔔 Notificações</b><button id="markNotificationsRead" class="secondary-btn small-btn" type="button">Marcar como lidas</button></div><div id="notificationList" class="notification-list"></div></section>
-  <section id="socialProfile" class="social-section hidden"><div class="profile-hero"><div id="profileAvatar" class="profile-avatar">?</div><div><h2 id="profileName">Usuário</h2><p id="profileCode">CL-000000</p></div></div><label>Nome de usuário</label><input id="profileNameInput" maxlength="24" placeholder="Seu nome"><button id="saveProfileBtn" class="primary-btn" type="button">Salvar perfil</button><div id="profileStatus" class="status"></div><div class="profile-tip">Seu código é seu identificador para adicionar amigos.</div></section>
+  <section id="socialProfile" class="social-section hidden"><div class="profile-hero"><button id="profileAvatarBtn" class="profile-avatar profile-avatar-btn" type="button" title="Trocar foto de perfil"><span id="profileAvatar">?</span><span class="profile-avatar-edit">📷</span></button><input id="profileAvatarInput" type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden><div><h2 id="profileName">Usuário</h2><p id="profileCode">CL-000000</p><button id="removeAvatarBtn" class="text-btn hidden" type="button">Remover foto</button></div></div><label>Nome de usuário</label><input id="profileNameInput" maxlength="24" placeholder="Seu nome"><button id="saveProfileBtn" class="primary-btn" type="button">Salvar perfil</button><div id="profileStatus" class="status"></div><div class="profile-tip">Seu código é seu identificador para adicionar amigos.</div></section>
+ </div>
+</div>
+
+<section id="feedScreen" class="screen feed-screen hidden">
+ <header class="feed-topbar">
+  <button id="feedBack" class="icon-btn" type="button" aria-label="Voltar">‹</button>
+  <b class="feed-topbar-title">FreeChat</b>
+  <button id="feedNewPostBtn" class="icon-btn" type="button" aria-label="Nova publicação" title="Nova publicação">➕</button>
+ </header>
+ <div class="feed-scroll">
+  <div id="feedList" class="feed-ig-list"></div>
+ </div>
+ <button id="feedFab" class="feed-fab" type="button" title="Nova publicação">➕</button>
+</section>
+
+<div id="postComposerModal" class="modal hidden" role="dialog" aria-modal="true">
+ <div class="modal-card post-composer-card">
+  <div class="post-composer-head"><b>Nova publicação</b><button id="postComposerClose" class="icon-btn" type="button" aria-label="Fechar">×</button></div>
+  <form id="postForm" class="post-composer">
+   <textarea id="postBody" maxlength="1000" rows="3" placeholder="O que você quer compartilhar?"></textarea>
+   <input id="postMedia" type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime" hidden>
+   <div id="postMediaPreview" class="post-media-preview hidden"></div>
+   <div class="post-compose-foot"><div class="post-compose-tools"><small id="postCount">0/1000</small><button id="postMediaBtn" class="secondary-btn small-btn" type="button">📷 Foto/vídeo</button></div><button class="primary-btn" type="submit">Publicar</button></div>
+  </form>
  </div>
 </div>
 
