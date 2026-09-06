@@ -96,6 +96,38 @@ function unlockNotificationAudio(){
 document.addEventListener("pointerdown",unlockNotificationAudio,{passive:true});
 window.playFriendNotificationSound=playFriendNotificationSound;
 
+// Sons curtos da call, gerados localmente para não depender de arquivos externos.
+let callSoundLast=0;
+function playCallSound(kind){
+  const nowMs=Date.now();
+  if(nowMs-callSoundLast<180)return;
+  callSoundLast=nowMs;
+  try{
+    const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;
+    audioNotifyContext=audioNotifyContext||new AC();
+    if(audioNotifyContext.state==='suspended')audioNotifyContext.resume().catch(()=>{});
+    const ctx=audioNotifyContext,now=ctx.currentTime;
+    const patterns={
+      invite:[[660,.08],[880,.12],[1040,.16]],
+      create:[[520,.08],[740,.11],[980,.18]],
+      join:[[620,.08],[820,.16]],
+      leave:[[820,.08],[620,.16]]
+    };
+    const pattern=patterns[kind]||patterns.invite;
+    let t=now;
+    pattern.forEach(([freq,dur],i)=>{
+      const osc=ctx.createOscillator(),gain=ctx.createGain();
+      osc.type='sine';osc.frequency.setValueAtTime(freq,t);
+      gain.gain.setValueAtTime(.0001,t);
+      gain.gain.exponentialRampToValueAtTime(.045,t+.012);
+      gain.gain.exponentialRampToValueAtTime(.0001,t+dur);
+      osc.connect(gain);gain.connect(ctx.destination);osc.start(t);osc.stop(t+dur+.015);
+      t+=dur*.78;
+    });
+  }catch(e){}
+}
+window.playCallSound=playCallSound;
+
 function showFriendToast(name){
   let t=document.getElementById("friendToast");
   if(!t){
@@ -191,7 +223,7 @@ $("loginTab").onclick=()=>modeSet("login");$("registerTab").onclick=()=>modeSet(
  password.addEventListener("input",updatePasswordStrength);$("confirmPassword")?.addEventListener("input",()=>{$("confirmPassword").setCustomValidity(password.value!==$("confirmPassword").value?"As senhas não coincidem.":"")});
  [email,password,name,$("confirmPassword")].filter(Boolean).forEach(el=>el.addEventListener("keydown",e=>{if(e.key==="Enter")auth()}));
  const t=localStorage.getItem("conversaLiveToken"),u=localStorage.getItem("conversaLiveUser");if(t&&u)try{window.CONVERSA_TOKEN=t;window.CONVERSA_USER=JSON.parse(u);login.classList.add("hidden");menu.classList.remove("hidden");animateMainMenu();$("welcomeName").textContent=window.CONVERSA_USER.name;$("sideWelcomeName").textContent=window.CONVERSA_USER.name;$("myCode").textContent=window.CONVERSA_USER.code;$("sideCode").textContent=window.CONVERSA_USER.code;window.applyAvatar?.($("avatar"),window.CONVERSA_USER.avatarUrl,window.CONVERSA_USER.name);window.renderFriends?.();startFriendRequestPolling();connectLobby()}catch(e){localStorage.removeItem("conversaLiveToken");localStorage.removeItem("conversaLiveUser")}
- async function api(path,opts={}){const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),12000);let externalAbort;try{if(opts.signal){externalAbort=()=>controller.abort();if(opts.signal.aborted)controller.abort();else opts.signal.addEventListener("abort",externalAbort,{once:true})}const isForm=typeof FormData!=="undefined"&&opts.body instanceof FormData;const baseHeaders={Authorization:"Bearer "+(window.CONVERSA_TOKEN||localStorage.getItem("conversaLiveToken"))};if(!isForm)baseHeaders["Content-Type"]="application/json";const r=await fetch(serverUrl()+path,{...opts,signal:controller.signal,headers:{...baseHeaders,...(opts.headers||{})}});const d=await r.json().catch(()=>({}));if(r.status===401){localStorage.removeItem("conversaLiveToken");localStorage.removeItem("conversaLiveUser");window.CONVERSA_TOKEN="";throw Error("Sua sessão expirou. Entre novamente.")}if(!r.ok)throw Error(d.error||"Erro.");return d}catch(e){if(e?.name==="AbortError")throw Error("O servidor demorou demais para responder. Tente novamente.");throw e}finally{clearTimeout(timeout);if(externalAbort&&opts.signal)opts.signal.removeEventListener("abort",externalAbort)}} 
+ async function api(path,opts={}){const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),12000);let externalAbort;try{if(opts.signal){externalAbort=()=>controller.abort();if(opts.signal.aborted)controller.abort();else opts.signal.addEventListener("abort",externalAbort,{once:true})}const isForm=typeof FormData!=="undefined"&&opts.body instanceof FormData;const baseHeaders={Authorization:"Bearer "+(window.CONVERSA_TOKEN||localStorage.getItem("conversaLiveToken"))};if(!isForm)baseHeaders["Content-Type"]="application/json";const r=await fetch(serverUrl()+path,{...opts,signal:controller.signal,headers:{...baseHeaders,...(opts.headers||{})}});const d=await r.json().catch(()=>({}));if(r.status===401){window.CONVERSA_SESSION_INVALID=true;throw Error(d.error||"Sua sessão não está mais válida. Faça login novamente se necessário.")}if(!r.ok)throw Error(d.error||"Erro.");return d}catch(e){if(e?.name==="AbortError")throw Error("O servidor demorou demais para responder. Tente novamente.");throw e}finally{clearTimeout(timeout);if(externalAbort&&opts.signal)opts.signal.removeEventListener("abort",externalAbort)}} 
  let unreadCounts={},unreadInitialized=false;
  async function refreshUnreadCounts(){try{const d=await api("/api/messages/unread");const next=d.unread||{};if(unreadInitialized){Object.keys(next).forEach(code=>{const before=Number(unreadCounts[code]||0),after=Number(next[code]||0);if(after>before&&code!==activeFriendCode){const friend=(window.friendDirectory?.friends||[]).find(x=>x.code===code);window.notifyIncomingMessage?.(friend?.name||code,{body:"Nova mensagem"})}})}unreadCounts=next;unreadInitialized=true;window.renderFriends?.()}catch(e){}}
  function bumpUnread(code){unreadCounts[code]=(unreadCounts[code]||0)+1;window.renderFriends?.();}
@@ -200,7 +232,8 @@ $("loginTab").onclick=()=>modeSet("login");$("registerTab").onclick=()=>modeSet(
  function applyAvatar(el,avatarUrl,name){
    if(!el)return;
    if(avatarUrl){
-     el.style.backgroundImage=`url("${serverUrl()+avatarUrl}")`;
+     const src=serverUrl()+avatarUrl+(String(avatarUrl).includes("?")?"&":"?")+"_cb="+encodeURIComponent(localStorage.getItem("conversaLiveAvatarVersion")||"");
+     el.style.backgroundImage=`url("${src}")`;
      el.style.backgroundSize="cover";el.style.backgroundPosition="center";
      el.textContent="";el.classList.add("has-avatar-photo");
    }else{
@@ -446,6 +479,12 @@ function startSocket(){
     people.set(u.id,u);renderPeople();
     addSystem(u.name+" entrou na sala.");
   });
+  socket.on("user-profile-updated",u=>{
+    if(!u?.id)return;
+    const current=people.get(u.id)||{};
+    people.set(u.id,{...current,...u});
+    renderPeople();
+  });
   socket.on("user-left",u=>{
     people.delete(u.id);renderPeople();closePeer(u.id);
     if(u.id===callHostId)callHostId=null;
@@ -479,6 +518,13 @@ function startSocket(){
     }
   });
 
+  socket.on("call-created",({byId})=>{
+    if(inCall)window.playCallSound?.("create");
+  });
+  socket.on("call-participant-joined",({id})=>{
+    if(inCall && id!==socket?.id)window.playCallSound?.("join");
+  });
+
   socket.on("music-state",async state=>{
     musicState=state||null; updateMusicUI(state);
     if(state?.hostId===socket?.id&&state.track){
@@ -504,7 +550,7 @@ function startSocket(){
     setTileCamOff(id,!on);
   });
   socket.on("call-participant-left",({id})=>{
-    if(id)closePeer(id);
+    if(id){closePeer(id); if(inCall)window.playCallSound?.("leave");}
   });
 
   socket.on("call-ready-users",ids=>{
@@ -538,6 +584,7 @@ function startSocket(){
   });
 
   socket.on("call-invite",({room:invitedRoom,fromCode,fromName})=>{
+    window.playCallSound?.("invite");
     showCallInvite(invitedRoom,fromCode,fromName);
   });
   socket.on("call-invite-declined",({byName})=>{
@@ -568,13 +615,14 @@ function renderPeople(){
   $("people").innerHTML="";
   people.forEach(u=>{
     const d=document.createElement("div");d.className="person";
+    const av=document.createElement("span");av.className="person-avatar";window.applyAvatar?.(av,u.avatarUrl,u.name);
     const dot=document.createElement("i");
     const span=document.createElement("span");span.className="person-name";
     span.textContent=u.name+(u.id===socket?.id?" (você)":"");
     if(u.id===callHostId){
       const b=document.createElement("small");b.className="host-badge";b.textContent="CRIADOR";span.appendChild(b);
     }
-    d.append(dot,span);
+    d.append(av,dot,span);
     if(isHost()&&u.id!==socket.id&&inCall){
       const actions=document.createElement("div");actions.className="person-actions";
       const mute=document.createElement("button");mute.title="Silenciar";mute.textContent=remoteMuted.has(u.id)?"🔊":"🔇";
@@ -1149,8 +1197,10 @@ async function uploadAvatar(file){
   const d=await api("/api/me/avatar",{method:"POST",body:fd});
   window.CONVERSA_USER={...window.CONVERSA_USER,...d.user};
   localStorage.setItem("conversaLiveUser",JSON.stringify(window.CONVERSA_USER));
+  localStorage.setItem("conversaLiveAvatarVersion",String(Date.now()));
   window.applyAvatar?.($("profileAvatar"),d.user.avatarUrl,d.user.name);
   window.applyAvatar?.($("avatar"),d.user.avatarUrl,d.user.name);
+  socket?.emit("profile-updated",{avatarUrl:d.user.avatarUrl||null,name:d.user.name});
   $("removeAvatarBtn")?.classList.toggle("hidden",!d.user.avatarUrl);
   appToast("Foto de perfil atualizada!","success");
   renderFriends();
@@ -1164,8 +1214,10 @@ $("removeAvatarBtn")?.addEventListener("click",async()=>{
   const d=await api("/api/me/avatar",{method:"DELETE"});
   window.CONVERSA_USER={...window.CONVERSA_USER,...d.user};
   localStorage.setItem("conversaLiveUser",JSON.stringify(window.CONVERSA_USER));
+  localStorage.setItem("conversaLiveAvatarVersion",String(Date.now()));
   window.applyAvatar?.($("profileAvatar"),null,d.user.name);
   window.applyAvatar?.($("avatar"),null,d.user.name);
+  socket?.emit("profile-updated",{avatarUrl:null,name:d.user.name});
   $("removeAvatarBtn")?.classList.add("hidden");
   appToast("Foto removida.","success");
   renderFriends();
@@ -1319,9 +1371,19 @@ async function createPeer(id,initiator){
   // Use the standard addTrack path. It creates the correct sendrecv
   // transceivers for both microphone and camera and is less error-prone than
   // manually constructing transceivers for each track.
+  let hasVideoSender=false;
   for(const track of localStream.getTracks()){
     const sendTrack=(track.kind==="video"&&screenTrack)?screenTrack:track;
-    try{pc.addTrack(sendTrack,localStream)}catch(e){console.warn("addTrack",id,track.kind,e)}
+    try{
+      const sender=pc.addTrack(sendTrack,localStream);
+      if(track.kind==="video")hasVideoSender=!!sender;
+    }catch(e){console.warn("addTrack",id,track.kind,e)}
+  }
+  // Sempre crie um m-line de vídeo. Assim, se a call começou sem câmera,
+  // compartilhar a tela pode usar replaceTrack() sem depender de uma
+  // renegociação tardia (que alguns navegadores/pares podem rejeitar).
+  if(!hasVideoSender){
+    try{pc.addTransceiver("video",{direction:"sendrecv"});}catch(e){console.warn("addTransceiver video",id,e)}
   }
 
   // Prefer Opus for voice when the browser exposes codec capabilities.
@@ -1652,6 +1714,7 @@ function leaveCall(ending){
   const wasHost=isHost();
   if(ending&&wasHost&&socket)socket.emit("call-end",{room});
   if(socket?.connected)socket.emit("call-leave",{room});
+  if(inCall)window.playCallSound?.("leave");
   inCall=false;callReady=false;joiningCall=false;
   peers.forEach(pc=>{try{pc.close();}catch(e){}});
   peers.clear();
@@ -1775,7 +1838,7 @@ $("screen").onclick=async()=>{
     return;
   }
   try{
-    const s=await navigator.mediaDevices.getDisplayMedia({video:true,audio:true});
+    const s=await navigator.mediaDevices.getDisplayMedia({video:{frameRate:{ideal:30,max:60}},audio:true});
     const track=s.getVideoTracks()[0];
     const audioTrack=s.getAudioTracks()[0];
     screenTrack=track;
@@ -1783,8 +1846,17 @@ $("screen").onclick=async()=>{
     document.querySelector('[data-id="local"]')?.classList.add("sharing");
     peers.forEach(async(pc,id)=>{
       const sender=pc.getSenders().find(x=>x.track?.kind==="video");
-      if(sender){try{await sender.replaceTrack(track);}catch(e){}}
-      else{try{pc.addTrack(track,s);await renegotiatePeer(id,pc);}catch(e){}}
+      if(sender){
+        try{await sender.replaceTrack(track);}
+        catch(e){console.warn("screen replaceTrack",id,e);}
+      }else{
+        // Compatibilidade com conexões antigas criadas antes da versão 3.2.0.
+        try{
+          const tx=pc.addTransceiver("video",{direction:"sendrecv"});
+          await tx.sender.replaceTrack(track);
+          await renegotiatePeer(id,pc);
+        }catch(e){console.warn("screen addTransceiver",id,e);}
+      }
     });
     if(audioTrack)await setupScreenAudioMix(audioTrack);
     const v=document.querySelector('[data-id="local"] video');
@@ -1866,7 +1938,7 @@ function formatMessageTime(v){const d=new Date(v);if(Number.isNaN(d.getTime()))r
 function setSelectedMessageFile(file){selectedMessageFile=file||null;const info=$("messageFileInfo");if(!info)return;if(!file){info.textContent="";info.classList.add("hidden");return}info.classList.remove("hidden");info.innerHTML=`<span>${file.type.startsWith("image/")?"🖼️":"🎬"} ${messageEscape(file.name)}</span><button type="button" id="messageFileClear" aria-label="Remover arquivo">×</button>`;$("messageFileClear").onclick=()=>setSelectedMessageFile(null)}
 window.openMessages=function(friend){
  if(!friend?.code)return;requestDesktopNotifications();window.clearUnread?.(friend.code);activeFriendCode=friend.code;lastLoadedMessages=[];setSelectedMessageFile(null);
- $("messagesFriendName").textContent=friend.name||friend.code;window.applyAvatar?.($("messagesFriendAvatar"),friend.avatarUrl,friend.name);$("messagesFriendState").textContent=friend.online?"● Online":"Conversa privada";$("messagesPanel").classList.remove("hidden");$("messageStatus").textContent="";if($("messagesSearch"))$("messagesSearch").value="";loadMessages(true);setTimeout(()=>$("messageInput")?.focus(),80);
+ $("messagesFriendName").textContent=friend.name||friend.code;window.applyAvatar?.($("messagesFriendAvatar"),friend.avatarUrl,friend.name);$("messagesFriendState").textContent=friend.online?"● Online":"Conversa privada";const panel=$("messagesPanel");if(!panel)return;panel.classList.remove("hidden");document.body.classList.add("modal-open");$("messageStatus").textContent="";if($("messagesSearch"))$("messagesSearch").value="";loadMessages(true);setTimeout(()=>$("messageInput")?.focus(),80);
 };
 $("messageAttach")?.addEventListener("click",()=>{$("messageFile")?.click()});
 $("messageFile")?.addEventListener("change",async e=>{
@@ -1883,8 +1955,14 @@ $("messageForm")?.addEventListener("submit",async e=>{
  e.preventDefault();const input=$("messageInput"),body=input.value.trim(),file=selectedMessageFile;if(!activeFriendCode||(!body&&!file))return;const btn=e.currentTarget.querySelector("button[type=submit]");btn.disabled=true;$("messageStatus").textContent=file?"Enviando arquivo...":"Enviando...";
  try{if(file){const fd=new FormData();fd.append("code",activeFriendCode);if(body)fd.append("body",body);fd.append("file",file);if(file._freechatDuration)fd.append("duration",String(file._freechatDuration));await api("/api/messages/media",{method:"POST",body:fd});$("messageFile").value="";setSelectedMessageFile(null)}else{await api("/api/messages",{method:"POST",body:JSON.stringify({code:activeFriendCode,body})})}input.value="";$("messageStatus").textContent="";await loadMessages(true)}catch(err){$("messageStatus").textContent=err.message||"Erro ao enviar."}finally{btn.disabled=false;input.focus()}
 });
-function closePrivateChat(){ document.activeElement?.blur?.();$("messagesPanel")?.classList.add("hidden");activeFriendCode=null;setSelectedMessageFile(null);refreshUnreadCounts(); }
-$("messagesClose")?.addEventListener("click",closePrivateChat);$("messagesBack")?.addEventListener("click",closePrivateChat);
+function closePrivateChat(){ document.activeElement?.blur?.();const panel=$("messagesPanel");if(panel)panel.classList.add("hidden");activeFriendCode=null;setSelectedMessageFile(null);document.body.classList.remove("modal-open");refreshUnreadCounts(); }
+function initPrivateChatUI(){
+  $("messagesClose")?.addEventListener("click",closePrivateChat);
+  $("messagesBack")?.addEventListener("click",closePrivateChat);
+  $("messagesPanel")?.addEventListener("click",e=>{if(e.target.id==="messagesPanel")closePrivateChat();});
+}
+if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",initPrivateChatUI,{once:true});else initPrivateChatUI();
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("messagesPanel")?.classList.contains("hidden"))closePrivateChat();});
 $("messageInput")?.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();$("messageForm")?.requestSubmit()}});
 messageTimer=setInterval(()=>{if(!window.CONVERSA_TOKEN)return;refreshUnreadCounts();if(activeFriendCode&&!$("messagesPanel")?.classList.contains("hidden"))loadMessages(false)},4000);
 document.addEventListener("DOMContentLoaded",()=>{$("friendsSearch")?.addEventListener("input",e=>{window.friendSearchTerm=e.target.value;renderFriends()});$("friendsSearchApp")?.addEventListener("input",e=>{window.friendSearchTerm=e.target.value;renderFriends()});$("messagesSearch")?.addEventListener("input",()=>renderMessagesList(false))});
