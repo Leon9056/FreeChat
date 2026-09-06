@@ -4,14 +4,14 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#0a1020"><meta name="color-scheme" content="dark light">
 <meta name="description" content="Conversa Live — chat, chamadas, música e compartilhamento de tela.">
-<title>Conversa Live v3.0.6</title>
+<title>Conversa Live v3.1.0</title>
 <link rel="manifest" href="manifest.json"><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%236d5dfc'/%3E%3Cpath d='M17 19h30v22H29l-8 7v-7h-4z' fill='white'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <section id="login" class="screen">
   <div class="auth-card">
-    <div class="brand-icon">💬</div><div class="auth-brand">CONVERSA LIVE <span>v3.0.6</span></div><h1>Conversa Live</h1>
+    <div class="brand-icon">💬</div><div class="auth-brand">CONVERSA LIVE <span>v3.1.0</span></div><h1>Conversa Live</h1>
     <p id="authSubtitle" class="muted">Entre na sua conta para continuar</p>
     <div class="auth-tabs"><button id="loginTab" class="auth-tab active" type="button">Entrar</button><button id="registerTab" class="auth-tab" type="button">Criar conta</button></div>
     <div id="registerFields" class="hidden"><label for="name">👤 Nome de usuário</label><input id="name" maxlength="24" autocomplete="name" placeholder="Como quer ser chamado?"></div>
@@ -114,17 +114,41 @@
    </div>
  </div>
  <div id="callMusicPanel" class="call-float-panel hidden">
-   <div><b>🎵 Música da call</b><button id="callMusicClose" class="icon-btn" type="button">×</button></div>
+   <div><b>🎵 Central de música</b><button id="callMusicClose" class="icon-btn" type="button">×</button></div>
+   <div class="music-now-card">
+     <div class="music-now-art" id="musicNowArt">🎵</div>
+     <div class="music-now-info"><b id="musicNowTitle">Nenhuma música tocando</b><small id="musicNowArtist">—</small><div class="music-progress"><div id="musicPanelProgress" class="music-progress-fill"></div></div><small id="musicNowTime">0:00 / 0:00</small></div>
+   </div>
+   <div class="music-panel-actions">
+     <button id="musicPause" type="button">⏸ Pausar</button><button id="musicResume" type="button">▶ Retomar</button><button id="musicSkipPanel" type="button">⏭ Próxima</button><button id="musicStopPanel" type="button" class="music-danger">⏹ Parar</button>
+   </div>
    <div class="music-local-volume"><div class="music-volume-head"><span>🔊 Meu volume</span><b id="musicLocalVolumeValue">70%</b></div><input id="musicLocalVolume" type="range" min="0" max="100" value="70" aria-label="Meu volume da música"><button id="musicLocalMute" class="music-local-mute" type="button">🔊 Som ligado</button></div>
-   <p>Digite uma busca e adicione uma faixa à fila.</p>
+   <div class="music-shared-volume"><div class="music-volume-head"><span>📡 Volume transmitido</span><b id="musicSharedVolumeValue">70%</b></div><input id="musicSharedVolume" type="range" min="0" max="100" value="70" aria-label="Volume transmitido da música"></div>
+   <div class="music-queue-head"><b>Fila</b><span id="musicPanelQueueCount">0 faixas</span></div>
+   <div id="musicPanelQueue" class="music-queue"></div>
+   <p>Busque uma faixa para tocar agora ou adicionar à fila.</p>
    <div class="call-music-search"><input id="callMusicSearch" placeholder="Ex.: música, artista..." autocomplete="off"><button id="callMusicSearchBtn" type="button">Buscar</button></div>
    <div id="callMusicResults"></div>
+   <small id="musicPanelHostHint" class="music-host-hint"></small>
  </div>
  <div id="callSettingsPanel" class="call-float-panel hidden">
-   <div><b>⚙️ Qualidade da call</b><button id="callSettingsClose" class="icon-btn" type="button">×</button></div>
-   <label class="call-setting-row"><span>Qualidade automática</span><input id="autoQualityToggle" type="checkbox" checked></label>
+   <div><b>⚙️ Áudio e transmissão</b><button id="callSettingsClose" class="icon-btn" type="button">×</button></div>
+   <div class="settings-subtitle">Microfone</div>
+   <label class="call-setting-field"><span>Entrada</span><select id="micDeviceSelect"><option value="">Microfone padrão</option></select></label>
+   <label class="call-setting-field"><span>Volume de entrada <b id="micInputVolumeValue">100%</b></span><input id="micInputVolume" type="range" min="0" max="150" value="100"></label>
+   <label class="call-setting-row"><span>Cancelamento de eco</span><input id="echoCancellationToggle" type="checkbox" checked></label>
+   <label class="call-setting-row"><span>Redução de ruído</span><input id="noiseSuppressionToggle" type="checkbox" checked></label>
+   <label class="call-setting-row"><span>Ganho automático</span><input id="autoGainToggle" type="checkbox" checked></label>
+   <div class="settings-subtitle">Transmissão</div>
+   <label class="call-setting-field"><span>Qualidade de vídeo</span><select id="videoQualitySelect"><option value="low">Econômica • 360p</option><option value="medium">Equilibrada • 480p</option><option value="high">Alta • 720p</option><option value="ultra">Máxima • 1080p</option></select></label>
+   <label class="call-setting-row"><span>Ajuste automático de qualidade</span><input id="autoQualityToggle" type="checkbox" checked></label>
+   <label class="call-setting-field"><span>Saída de áudio</span><select id="audioOutputSelect"><option value="">Saída padrão</option></select></label>
+   <label class="call-setting-field"><span>Volume da call <b id="callOutputVolumeValue">100%</b></span><input id="callOutputVolume" type="range" min="0" max="100" value="100"></label>
    <label class="call-setting-row"><span>Reduzir animações</span><input id="reduceCallMotion" type="checkbox"></label>
+   <div class="call-settings-actions"><button id="refreshAudioDevices" type="button">↻ Atualizar dispositivos</button><button id="testMicBtn" type="button">🎙️ Testar microfone</button></div>
+   <div id="micTestMeter" class="mic-test-meter"><i></i></div>
    <div class="call-stats-grid"><span>Ping <b id="callPingValue">--</b></span><span>FPS <b id="callFpsValue">--</b></span><span>Vídeo <b id="callResValue">--</b></span><span>Perda <b id="callLossValue">--</b></span></div>
+   <small class="settings-note">Algumas opções dependem do navegador e do hardware. O FreeChat aplica a melhor configuração disponível sem interromper a chamada.</small>
  </div>
 </section>
 <div id="mobileNav" class="mobile-nav hidden" aria-label="Navegação mobile durante a call">
@@ -155,7 +179,7 @@
  </div>
 </div>
 
-<script src="config.js?v=3.0.6"></script><script src="app.js?v=3.0.6"></script>
+<script src="config.js?v=3.1.0"></script><script src="app.js?v=3.1.0"></script>
 <div id="messagesPanel" class="modal hidden" role="dialog" aria-modal="true">
 <div class="modal-card messages-card">
 <div class="messages-head"><button id="messagesBack" class="icon-btn" aria-label="Voltar">‹</button><div class="messages-person"><div id="messagesFriendAvatar" class="dm-avatar">?</div><div><strong id="messagesFriendName">Selecione um amigo</strong><small id="messagesFriendState">Conversa privada</small></div></div><button id="messagesClose" class="icon-btn" aria-label="Fechar">×</button></div>

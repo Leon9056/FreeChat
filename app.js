@@ -1,4 +1,4 @@
-/* FreeChat v3.0.6 — conexão resiliente, WebRTC, feed, segurança e estabilidade */
+/* FreeChat v3.1.0 — conexão resiliente, WebRTC, feed, segurança e estabilidade */
 function serverUrl(){return window.SIGNALING_URL?window.SIGNALING_URL.replace(/\/$/,""):(location.protocol==="https:"?"https://"+location.host:"http://"+location.host)}
 (function(){
  const $=id=>document.getElementById(id),
@@ -652,7 +652,9 @@ $("invite").onclick=async()=>{
   setTimeout(()=>{$("invite").textContent="🔗 Copiar convite";},1600);
 };
 
-$("audioUnlock").onclick=unlockAllAudio;$("musicStop")?.addEventListener("click",()=>musicControl("music-stop"));$("musicSkip")?.addEventListener("click",()=>musicControl("music-next"));
+$("audioUnlock").onclick=async()=>{unlockAllAudio();await new Promise(r=>setTimeout(r,180));const blocked=[...remoteAudioEls.values()].some(v=>v.paused&&!v.muted);if(blocked){$("callSettingsPanel")?.classList.remove("hidden");setCallStatus("O navegador bloqueou o áudio. Verifique a saída de áudio nas configurações.","warn");}};
+$("musicStop")?.addEventListener("click",()=>{$("callMusicPanel")?.classList.remove("hidden");renderMusicPanel(musicState)});
+$("musicSkip")?.addEventListener("click",()=>{$("callMusicPanel")?.classList.remove("hidden");renderMusicPanel(musicState)});
 $("callOpen").onclick=openCall;
 $("callClose").onclick=()=>leaveCall(true);
 $("hang").onclick=()=>leaveCall(true);
@@ -743,27 +745,25 @@ function refreshAudioStatus(){
 
 function formatMusicTime(sec){sec=Math.max(0,Math.floor(Number(sec)||0));return Math.floor(sec/60)+":"+String(sec%60).padStart(2,"0");}
 let musicUiTickTimer=null;
-function updateMusicUI(state){
- const b=$("musicBot");if(!b)return;
- const t=b.querySelector(".music-title"),m=b.querySelector(".music-meta"),q=b.querySelector(".music-queue-count"),x=b.querySelector(".music-stop"),sk=b.querySelector(".music-skip"),fill=b.querySelector(".music-progress-fill");
- clearInterval(musicUiTickTimer);musicUiTickTimer=null;
- if(state?.track){
-   b.classList.remove("idle");
-   if(t)t.textContent="🎵 "+state.track.title;
-   const dur=Number(state.track.duration||0);
-   const basePos=Number(state.position||0),syncAt=Date.now();
-   const renderTick=()=>{
-     const pos=state.paused?basePos:basePos+(Date.now()-syncAt)/1000;
-     if(m)m.textContent=(state.paused?"⏸ pausada":"▶ tocando")+" • "+(state.track.artist||"Artista")+" • "+formatMusicTime(pos)+(dur?"/"+formatMusicTime(dur):"");
-     if(fill)fill.style.width=(dur>0?Math.min(100,pos/dur*100):0)+"%";
-   };
-   renderTick();
-   if(!state.paused)musicUiTickTimer=setInterval(renderTick,1000);
-   if(q)q.textContent=(state.queue?.length||0)+" na fila";if(x)x.disabled=false;if(sk)sk.disabled=false;
- }else{
-   b.classList.add("idle");if(t)t.textContent="Nenhuma música tocando";if(m)m.textContent="Use /m nome da música no chat";if(q)q.textContent="";if(x)x.disabled=true;if(sk)sk.disabled=true;if(fill)fill.style.width="0%";
- }
+function renderMusicPanel(state){
+ const title=$("musicNowTitle"),artist=$("musicNowArtist"),art=$("musicNowArt"),time=$("musicNowTime"),fill=$("musicPanelProgress"),queue=$("musicPanelQueue"),count=$("musicPanelQueueCount"),hint=$("musicPanelHostHint");
+ if(!state?.track){if(title)title.textContent="Nenhuma música tocando";if(artist)artist.textContent="—";if(art){art.textContent="🎵";art.style.backgroundImage=""}if(time)time.textContent="0:00 / 0:00";if(fill)fill.style.width="0%";if(queue)queue.innerHTML='<div class="music-queue-empty">A fila está vazia.</div>';if(count)count.textContent="0 faixas";if(hint)hint.textContent="Entre em uma call para usar a central de música.";return;}
+ const pos=Math.max(0,Number(state.position||0)),dur=Math.max(0,Number(state.track.duration||0));
+ if(title)title.textContent=state.track.title||"Sem título";if(artist)artist.textContent=state.track.artist||"Artista desconhecido";
+ if(art){art.textContent=state.track.artwork?"": "🎵";art.style.backgroundImage=state.track.artwork?`url("${String(state.track.artwork).replace(/"/g,'')}" )`:"";}
+ if(time)time.textContent=formatMusicTime(pos)+" / "+(dur?formatMusicTime(dur):"--:--");if(fill)fill.style.width=(dur?Math.min(100,pos/dur*100):0)+"%";
+ const q=state.queue||[];if(count)count.textContent=q.length+(q.length===1?" faixa":" faixas");
+ if(queue)queue.innerHTML=q.length?q.map((t,i)=>`<div class="music-queue-item"><span>${i+1}</span><div><b>${messageEscape(t.title||"Sem título")}</b><small>${messageEscape(t.artist||"Artista")}</small></div></div>`).join(""): '<div class="music-queue-empty">Nenhuma faixa na fila.</div>';
+ if(hint)hint.textContent=musicHost?"Você controla a música desta call.":(state.hostId===socket?.id?"Você controla a música desta call.":"Som controlado pelo criador da call.");
+ $("musicPause")?.toggleAttribute("disabled",!musicHost||!!state.paused);$("musicResume")?.toggleAttribute("disabled",!musicHost||!state.paused);$("musicSkipPanel")?.toggleAttribute("disabled",!musicHost);$("musicStopPanel")?.toggleAttribute("disabled",!musicHost);$("musicSharedVolume")?.toggleAttribute("disabled",!musicHost);
 }
+function updateMusicUI(state){
+ const b=$("musicBot");if(!b)return;const t=b.querySelector(".music-title"),m=b.querySelector(".music-meta"),q=b.querySelector(".music-queue-count"),x=b.querySelector(".music-stop"),sk=b.querySelector(".music-skip"),fill=b.querySelector(".music-progress-fill");
+ clearInterval(musicUiTickTimer);musicUiTickTimer=null;
+ if(state?.track){b.classList.remove("idle");if(t)t.textContent="🎵 "+state.track.title;const dur=Number(state.track.duration||0),basePos=Number(state.position||0),syncAt=Date.now();const renderTick=()=>{const pos=state.paused?basePos:basePos+(Date.now()-syncAt)/1000;if(m)m.textContent=(state.paused?"⏸ pausada":"▶ tocando")+" • "+(state.track.artist||"Artista")+" • "+formatMusicTime(pos)+(dur?"/"+formatMusicTime(dur):"");if(fill)fill.style.width=(dur>0?Math.min(100,pos/dur*100):0)+"%";};renderTick();if(!state.paused)musicUiTickTimer=setInterval(renderTick,1000);if(q)q.textContent=(state.queue?.length||0)+" na fila";if(x)x.disabled=false;if(sk)sk.disabled=false;}else{b.classList.add("idle");if(t)t.textContent="Nenhuma música tocando";if(m)m.textContent="Abra 🎵 Música para buscar e controlar";if(q)q.textContent="";if(x)x.disabled=true;if(sk)sk.disabled=true;if(fill)fill.style.width="0%";}
+ renderMusicPanel(state);
+}
+
 function setPeersAudioProfile(profile){
   const maxBitrate=profile==="music"?160000:64000;
   peers.forEach(pc=>{
@@ -784,37 +784,76 @@ async function applyMusicTrackToPeers(track,state){
  if(musicElement)try{musicElement.pause()}catch(e){} if(musicSource)try{musicSource.disconnect()}catch(e){}
  if(musicMicSource)try{musicMicSource.disconnect()}catch(e){} musicMicSource=null;
  try{const td=await api("/api/music/token");musicMediaToken=td.token||"";}catch(e){setCallStatus(e.message||"Não foi possível preparar o áudio.","error");return;}
- musicElement=new Audio();musicElement.crossOrigin="anonymous";musicElement.preload="auto";musicElement.src=serverUrl()+"/api/music/stream/"+encodeURIComponent(track.id)+"?mt="+encodeURIComponent(musicMediaToken);
+ musicElement=new Audio();musicElement.crossOrigin="anonymous";musicElement.preload="auto";applyOutputDevice();musicElement.src=serverUrl()+"/api/music/stream/"+encodeURIComponent(track.id)+"?mt="+encodeURIComponent(musicMediaToken);
  let handledError=false;
  musicElement.addEventListener("error",()=>{
    if(handledError)return;handledError=true;
-   if(musicHost&&socket?.connected){
-     setCallStatus("Essa faixa falhou. Pulando para a próxima... ⏭","warn");
-     socket.emit("music-next",{room});
-   }else{
-     setCallStatus("O áudio não pôde ser carregado. Tente outra música.","error");
-   }
+   if(musicHost&&socket?.connected){setCallStatus("Essa faixa falhou. Pulando para a próxima... ⏭","warn");socket.emit("music-next",{room});}
+   else setCallStatus("O áudio não pôde ser carregado. Tente outra música.","error");
  });
- musicSource=ctx.createMediaElementSource(musicElement);musicGainNode=ctx.createGain();musicGainNode.gain.value=localMusicMuted?0:localMusicVolume;
- musicSource.connect(musicGainNode);musicGainNode.connect(musicDestination);musicSource.connect(ctx.destination);
- if(localStream?.getAudioTracks?.().length){musicMicSource=ctx.createMediaStreamSource(new MediaStream([localStream.getAudioTracks()[0]]));const g=ctx.createGain();g.gain.value=1;musicMicSource.connect(g);g.connect(musicDestination);}
+ musicSource=ctx.createMediaElementSource(musicElement);
+ musicLocalGainNode=ctx.createGain();musicTransmitGainNode=ctx.createGain();
+ musicSource.connect(musicLocalGainNode);musicLocalGainNode.connect(ctx.destination);
+ musicSource.connect(musicTransmitGainNode);musicTransmitGainNode.connect(musicDestination);
+ musicVolume=Math.max(0,Math.min(1,Number(state?.volume??musicVolume)));
+ updateMusicGains();
+ if(localStream?.getAudioTracks?.().length){
+   musicMicSource=ctx.createMediaStreamSource(new MediaStream([localStream.getAudioTracks()[0]]));
+   const g=ctx.createGain();g.gain.value=1;musicMicSource.connect(g);g.connect(musicDestination);
+ }
  const mixed=musicDestination.stream.getAudioTracks()[0];peers.forEach(pc=>{const snd=pc.getSenders().find(x=>x.track?.kind==="audio");if(snd&&mixed)snd.replaceTrack(mixed).catch(()=>{})});
  setPeersAudioProfile("music");
  musicTrack=track;musicElement.onended=()=>{if(musicHost&&socket?.connected)socket.emit("music-next",{room})};
  try{if(Number(state?.position)>0)musicElement.currentTime=Number(state.position)}catch(e){}
- try{await musicElement.play();$("audioUnlock")?.classList.add("hidden");}catch(e){$("audioUnlock")?.classList.remove("hidden");setCallStatus("Clique em 🔊 Ativar áudio para iniciar a música.","warn")}syncMusicPlayback(state);
+ try{await musicElement.play();$("audioUnlock")?.classList.add("hidden");}catch(e){$("audioUnlock")?.classList.remove("hidden");setCallStatus("Clique em 🔊 Ativar áudio para iniciar a música.","warn")}
+ syncMusicPlayback(state);
 }
-function syncMusicPlayback(state){if(!musicElement||!state?.track)return;musicVolume=Math.max(0,Math.min(1,Number(state.volume??musicVolume)));if(musicGainNode)musicGainNode.gain.value=localMusicMuted?0:localMusicVolume;if(state.paused)musicElement.pause();else if(musicElement.paused)musicElement.play().catch(()=>{});renderLocalMusicVolume();}
-function restoreMicTrack(){const mic=localStream?.getAudioTracks?.()[0];peers.forEach(pc=>{const snd=pc.getSenders().find(x=>x.track?.kind==="audio");if(snd)snd.replaceTrack(mic||null).catch(()=>{})});setPeersAudioProfile("voice");}
-function stopMusicLocal(clear=true){musicHost=false;musicTrack=null;musicMediaToken="";if(clear)musicState=null;if(musicElement){try{musicElement.pause()}catch(e){}musicElement.removeAttribute("src");musicElement.load();musicElement=null;}if(musicSource)try{musicSource.disconnect()}catch(e){}musicSource=null;if(musicGainNode)try{musicGainNode.disconnect()}catch(e){}musicGainNode=null;if(musicMicSource)try{musicMicSource.disconnect()}catch(e){}musicMicSource=null;restoreMicTrack();updateMusicUI(null);}
+
+function syncMusicPlayback(state){if(!musicElement||!state?.track)return;musicVolume=Math.max(0,Math.min(1,Number(state.volume??musicVolume)));updateMusicGains();if(state.paused)musicElement.pause();else if(musicElement.paused)musicElement.play().catch(()=>{});renderMusicPanel(state);}
+function restoreMicTrack(){const mic=localStream?.getAudioTracks?.()[0];if(musicTrack&&musicDestination){refreshMusicMicSource();return;}peers.forEach(pc=>{const snd=pc.getSenders().find(x=>x.track?.kind==="audio");if(snd)snd.replaceTrack(mic||null).catch(()=>{})});setPeersAudioProfile("voice");}
+function refreshMusicMicSource(){if(!musicAudioContext||!musicDestination||!localStream?.getAudioTracks?.().length)return;try{if(musicMicSource)musicMicSource.disconnect()}catch(e){}try{musicMicSource=musicAudioContext.createMediaStreamSource(new MediaStream([localStream.getAudioTracks()[0]]));const g=musicAudioContext.createGain();g.gain.value=1;musicMicSource.connect(g);g.connect(musicDestination);const mixed=musicDestination.stream.getAudioTracks()[0];peers.forEach(pc=>{const snd=pc.getSenders().find(x=>x.track?.kind==="audio");if(snd&&mixed)snd.replaceTrack(mixed).catch(()=>{})})}catch(e){}}
+function stopMusicLocal(clear=true){musicHost=false;musicTrack=null;musicMediaToken="";if(clear)musicState=null;if(musicElement){try{musicElement.pause()}catch(e){}musicElement.removeAttribute("src");musicElement.load();musicElement=null;}if(musicSource)try{musicSource.disconnect()}catch(e){}musicSource=null;if(musicLocalGainNode)try{musicLocalGainNode.disconnect()}catch(e){}musicLocalGainNode=null;if(musicTransmitGainNode)try{musicTransmitGainNode.disconnect()}catch(e){}musicTransmitGainNode=null;if(musicMicSource)try{musicMicSource.disconnect()}catch(e){}musicMicSource=null;restoreMicTrack();updateMusicUI(null);renderMusicPanel(null);}
 async function searchAndPlayMusic(term){if(!inCall||!socket?.connected){appToast("Entre em uma call para usar o bot de música.","error");return false;}const q=String(term||"").trim();if(q.length<2){appToast("Use /m nome da música","error");return false;}try{const d=await api("/api/music/search?q="+encodeURIComponent(q));const track=d.tracks?.[0];if(!track)throw Error("Não encontrei essa música.");socket.emit("music-play",{room,track});return true}catch(e){setCallStatus(e.message||"Não foi possível tocar a música.","error");return false;}}
 function musicControl(ev,p={}){if(!inCall||!socket?.connected){appToast("Entre em uma call para usar o bot de música.","error");return;}socket.emit(ev,{room,...p});}
 function handleMusicCommand(t){t=String(t||"").trim();if(!/^\/(m|skip|pause|resume|volume|queue|stop|music)\b/i.test(t))return false;let m=t.match(/^\/m\s+(.+)$/i);if(m){try{const c=ensureMusicAudio();if(c.state==="suspended")c.resume().catch(()=>{});}catch(e){}searchAndPlayMusic(m[1]);return true;}if(/^\/skip$/i.test(t)){musicControl("music-next");return true;}if(/^\/pause$/i.test(t)){musicControl("music-pause");return true;}if(/^\/resume$/i.test(t)){musicControl("music-resume");return true;}if(/^\/queue$/i.test(t)){musicControl("music-queue");return true;}if(/^\/stop$/i.test(t)){musicControl("music-stop");return true;}m=t.match(/^\/volume\s+(\d{1,3})$/i);if(m){const n=Number(m[1]);if(n>100){appToast("Volume entre 0 e 100.","error");return true;}musicControl("music-volume",{volume:n/100});return true;}if(/^\/music$/i.test(t)){appToast("/m música • /queue • /skip • /pause • /resume • /volume 0-100 • /stop","info");return true;}return true;}
-let musicAudioContext=null,musicElement=null,musicSource=null,musicDestination=null,musicMicSource=null,musicGainNode=null,musicTrack=null,musicHost=false,musicVolume=.7,musicState=null,musicMediaToken="",localMusicVolume=Number(localStorage.getItem("freechatLocalMusicVolume")??70)/100,localMusicMuted=false;
-function renderLocalMusicVolume(){const v=Math.round(localMusicVolume*100);$("musicLocalVolume")?.setAttribute("value",String(v));$("musicLocalVolumeValue")?.replaceChildren(document.createTextNode(v+"%"));const b=$("musicLocalMute");if(b){b.textContent=localMusicMuted?"🔇 Som desligado":"🔊 Som ligado";b.classList.toggle("muted",localMusicMuted);}}
-function setLocalMusicVolume(v){localMusicVolume=Math.max(0,Math.min(1,Number(v)/100));localStorage.setItem("freechatLocalMusicVolume",String(Math.round(localMusicVolume*100)));localMusicMuted=localMusicVolume===0;if(localMusicVolume>0)localMusicMuted=false;if(musicGainNode)musicGainNode.gain.value=localMusicMuted?0:localMusicVolume;renderLocalMusicVolume();}
-function toggleLocalMusicMute(){localMusicMuted=!localMusicMuted;if(musicGainNode)musicGainNode.gain.value=localMusicMuted?0:localMusicVolume;renderLocalMusicVolume();}
+let musicAudioContext=null,musicElement=null,musicSource=null,musicDestination=null,musicMicSource=null,musicLocalGainNode=null,musicTransmitGainNode=null,musicTrack=null,musicHost=false,musicVolume=.7,musicState=null,musicMediaToken="",localMusicVolume=Number(localStorage.getItem("freechatLocalMusicVolume")??70)/100,localMusicMuted=false;
+const callAudioSettings={
+  micDevice:localStorage.getItem("freechatMicDevice")||"",
+  micVolume:Number(localStorage.getItem("freechatMicVolume")??100),
+  echoCancellation:localStorage.getItem("freechatEchoCancellation")!=="0",
+  noiseSuppression:localStorage.getItem("freechatNoiseSuppression")!=="0",
+  autoGainControl:localStorage.getItem("freechatAutoGain")!=="0",
+  videoQuality:localStorage.getItem("freechatVideoQuality")||"high",
+  autoQuality:localStorage.getItem("freechatAutoQuality")!=="0",
+  outputDevice:localStorage.getItem("freechatOutputDevice")||""
+};
+const VIDEO_PROFILES={low:{label:"Econômica",width:640,height:360,fps:15,bitrate:450000},medium:{label:"Equilibrada",width:854,height:480,fps:20,bitrate:900000},high:{label:"Alta",width:1280,height:720,fps:30,bitrate:2500000},ultra:{label:"Máxima",width:1920,height:1080,fps:30,bitrate:4500000}};
+let micTestStream=null,micTestCtx=null,micTestAnalyser=null,micTestTimer=null;
+function renderLocalMusicVolume(){const v=Math.round(localMusicVolume*100);$("musicLocalVolume")?.setAttribute("value",String(v));$("musicLocalVolumeValue")?.replaceChildren(document.createTextNode(v+"%"));const shared=Math.round(musicVolume*100);$("musicSharedVolume")?.setAttribute("value",String(shared));$("musicSharedVolumeValue")?.replaceChildren(document.createTextNode(shared+"%"));const b=$("musicLocalMute");if(b){b.textContent=localMusicMuted?"🔇 Som desligado":"🔊 Som ligado";b.classList.toggle("muted",localMusicMuted);}}
+function updateMusicGains(){const local=(localMusicMuted?0:localMusicVolume)*musicVolume;if(musicLocalGainNode)musicLocalGainNode.gain.value=local;if(musicTransmitGainNode)musicTransmitGainNode.gain.value=musicVolume;renderLocalMusicVolume();}
+function setLocalMusicVolume(v){localMusicVolume=Math.max(0,Math.min(1,Number(v)/100));localStorage.setItem("freechatLocalMusicVolume",String(Math.round(localMusicVolume*100)));localMusicMuted=localMusicVolume===0;if(localMusicVolume>0)localMusicMuted=false;updateMusicGains();}
+function toggleLocalMusicMute(){localMusicMuted=!localMusicMuted;updateMusicGains();}
+function setSharedMusicVolume(v){const n=Math.max(0,Math.min(1,Number(v)/100));if(!musicHost){renderLocalMusicVolume();return;}musicControl("music-volume",{volume:n});musicVolume=n;updateMusicGains();}
 function stopMusic(){if(socket?.connected&&musicHost)socket.emit("music-stop",{room});stopMusicLocal();}
+function saveCallAudioSettings(){localStorage.setItem("freechatMicDevice",callAudioSettings.micDevice);localStorage.setItem("freechatMicVolume",String(callAudioSettings.micVolume));localStorage.setItem("freechatEchoCancellation",callAudioSettings.echoCancellation?"1":"0");localStorage.setItem("freechatNoiseSuppression",callAudioSettings.noiseSuppression?"1":"0");localStorage.setItem("freechatAutoGain",callAudioSettings.autoGainControl?"1":"0");localStorage.setItem("freechatVideoQuality",callAudioSettings.videoQuality);localStorage.setItem("freechatAutoQuality",callAudioSettings.autoQuality?"1":"0");localStorage.setItem("freechatOutputDevice",callAudioSettings.outputDevice);}
+function micConstraints(){const a={echoCancellation:callAudioSettings.echoCancellation,noiseSuppression:callAudioSettings.noiseSuppression,autoGainControl:callAudioSettings.autoGainControl,channelCount:1,sampleRate:48000,volume:Math.max(0,Math.min(1.5,callAudioSettings.micVolume/100))};if(callAudioSettings.micDevice)a.deviceId={exact:callAudioSettings.micDevice};return a;}
+async function applyMicTrackSettings(track){if(!track)return;const c=micConstraints();try{await track.applyConstraints(c)}catch(e){const fallback={echoCancellation:c.echoCancellation,noiseSuppression:c.noiseSuppression,autoGainControl:c.autoGainControl};try{await track.applyConstraints(fallback)}catch(_){} } refreshMusicMicSource();startMicMeter();}
+async function replaceMicrophoneDevice(){if(!inCall||!navigator.mediaDevices?.getUserMedia)return;try{const stream=await withTimeout(navigator.mediaDevices.getUserMedia({audio:micConstraints(),video:false}),7000);const next=stream.getAudioTracks()[0];if(!next)throw Error("Microfone não encontrado.");const old=localStream?.getAudioTracks?.()[0];if(old)localStream.removeTrack(old);localStream?.addTrack(next);await applyMicTrackSettings(next);micOn=true;forcedMuted=false;updateMicButton();if(!musicTrack){peers.forEach(pc=>{const sender=pc.getSenders().find(x=>x.track?.kind==="audio");if(sender)sender.replaceTrack(next).catch(()=>{})});}else refreshMusicMicSource();if(old)try{old.stop()}catch(e){}appToast("Microfone alterado.","success");}catch(e){appToast(e.message||"Não foi possível trocar o microfone.","error");loadAudioDevices();}}
+async function loadAudioDevices(){if(!navigator.mediaDevices?.enumerateDevices)return;try{const devices=await navigator.mediaDevices.enumerateDevices();const mic=$("micDeviceSelect"),out=$("audioOutputSelect");if(mic){const current=callAudioSettings.micDevice;mic.innerHTML='<option value="">Microfone padrão</option>';devices.filter(d=>d.kind==="audioinput").forEach((d,i)=>{const o=document.createElement("option");o.value=d.deviceId;o.textContent=d.label||`Microfone ${i+1}`;mic.appendChild(o)});mic.value=current;if(mic.value!==current)callAudioSettings.micDevice="";}if(out){out.innerHTML='<option value="">Saída padrão</option>';devices.filter(d=>d.kind==="audiooutput").forEach((d,i)=>{const o=document.createElement("option");o.value=d.deviceId;o.textContent=d.label||`Saída ${i+1}`;out.appendChild(o)});out.value=callAudioSettings.outputDevice;}}catch(e){}}
+async function applyOutputDevice(){const id=callAudioSettings.outputDevice;if(!id)return;const els=[...remoteAudioEls.values(),musicElement].filter(Boolean);for(const el of els){try{if(typeof el.setSinkId==="function")await el.setSinkId(id)}catch(e){}}}
+async function applyTransmissionProfile(profile=callAudioSettings.videoQuality){const p=VIDEO_PROFILES[profile]||VIDEO_PROFILES.high;callAudioSettings.videoQuality=profile;saveCallAudioSettings();const track=screenTrack||localStream?.getVideoTracks?.()[0];if(track){try{await track.applyConstraints({width:{ideal:p.width,max:p.width},height:{ideal:p.height,max:p.height},frameRate:{ideal:p.fps,max:p.fps}})}catch(e){}}peers.forEach(pc=>{const sender=pc.getSenders().find(x=>x.track?.kind==="video");if(!sender)return;try{const params=sender.getParameters();params.encodings=params.encodings?.length?params.encodings:[{}];params.encodings[0].maxBitrate=p.bitrate;params.encodings[0].maxFramerate=p.fps;sender.setParameters(params).catch(()=>{});}catch(e){}});setCallStatus(`Transmissão: ${p.label} • ${p.width}×${p.height} • ${p.fps} FPS`,"ok");}
+function updateAudioSettingsUI(){const set=(id,v)=>{const e=$(id);if(e)e.value=v;};set("micDeviceSelect",callAudioSettings.micDevice);set("micInputVolume",callAudioSettings.micVolume);set("videoQualitySelect",callAudioSettings.videoQuality);set("audioOutputSelect",callAudioSettings.outputDevice);set("callOutputVolume",Math.round(callVolumeLevel*100));set("echoCancellationToggle",callAudioSettings.echoCancellation);set("noiseSuppressionToggle",callAudioSettings.noiseSuppression);set("autoGainToggle",callAudioSettings.autoGainControl);set("autoQualityToggle",callAudioSettings.autoQuality);const mv=$("micInputVolumeValue");if(mv)mv.textContent=Math.round(callAudioSettings.micVolume)+"%";const cv=$("callOutputVolumeValue");if(cv)cv.textContent=Math.round(callVolumeLevel*100)+"%";}
+async function testMicrophone(){if(micTestStream){stopMicrophoneTest();return;}try{micTestStream=await navigator.mediaDevices.getUserMedia({audio:micConstraints(),video:false});const Ctx=window.AudioContext||window.webkitAudioContext;if(!Ctx)throw Error("Web Audio indisponível.");micTestCtx=new Ctx();if(micTestCtx.state==="suspended")await micTestCtx.resume().catch(()=>{});const src=micTestCtx.createMediaStreamSource(micTestStream),an=micTestCtx.createAnalyser();an.fftSize=256;src.connect(an);micTestAnalyser=an;$("testMicBtn").textContent="⏹ Parar teste";const data=new Uint8Array(an.fftSize);micTestTimer=setInterval(()=>{if(!micTestAnalyser)return;an.getByteTimeDomainData(data);let sum=0;for(const x of data){const n=(x-128)/128;sum+=n*n}const rms=Math.min(1,Math.sqrt(sum/data.length)*4);const bar=$("micTestMeter")?.firstElementChild;if(bar)bar.style.width=Math.round(rms*100)+"%";},70);}catch(e){appToast(e.message||"Não foi possível testar o microfone.","error");stopMicrophoneTest();}}
+function stopMicrophoneTest(){if(micTestTimer)clearInterval(micTestTimer);micTestTimer=null;try{micTestStream?.getTracks?.().forEach(t=>t.stop())}catch(e){}micTestStream=null;try{micTestCtx?.close?.()}catch(e){}micTestCtx=null;micTestAnalyser=null;const bar=$("micTestMeter")?.firstElementChild;if(bar)bar.style.width="0%";const b=$("testMicBtn");if(b)b.textContent="🎙️ Testar microfone";}
+function initCallAudioSettings(){
+ $("callSettingsPanel")?.addEventListener("change",async e=>{const id=e.target.id;if(id==="micDeviceSelect"){callAudioSettings.micDevice=e.target.value;saveCallAudioSettings();await replaceMicrophoneDevice();}else if(id==="echoCancellationToggle"){callAudioSettings.echoCancellation=e.target.checked;saveCallAudioSettings();await applyMicTrackSettings(localStream?.getAudioTracks?.()[0]);}else if(id==="noiseSuppressionToggle"){callAudioSettings.noiseSuppression=e.target.checked;saveCallAudioSettings();await applyMicTrackSettings(localStream?.getAudioTracks?.()[0]);}else if(id==="autoGainToggle"){callAudioSettings.autoGainControl=e.target.checked;saveCallAudioSettings();await applyMicTrackSettings(localStream?.getAudioTracks?.()[0]);}else if(id==="videoQualitySelect"){await applyTransmissionProfile(e.target.value);}else if(id==="autoQualityToggle"){callAudioSettings.autoQuality=e.target.checked;saveCallAudioSettings();}else if(id==="audioOutputSelect"){callAudioSettings.outputDevice=e.target.value;saveCallAudioSettings();await applyOutputDevice();}});
+ $("micInputVolume")?.addEventListener("input",async e=>{callAudioSettings.micVolume=Number(e.target.value);const v=$("micInputVolumeValue");if(v)v.textContent=callAudioSettings.micVolume+"%";saveCallAudioSettings();await applyMicTrackSettings(localStream?.getAudioTracks?.()[0]);});
+ $("callOutputVolume")?.addEventListener("input",e=>{callVolumeLevel=Math.max(0,Math.min(1,Number(e.target.value)/100));callVolumeMuted=callVolumeLevel===0;if(callVolumeLevel>0)callVolumeMuted=false;const v=$("callOutputVolumeValue");if(v)v.textContent=Math.round(callVolumeLevel*100)+"%";applyCallVolumeState();});
+ $("refreshAudioDevices")?.addEventListener("click",async()=>{await loadAudioDevices();appToast("Dispositivos atualizados.","success")});
+ $("testMicBtn")?.addEventListener("click",testMicrophone);
+ updateAudioSettingsUI();loadAudioDevices();
+}
+function maybeAutoQuality(q){if(!callAudioSettings.autoQuality||!q)return;const bad=(q.loss??0)>8||(q.rtt??0)>280;const veryBad=(q.loss??0)>15||(q.rtt??0)>450;const order=["low","medium","high","ultra"];let cur=order.indexOf(callAudioSettings.videoQuality);if(cur<0)cur=2;let next=cur;if(veryBad)next=0;else if(bad)next=Math.max(0,cur-1);else if((q.loss??0)<1&&(q.rtt??0)<100&&cur<2)next=cur+1;if(next!==cur){applyTransmissionProfile(order[next]);}}
 function withTimeout(promise,ms){
   return Promise.race([promise,new Promise((_,reject)=>setTimeout(()=>reject(Object.assign(new Error("MEDIA_TIMEOUT"),{name:"TimeoutError"})),ms))]);
 }
@@ -841,7 +880,7 @@ function initMobileNavigation(){const call=$("call");if(call&&!call.dataset.swip
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",initMobileNavigation);else initMobileNavigation();
 
 
-/* FreeChat 3.0.6 — WebRTC media hardening */
+/* FreeChat 3.1.0 — WebRTC media hardening */
 function getVideoDuration(file){
  return new Promise((resolve,reject)=>{
    const url=URL.createObjectURL(file),v=document.createElement("video");
@@ -903,19 +942,27 @@ $("callPanelClose")?.addEventListener("click",closeCallPanel);
 $("callSettingsBtn")?.addEventListener("click",()=>{$("callSettingsPanel")?.classList.toggle("hidden");closeCallPanel()});
 $("callSettingsClose")?.addEventListener("click",()=>$("callSettingsPanel")?.classList.add("hidden"));
 $("callVolumeBtn")?.addEventListener("click",toggleCallVolume);
-$("callMusicBtn")?.addEventListener("click",()=>{$("callMusicPanel")?.classList.toggle("hidden");$("callMusicSearch")?.focus()});
+$("callMusicBtn")?.addEventListener("click",()=>{$("callMusicPanel")?.classList.toggle("hidden");renderMusicPanel(musicState);$("callMusicSearch")?.focus()});
 $("callMusicClose")?.addEventListener("click",()=>$("callMusicPanel")?.classList.add("hidden"));
 $("musicLocalVolume")?.addEventListener("input",e=>setLocalMusicVolume(e.target.value));
 $("musicLocalMute")?.addEventListener("click",toggleLocalMusicMute);
+$("musicPause")?.addEventListener("click",()=>musicControl("music-pause"));
+$("musicResume")?.addEventListener("click",()=>musicControl("music-resume"));
+$("musicSkipPanel")?.addEventListener("click",()=>musicControl("music-next"));
+$("musicStopPanel")?.addEventListener("click",()=>musicControl("music-stop"));
+$("musicSharedVolume")?.addEventListener("input",e=>setSharedMusicVolume(e.target.value));
 renderLocalMusicVolume();
 $("callMusicSearchBtn")?.addEventListener("click",async()=>{
  const q=$("callMusicSearch")?.value.trim();if(!q)return;
- try{const d=await api("/api/music/search?q="+encodeURIComponent(q));const box=$("callMusicResults");box.innerHTML=(d.tracks||[]).map(t=>`<button class="music-result" type="button" data-track="${messageEscape(JSON.stringify(t))}"><b>${messageEscape(t.title)}</b><small>${messageEscape(t.artist)}</small></button>`).join("")||'<span class="muted">Nenhum resultado.</span>';
- box.querySelectorAll("[data-track]").forEach(b=>b.onclick=()=>{try{socket.emit("music-play",{room,track:JSON.parse(b.dataset.track)})}catch(e){}$("callMusicPanel")?.classList.add("hidden")});
- }catch(e){appToast(e.message,"error")}
+ const box=$("callMusicResults");if(box)box.innerHTML='<div class="music-search-loading">🔎 Procurando músicas...</div>';
+ try{
+   const d=await api("/api/music/search?q="+encodeURIComponent(q));
+   box.innerHTML=(d.tracks||[]).map(t=>`<div class="music-result"><div class="music-result-main">${t.artwork?`<img src="${messageEscape(t.artwork)}" alt="" loading="lazy">`:'<span class="music-result-art">🎵</span>'}<div><b>${messageEscape(t.title)}</b><small>${messageEscape(t.artist)}${t.duration?" • "+formatMusicTime(t.duration):""}</small></div></div><button type="button" data-track="${messageEscape(JSON.stringify(t))}">＋ Fila</button></div>`).join("")||'<span class="muted">Nenhum resultado.</span>';
+   box.querySelectorAll("[data-track]").forEach(b=>b.onclick=()=>{try{socket.emit("music-play",{room,track:JSON.parse(b.dataset.track)});appToast("Faixa adicionada à fila.","success")}catch(e){appToast("Não foi possível adicionar a faixa.","error")}});
+ }catch(e){if(box)box.innerHTML="";appToast(e.message||"Não foi possível buscar música.","error")}
 });
 $("callSettingsPanel")?.addEventListener("change",e=>{if(e.target.id==="reduceCallMotion")document.documentElement.classList.toggle("reduce-call-motion",e.target.checked)});
-
+initCallAudioSettings();
 function updateCallQualityUI(q){
  const ping=q?.rtt!=null?Math.round(q.rtt)+" ms":"-- ms",fps=q?.fps!=null?Math.round(q.fps)+" fps":"-- fps";
  $("callStatsMini")?.replaceChildren(document.createTextNode(ping+" • "+fps));
@@ -941,6 +988,7 @@ async function collectCallStats(){
    }catch(e){}
  }
  updateCallQualityUI(best||{});
+ maybeAutoQuality(best||{});
 }
 function startCallStats(){clearInterval(callStatsTimer);callStatsTimer=setInterval(collectCallStats,2200);collectCallStats()}
 function stopCallStats(){clearInterval(callStatsTimer);callStatsTimer=null;updateCallQualityUI({})}
@@ -1076,12 +1124,7 @@ $("markNotificationsRead")?.addEventListener("click",async()=>{try{await api("/a
   localStream.getTracks().forEach(t=>{t.enabled=true});
   stopMusicLocal();
   const localAudio=localStream.getAudioTracks()[0];
-  if(localAudio){
-    try{await localAudio.applyConstraints({
-      echoCancellation:true,noiseSuppression:true,autoGainControl:true,
-      channelCount:1,sampleRate:48000
-    });}catch(e){}
-  }
+  if(localAudio){await applyMicTrackSettings(localAudio);}
   micOn=localStream.getAudioTracks().length>0;
   camOn=localStream.getVideoTracks().length>0;
   forcedMuted=false;
@@ -1089,6 +1132,7 @@ $("markNotificationsRead")?.addEventListener("click",async()=>{try{await api("/a
   const b=$("cam");if(b){b.innerHTML=`<span class="control-icon">${camOn?"📷":"🚫"}</span><span>${camOn?"Câmera":"Câmera off"}</span>`;b.classList.toggle("muted",!camOn);}
   addVideo("Você",localStream,"local");
   startMicMeter();
+  await applyTransmissionProfile(callAudioSettings.videoQuality);
 
   // Só agora consideramos que a pessoa realmente entrou na call.
   inCall=true;
@@ -1201,6 +1245,7 @@ async function createPeer(id,initiator){
         audio.setAttribute("aria-label","Áudio de "+(u?.name||"participante"));
         document.body.appendChild(audio);
         remoteAudioEls.set(id,audio);
+        applyOutputDevice();
       }
       audio.srcObject=new MediaStream([track]);
       audio.muted=callVolumeMuted;
@@ -1335,6 +1380,7 @@ function applyCallVolumeState(){
  localStorage.setItem("freechatCallVolumeLevel",String(Math.round(callVolumeLevel*100)));
  document.querySelectorAll("#videos .tile video").forEach(v=>{if(v.closest(".local-tile")||v.dataset.local==="1")return;v.muted=true;}); remoteAudioEls.forEach(v=>{v.muted=callVolumeMuted;v.volume=callVolumeLevel;});
  const b=$("callVolumeBtn");if(b){b.classList.toggle("muted",callVolumeMuted);const i=b.querySelector(".control-icon");if(i)i.textContent=callVolumeMuted?"🔇":"🔊";const t=b.querySelector("span:not(.control-icon)");if(t)t.textContent=callVolumeMuted?"Sem som":"Volume";}
+ const out=$("callOutputVolume");if(out)out.value=Math.round(callVolumeLevel*100);const ov=$("callOutputVolumeValue");if(ov)ov.textContent=Math.round(callVolumeLevel*100)+"%";applyOutputDevice();
 }
 function toggleCallVolume(){callVolumeMuted=!callVolumeMuted;localStorage.setItem("freechatCallVolumeMuted",callVolumeMuted?"1":"0");applyCallVolumeState();}
 function addVideo(n,s,id){
@@ -1432,9 +1478,9 @@ function leaveCall(ending){
   if(screenTrack){try{screenTrack.stop();}catch(e){}screenTrack=null;}
   updateScreenButton();
   stopMusic();
-  if(musicAudioContext){try{musicAudioContext.close()}catch(e){}musicAudioContext=null;musicDestination=null;musicGainNode=null;}
+  if(musicAudioContext){try{musicAudioContext.close()}catch(e){}musicAudioContext=null;musicDestination=null;musicLocalGainNode=null;musicTransmitGainNode=null;}
   if(localStream){localStream.getTracks().forEach(t=>t.stop());localStream=null;}
-  stopMicMeter();
+  stopMicMeter();stopMicrophoneTest();
   $("call").classList.add("hidden");
   $("app").classList.remove("call-open","mobile-view-call","mobile-view-chat","mobile-view-social");
   $("mobileNav")?.classList.add("hidden");
