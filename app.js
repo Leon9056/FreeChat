@@ -106,7 +106,7 @@ function playCallSound(kind,onceKey=""){
   const nowMs=Date.now();
   const key=String(onceKey||kind);
   if(callSoundSeen.has(key))return;
-  const cooldown={invite:1800,create:900,join:900,leave:900}[kind]||900;
+  const cooldown={invite:1800,create:900,join:900,leave:900,"screen-share":1200}[kind]||900;
   if(nowMs-callSoundLast<cooldown)return;
   callSoundSeen.add(key);
   callSoundLast=nowMs;
@@ -116,7 +116,7 @@ function playCallSound(kind,onceKey=""){
     const ctx=audioNotifyContext;
     if(ctx.state==='suspended')ctx.resume().catch(()=>{});
     stopCallSound();
-    const patterns={invite:[[660,.09],[880,.12],[1040,.16]],create:[[520,.08],[740,.11],[980,.18]],join:[[620,.08],[820,.16]],leave:[[820,.08],[620,.16]]};
+    const patterns={invite:[[660,.09],[880,.12],[1040,.16]],create:[[520,.08],[740,.11],[980,.18]],join:[[620,.08],[820,.16]],leave:[[820,.08],[620,.16]],"screen-share":[[760,.075],[1040,.12]]};
     const pattern=patterns[kind]||patterns.invite;
     let t=ctx.currentTime;
     pattern.forEach(([freq,dur])=>{
@@ -553,6 +553,21 @@ function startSocket(){
   socket.on("call-camera-state",({id,on})=>{
     if(!id)return;
     setTileCamOff(id,!on);
+  });
+  socket.on("call-screen-state",({id,sharing})=>{
+    if(!id)return;
+    const tile=document.querySelector(`[data-id="${CSS.escape(id)}"]`);
+    if(tile){
+      tile.classList.toggle("sharing",!!sharing);
+      // Durante compartilhamento, a tela deve ficar visível mesmo se a
+      // câmera da pessoa estiver desligada.
+      if(sharing) tile.classList.remove("cam-off");
+    }
+    updateScreenShareBanner();
+    if(sharing && id!==socket?.id){
+      window.playCallSound?.("screen-share",`screen-share:${room}:${id}`);
+      setCallStatus("🖥️ Tela compartilhada recebida.","ok");
+    }
   });
   socket.on("call-participant-left",({id})=>{
     if(id){closePeer(id); if(inCall)window.playCallSound?.("leave",`leave:${room}:${id}`);}
@@ -1743,6 +1758,12 @@ function leaveCall(ending){
   renderPeople();
 }
 
+function updateScreenShareBanner(){
+  const banner=$("screenShareBanner");
+  if(!banner)return;
+  const shared=[...document.querySelectorAll("#videos .tile.sharing")];
+  banner.classList.toggle("hidden",shared.length===0);
+}
 function updateScreenButton(){
   const btn=$("screen");if(!btn)return;
   if(screenTrack){btn.innerHTML='🛑 <span>Parar tela</span>';btn.classList.add("active-share");btn.title="Parar de transmitir a tela";}
@@ -1814,7 +1835,9 @@ function restoreCameraAfterScreenShare(){
     if(localVideo)localVideo.srcObject=null;
   }
   document.querySelector('[data-id="local"]')?.classList.remove("sharing");
+  if(socket?.connected)socket.emit("call-screen-state",{room,sharing:false});
   screenTrack=null;
+  updateScreenShareBanner();
   updateScreenButton();
   $("callStatus").textContent=cameraTrack?"Câmera restaurada.":"Compartilhamento de tela encerrado.";
 }
@@ -1852,6 +1875,8 @@ $("screen").onclick=async()=>{
     screenTrack=track;
     updateScreenButton();
     document.querySelector('[data-id="local"]')?.classList.add("sharing");
+    updateScreenShareBanner();
+    if(socket?.connected)socket.emit("call-screen-state",{room,sharing:true});
     peers.forEach(async(pc,id)=>{
       // Procure o transceiver de vídeo, não apenas um sender com track.
       // Em chamadas iniciadas sem câmera o sender existe, mas track === null.
@@ -1954,13 +1979,22 @@ function renderMessagesList(scroll=true){
    return `${sep}<div class="message-row ${mine?'mine':'theirs'}" data-message-id="${m.id}"><div class="message-bubble ${mine?'mine':'theirs'}">${media}${body}<div class="dm-meta"><time>${time}</time>${status?`<span class="dm-read">${status}</span>`:''}${action}</div></div></div>`;
  }).join('');
  list.querySelectorAll('[data-copy-id]').forEach(btn=>btn.addEventListener('click',async()=>{const m=lastLoadedMessages.find(x=>String(x.id)===String(btn.dataset.copyId));if(!m)return;try{await navigator.clipboard.writeText(m.body||m.media?.name||'');appToast('Mensagem copiada.','success')}catch(e){appToast('Não foi possível copiar.','error')}}));
- if(scroll)list.scrollTop=list.scrollHeight;
+ if(scroll){
+   requestAnimationFrame(()=>{
+     list.scrollTop=list.scrollHeight;
+     setTimeout(()=>{list.scrollTop=list.scrollHeight},0);
+   });
+ }
 }
 async function loadMessages(scroll=true){
  if(!activeFriendCode)return;
  const code=activeFriendCode;
  const cached=loadMessagesCache(code);
- if(cached?.length){lastLoadedMessages=cached;renderMessagesList(scroll);$("messageStatus").textContent="Histórico salvo localmente • sincronizando…";}
+ if(cached?.length){
+   lastLoadedMessages=cached;
+   renderMessagesList(scroll);
+   $("messageStatus").textContent="Sincronizando histórico…";
+ }
  try{
    const d=await api("/api/messages/"+encodeURIComponent(code));
    if(code!==activeFriendCode)return;
