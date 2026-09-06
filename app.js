@@ -46,6 +46,7 @@ async function loadSecuritySettings(){
   if($("privacyMessages"))$("privacyMessages").value=pd.message_policy||"friends";
   if($("privacyCalls"))$("privacyCalls").value=pd.call_policy||"friends";
   if($("privacyFriends"))$("privacyFriends").value=pd.friend_policy||"everyone";
+  if($("privacyRandom"))$("privacyRandom").checked=!!pd.random_enabled;
   const bb=$("blockedUsers");
   if(bb){
    bb.innerHTML=(bd.blocked||[]).map(x=>`<div class="security-item"><div><b>🚫 ${securityText(x.name)}</b><small>${securityText(x.code)}</small></div><button class="secondary-btn tiny-btn" data-unblock="${securityText(x.code)}">Desbloquear</button></div>`).join("")||'<span class="muted">Nenhum usuário bloqueado.</span>';
@@ -54,7 +55,7 @@ async function loadSecuritySettings(){
  }catch(e){$("securityStatus")?.replaceChildren(document.createTextNode(e.message||"Não foi possível carregar a segurança."))}
 }
 async function changeSecurityPassword(){const status=$("securityStatus");try{setBusy($("changePasswordBtn"),true,"Salvando...");const d=await api("/api/security/password",{method:"POST",body:JSON.stringify({currentPassword:$("currentPassword")?.value||"",newPassword:$("newPassword")?.value||""})});if(status)status.textContent=d.message||"Senha alterada.";$("currentPassword").value="";$("newPassword").value="";appToast("Senha alterada com sucesso.","success");loadSecuritySettings()}catch(e){if(status)status.textContent=e.message||"Erro.";appToast(e.message||"Erro ao alterar senha.","error")}finally{setBusy($("changePasswordBtn"),false)}}
-async function savePrivacy(){try{const d=await api("/api/security/privacy",{method:"PATCH",body:JSON.stringify({message_policy:$("privacyMessages").value,call_policy:$("privacyCalls").value,friend_policy:$("privacyFriends").value})});appToast("Privacidade atualizada.","success")}catch(e){appToast(e.message,"error")}}
+async function savePrivacy(){try{const d=await api("/api/security/privacy",{method:"PATCH",body:JSON.stringify({message_policy:$("privacyMessages").value,call_policy:$("privacyCalls").value,friend_policy:$("privacyFriends").value,random_enabled:!!$("privacyRandom")?.checked})});appToast("Privacidade atualizada.","success")}catch(e){appToast(e.message,"error")}}
 function openSettings(){const p=$("settingsPanel");if(!p)return;p.classList.remove("hidden");renderThemeChoices();loadSecuritySettings();}
 function closeSettings(){$("settingsPanel")?.classList.add("hidden");}
 function initSettings(){
@@ -170,7 +171,7 @@ function startFriendRequestPolling(){
   friendRequestSnapshot=new Set();
   window.CONVERSA_FRIEND_POLL_STARTED=false;
   pollFriendRequests();
-  friendPollTimer=setInterval(pollFriendRequests,2500);
+  friendPollTimer=setInterval(pollFriendRequests,5000);
 }
 
 function showApp(d){
@@ -374,7 +375,7 @@ function connectLobby(){
   connect();
 }
 function joinRoom(roomValue,nameValue){
-  name=(nameValue||window.CONVERSA_USER_NAME||"Visitante").trim().slice(0,24)||"Visitante";
+  name=(nameValue||window.CONVERSA_USER?.name||"Visitante").trim().slice(0,24)||"Visitante";
   room=(roomValue||window.CONVERSA_ROOM||"geral").trim().toLowerCase().replace(/[^a-z0-9_-]/g,"").slice(0,32)||"geral";
   $("callMenu")?.classList.add("hidden");
   $("app").classList.remove("hidden");
@@ -411,16 +412,12 @@ function loadSocketIO(){
     s.src=src; s.async=true; s.onload=()=>{socketScriptLoading=false;startSocket()};
     s.onerror=onError; document.head.appendChild(s);
   };
-  // Prefer the exact Socket.IO client served by our own backend. This avoids
-  // depending on a third-party CDN and guarantees client/server major versions match.
+  // FreeChat 1.2.0: o cliente Socket.IO é servido pelo próprio backend.
   const backend=serverUrl()+"/socket.io/socket.io.js";
   load(backend,()=>{
-    // CDN is only a fallback for unusual proxies that block the backend's static client.
-    load("https://cdn.socket.io/4.8.3/socket.io.min.js",()=>{
-      socketScriptLoading=false;
-      $("status").textContent="Não foi possível carregar o módulo de conexão.";
-      setConnectionLevel(0,"Falha no Socket.IO");
-    });
+    socketScriptLoading=false;
+    $("status").textContent="Não foi possível carregar o módulo de conexão.";
+    setConnectionLevel(0,"Falha no Socket.IO");
   });
 }
 function startSocket(){
@@ -441,6 +438,7 @@ function startSocket(){
     reconnectionDelayMax:5000,
     randomizationFactor:0.2
   });
+  window.socket=socket;
 
   socket.on("connect",()=>{
     $("status").textContent=room?"Conectado":"Online";setConnectionLevel(4,room?"Conectado":"Online");startConnectionMonitor();
@@ -731,6 +729,8 @@ document.addEventListener("click",e=>{
   if(!p.classList.contains("hidden")&&!p.contains(e.target)&&e.target!==btn)p.classList.add("hidden");
 });
 
+document.addEventListener("click",e=>{if(!e.target.closest(".post-more")&&!e.target.closest(".post-menu")){document.querySelectorAll(".post-menu:not(.hidden)").forEach(m=>m.classList.add("hidden"))}});
+
 $("invite").onclick=async()=>{
   const u=location.href.split("?")[0]+"?room="+encodeURIComponent(room);
   try{await navigator.clipboard.writeText(u);$("invite").textContent="✓ Convite copiado";}
@@ -738,7 +738,7 @@ $("invite").onclick=async()=>{
   setTimeout(()=>{$("invite").textContent="🔗 Copiar convite";},1600);
 };
 
-if($("audioUnlock"))$("audioUnlock").onclick=async()=>{unlockAllAudio();await new Promise(r=>setTimeout(r,180));const blocked=[...remoteAudioEls.values()].some(v=>v.paused&&!v.muted);if(blocked){$("callSettingsPanel")?.classList.remove("hidden");setCallStatus("O navegador bloqueou o áudio. Verifique a saída de áudio nas configurações.","warn");}};
+$("audioUnlock")?.addEventListener("click",async()=>{unlockAllAudio();await new Promise(r=>setTimeout(r,180));const blocked=[...remoteAudioEls.values()].some(v=>v.paused&&!v.muted);if(blocked){$("callSettingsPanel")?.classList.remove("hidden");setCallStatus("O navegador bloqueou o áudio. Verifique a saída de áudio nas configurações.","warn");}});
 $("musicStop")?.addEventListener("click",()=>musicControl("music-stop"));$("musicSkip")?.addEventListener("click",()=>musicControl("music-next"));
 $("callOpen").onclick=openCall;
 $("callClose").onclick=()=>leaveCall(true);
@@ -998,6 +998,8 @@ document.addEventListener("click",(e)=>{
     input?.focus();
     input?.scrollIntoView({behavior:"smooth",block:"center"});
   }
+  else if(action==="servers") window.openServers?.();
+  else if(action==="random") window.openRandomCall?.();
 });
 function setMobileView(view){
  view=Math.max(0,Math.min(2,Number(view)||0)); mobileView=view;
@@ -1071,8 +1073,8 @@ function closeCallPanel(){$("callSidePanel")?.classList.add("hidden")}
 function setCallPanelFromChat(){openCallPanel("chat")}
 $("callParticipantsBtn")?.addEventListener("click",()=>openCallPanel("participants"));
 $("callParticipantsBtnBottom")?.addEventListener("click",()=>openCallPanel("participants"));
-$("callChatBtn")?.addEventListener("click",setCallPanelFromChat);
-$("callChatBtnBottom")?.addEventListener("click",setCallPanelFromChat);
+
+
 $("callPanelClose")?.addEventListener("click",closeCallPanel);
 $("callSettingsBtn")?.addEventListener("click",()=>{$("callSettingsPanel")?.classList.toggle("hidden");closeCallPanel()});
 $("callSettingsClose")?.addEventListener("click",()=>$("callSettingsPanel")?.classList.add("hidden"));
@@ -1205,13 +1207,37 @@ async function sharePost(post){const text=(post.body||"").slice(0,180)||"Veja es
 async function loadComments(id,box){if(!box)return;box.innerHTML='<div class="comment-loading">Carregando comentários…</div>';try{const d=await api("/api/feed/"+id+"/comments");feedCommentCache.set(String(id),d.comments||[]);renderComments(id,box,d.comments||[])}catch(e){box.innerHTML=`<div class="comment-error">${messageEscape(e.message||"Erro ao carregar comentários.")}</div>`}}
 function renderComments(id,box,comments){box.innerHTML=`<div class="comments-list">${comments.length?comments.map(c=>`<div class="comment-item">${feedAvatar(c,"comment-avatar")}<div><b>${messageEscape(c.name)}</b><span>${messageEscape(c.body)}</span><small>${formatFeedDate(c.created_at)}</small></div></div>`).join(""):"<div class=\"comment-empty\">Ainda não há comentários.</div>"}</div><form class="comment-form" data-comment-form="${id}"><input maxlength="800" placeholder="Adicione um comentário…" autocomplete="off"><button type="submit">Enviar</button></form>`;box.querySelector("form")?.addEventListener("submit",async e=>{e.preventDefault();const input=e.currentTarget.querySelector("input"),body=input.value.trim();if(!body)return;const btn=e.currentTarget.querySelector("button");btn.disabled=true;try{const d=await api("/api/feed/"+id+"/comments",{method:"POST",body:JSON.stringify({body})});const arr=feedCommentCache.get(String(id))||[];arr.push(d.comment);feedCommentCache.set(String(id),arr);renderComments(id,box,arr);const count=document.querySelector(`[data-comments-count="${id}"]`);if(count)count.textContent=String(arr.length)}catch(err){appToast(err.message,"error");btn.disabled=false}})}
 function toggleComments(card,id){const box=card?.querySelector(".comments-box");if(!box)return;const opening=box.classList.toggle("hidden")===false;if(opening){if(feedCommentCache.has(String(id)))renderComments(id,box,feedCommentCache.get(String(id)));else loadComments(id,box);}}
-function postHtml(p){const safe=messageEscape(p.body||""),date=formatFeedDate(p.created_at);let media="";if(p.media?.id){const src=mediaUrl(p.media);if(p.media.type==="image")media=`<div class="post-media" data-dbltap><img src="${src}" alt="${messageEscape(p.media.name||"Foto")}" loading="lazy" decoding="async"></div>`;else media=`<div class="post-media"><video controls playsinline preload="metadata" src="${src}" loading="lazy"></video><small>🎬 ${Math.round(p.media.duration||0)}s</small></div>`}return `<article class="post-card" data-post-id="${p.id}"><header class="post-head"><div class="post-head-main">${feedAvatar(p)}<div class="post-author"><b>${messageEscape(p.name)}</b><small>${messageEscape(p.code)} · ${date}</small></div></div><button class="post-more" type="button" aria-label="Mais opções" title="Mais opções">•••</button></header>${media}${safe?`<div class="post-body">${safe.replace(/\n/g,"<br>")}</div>`:""}<div class="post-actions"><div class="post-actions-left"><button class="post-action ${p.liked?"liked":""}" data-like="${p.id}" type="button"><span class="action-icon">${p.liked?"♥":"♡"}</span><span class="action-count">${Number(p.likes||0)}</span></button><button class="post-action" data-comments="${p.id}" type="button"><span class="action-icon">◌</span><span class="action-count" data-comments-count="${p.id}">${Number(p.comments||0)}</span></button><button class="post-action" data-share="${p.id}" type="button"><span class="action-icon">➤</span></button></div><button class="post-action save-action ${p.saved?"saved":""}" data-save="${p.id}" type="button"><span class="action-icon">${p.saved?"🔖":"▱"}</span><span class="action-count">${Number(p.saves||0)}</span></button></div>${safe?`<div class="post-caption"><b>${messageEscape(p.name)}</b> ${safe.replace(/\n/g,"<br>")}</div>`:""}<div class="comments-box hidden"></div></article>`}
+function postHtml(p){
+ const safe=messageEscape(p.body||""),date=formatFeedDate(p.created_at),isOwn=Number(p.author_id)===Number(window.CONVERSA_USER?.id||0);
+ let media="";
+ if(p.media?.id){const src=mediaUrl(p.media);if(p.media.type==="image")media=`<div class="post-media" data-dbltap><img src="${src}" alt="${messageEscape(p.media.name||"Foto")}" loading="lazy" decoding="async"></div>`;else media=`<div class="post-media"><video controls playsinline preload="metadata" src="${src}"></video><small>🎬 ${Math.round(p.media.duration||0)}s</small></div>`}
+ return `<article class="post-card" data-post-id="${p.id}"><header class="post-head"><div class="post-head-main">${feedAvatar(p)}<div class="post-author"><b>${messageEscape(p.name)}</b><small>${messageEscape(p.code)} · ${date}</small></div></div><button class="post-more" type="button" aria-label="Mais opções" title="Mais opções">•••</button></header><div class="post-menu hidden" role="menu">${isOwn?`<button type="button" data-delete-post="${p.id}" class="post-menu-danger">🗑️ Excluir publicação</button>`:`<button type="button" data-close-post-menu="${p.id}">Fechar menu</button>`}</div>${media}${safe?`<div class="post-body">${safe.replace(/\n/g,"<br>")}</div>`:""}<div class="post-actions"><div class="post-actions-left"><button class="post-action ${p.liked?"liked":""}" data-like="${p.id}" type="button"><span class="action-icon">${p.liked?"♥":"♡"}</span><span class="action-count">${Number(p.likes||0)}</span></button><button class="post-action" data-comments="${p.id}" type="button"><span class="action-icon">◌</span><span class="action-count" data-comments-count="${p.id}">${Number(p.comments||0)}</span></button><button class="post-action" data-share="${p.id}" type="button"><span class="action-icon">➤</span></button></div><button class="post-action save-action ${p.saved?"saved":""}" data-save="${p.id}" type="button"><span class="action-icon">${p.saved?"🔖":"▱"}</span><span class="action-count">${Number(p.saves||0)}</span></button></div>${safe?`<div class="post-caption"><b>${messageEscape(p.name)}</b> ${safe.replace(/\n/g,"<br>")}</div>`:""}<div class="comments-box hidden"></div></article>`
+}
+async function deleteOwnPost(id,card){
+ const postId=String(id||"");if(!postId||!card)return;
+ if(!confirm("Excluir esta publicação? Esta ação não pode ser desfeita."))return;
+ const btn=card.querySelector('[data-delete-post]');if(btn)btn.disabled=true;
+ try{
+  await api("/api/feed/"+encodeURIComponent(postId),{method:"DELETE"});
+  card.animate?.([{opacity:1,transform:"scale(1)"},{opacity:0,transform:"scale(.98)"}],{duration:180,easing:"ease",fill:"forwards"});
+  setTimeout(()=>{
+    card.remove();
+    const list=$("feedList");
+    if(list && !list.querySelector(".post-card")){
+      $("feedEndState")?.classList.add("hidden");
+      list.innerHTML='<div class="social-empty"><span>✦</span><b>Nada por aqui ainda</b><small>Publique algo para começar a conversa.</small></div>';
+    }
+  },170);
+  appToast("Publicação excluída.","success");
+ }catch(e){if(btn)btn.disabled=false;appToast(e.message||"Não foi possível excluir a publicação.","error")}
+}
 function renderFeedStories(friends=[]){const box=$("feedStories");if(!box)return;const list=friends.slice(0,12);box.innerHTML=`<button class="story-bubble own" id="storyCreate" type="button">${feedAvatar(window.CONVERSA_USER||{},"story-avatar")}<span class="story-plus">＋</span><b>Seu perfil</b></button>`+list.map(f=>`<button class="story-bubble" type="button" data-story-code="${messageEscape(f.code)}">${feedAvatar(f,"story-avatar")}<span class="story-dot ${f.online?"online":""}"></span><b>${messageEscape((f.name||"Amigo").split(" ")[0])}</b></button>`).join("");$("storyCreate")?.addEventListener("click",openPostComposer);box.querySelectorAll("[data-story-code]").forEach(b=>b.addEventListener("click",()=>{const code=b.dataset.storyCode;const card=[...document.querySelectorAll(".post-card")].find(x=>x.textContent.includes(code));card?.scrollIntoView({behavior:"smooth",block:"center"})}))}
 async function loadFeedStories(){try{const d=await api("/api/friends");renderFeedStories(d.friends||[])}catch(e){renderFeedStories([])}}
 function setFeedLoading(on){$("feedLoadMore")?.classList.toggle("hidden",!on)}
 function renderFeedError(e){const list=$("feedList");if(!list)return;list.innerHTML=`<div class="social-empty feed-error-state"><span>📡</span><b>Não foi possível carregar o feed</b><small>${messageEscape(e.message||"Verifique sua conexão.")}</small><button id="feedRetryBtn" class="secondary-btn small-btn" type="button">↻ Tentar novamente</button></div>`;$("feedRetryBtn")?.addEventListener("click",()=>loadFeed(true,true))}
 async function loadFeed(reset=true,showSpinner=true){if(feedLoading)return;if(reset){feedOffset=0;feedHasMore=true;if($("feedList"))$("feedList").innerHTML="";$("feedEndState")?.classList.add("hidden")}if(!feedHasMore)return;feedLoading=true;setFeedLoading(true);try{const d=await api(`/api/feed?limit=12&offset=${feedOffset}&filter=${encodeURIComponent(feedFilter)}`);const list=$("feedList");if(!list)return;if(reset&&!d.posts?.length){list.innerHTML='<div class="social-empty"><span>✦</span><b>Seu feed está esperando por você</b><small>Publique algo ou adicione amigos para começar.</small><button id="feedEmptyPost" class="primary-btn small-btn" type="button">＋ Criar publicação</button></div>';$("feedEmptyPost")?.addEventListener("click",openPostComposer)}else{list.insertAdjacentHTML("beforeend",(d.posts||[]).map(postHtml).join(""));bindFeedCards(list);feedOffset=d.offset||feedOffset+(d.posts||[]).length;feedHasMore=!!d.hasMore;if(!feedHasMore&&list.children.length)$("feedEndState")?.classList.remove("hidden")}}catch(e){if(reset)renderFeedError(e);else appToast(e.message,"error")}finally{feedLoading=false;setFeedLoading(false)}}
-function bindFeedCards(root){root.querySelectorAll(".post-card:not([data-feed-bound])").forEach(card=>{card.dataset.feedBound="1";const id=card.dataset.postId;card.querySelector(`[data-like="${id}"]`)?.addEventListener("click",()=>toggleLike(id,card));card.querySelector(`[data-save="${id}"]`)?.addEventListener("click",()=>toggleSave(id));card.querySelector(`[data-comments="${id}"]`)?.addEventListener("click",()=>toggleComments(card,id));card.querySelector(`[data-share="${id}"]`)?.addEventListener("click",()=>{const p={body:card.querySelector(".post-body")?.innerText||card.querySelector(".post-caption")?.innerText||""};sharePost(p)});card.querySelector(".post-more")?.addEventListener("click",()=>appToast("Use os controles de reação, comentário e compartilhamento desta publicação.","info"));card.querySelector("[data-dbltap]")?.addEventListener("dblclick",()=>{const b=card.querySelector(`[data-like="${id}"]`);if(b&&!b.classList.contains("liked"))toggleLike(id,card);else burstHeart(card)});let last=0;card.querySelector("[data-dbltap]")?.addEventListener("touchend",()=>{const now=Date.now();if(now-last<320){const b=card.querySelector(`[data-like="${id}"]`);if(b&&!b.classList.contains("liked"))toggleLike(id,card);else burstHeart(card)}last=now},{passive:true})})}
+function bindFeedCards(root){root.querySelectorAll(".post-card:not([data-feed-bound])").forEach(card=>{card.dataset.feedBound="1";const id=card.dataset.postId;card.querySelector(`[data-like="${id}"]`)?.addEventListener("click",()=>toggleLike(id,card));card.querySelector(`[data-save="${id}"]`)?.addEventListener("click",()=>toggleSave(id));card.querySelector(`[data-comments="${id}"]`)?.addEventListener("click",()=>toggleComments(card,id));card.querySelector(`[data-share="${id}"]`)?.addEventListener("click",()=>{const p={body:card.querySelector(".post-body")?.innerText||card.querySelector(".post-caption")?.innerText||""};sharePost(p)});const more=card.querySelector(".post-more"),menu=card.querySelector(".post-menu");more?.addEventListener("click",e=>{e.stopPropagation();document.querySelectorAll(".post-menu:not(.hidden)").forEach(m=>{if(m!==menu)m.classList.add("hidden")});menu?.classList.toggle("hidden")});card.querySelector(`[data-delete-post="${id}"]`)?.addEventListener("click",()=>deleteOwnPost(id,card));card.querySelector(`[data-close-post-menu="${id}"]`)?.addEventListener("click",()=>menu?.classList.add("hidden"));card.querySelector("[data-dbltap]")?.addEventListener("dblclick",()=>{const b=card.querySelector(`[data-like="${id}"]`);if(b&&!b.classList.contains("liked"))toggleLike(id,card);else burstHeart(card)});let last=0;card.querySelector("[data-dbltap]")?.addEventListener("touchend",()=>{const now=Date.now();if(now-last<320){const b=card.querySelector(`[data-like="${id}"]`);if(b&&!b.classList.contains("liked"))toggleLike(id,card);else burstHeart(card)}last=now},{passive:true})})}
+
 function initFeedScroll(){const scroll=$("feedScreen")?.querySelector(".feed-scroll");if(!scroll||scroll.dataset.ready)return;scroll.dataset.ready="1";scroll.addEventListener("scroll",()=>{if(scroll.scrollHeight-scroll.scrollTop-scroll.clientHeight<700)loadFeed(false,false)},{passive:true})}
 function setFeedFilter(v){feedFilter=v;document.querySelectorAll(".feed-tab").forEach(b=>b.classList.toggle("active",b.dataset.feedFilter===v));loadFeed(true,true)}
 async function loadNotifications(){try{const d=await api("/api/notifications");const list=$("notificationList"),badge=$("notificationBadge");if(badge){badge.textContent=d.unread||0;badge.classList.toggle("hidden",!d.unread)}if(!list)return;if(!d.notifications?.length){list.innerHTML='<div class="social-empty">🔔<b>Nenhuma notificação</b><span>Quando algo acontecer, aparecerá aqui.</span></div>';return}list.innerHTML=d.notifications.map(n=>`<div class="notification-item ${n.read_at?"":"unread"}"><span class="notification-icon">${n.type==="message"?"💬":n.type==="friend"?"👥":"✨"}</span><div><b>${messageEscape(n.title)}</b><p>${messageEscape(n.body||"")}</p><small>${new Date(n.created_at).toLocaleString([],{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}</small></div></div>`).join("")}catch(e){}}
@@ -1888,15 +1914,12 @@ $("screen").onclick=async()=>{
     return;
   }
   try{
-    const s=await navigator.mediaDevices.getDisplayMedia({video:{frameRate:{ideal:30,max:60}},audio:true});
+    const s=await navigator.mediaDevices.getDisplayMedia({video:{frameRate:{ideal:30,max:60}},audio:{systemAudio:"include",surfaceSwitching:"include"}}).catch(async()=>navigator.mediaDevices.getDisplayMedia({video:{frameRate:{ideal:30,max:60}},audio:true}));
     const track=s.getVideoTracks()[0];
     const audioTrack=s.getAudioTracks()[0];
     screenTrack=track;
     updateScreenButton();
     document.querySelector('[data-id="local"]')?.classList.add("sharing");
-    // A pessoa que compartilha também precisa ver a própria tela, não o
-    // avatar — isso não chega automaticamente porque o evento de tela
-    // não volta para quem enviou (só os outros participantes recebem).
     document.querySelector('[data-id="local"]')?.classList.remove("cam-off");
     updateScreenShareBanner();
     if(socket?.connected)socket.emit("call-screen-state",{room,sharing:true});
@@ -2138,3 +2161,185 @@ document.addEventListener("DOMContentLoaded",()=>{$("friendsSearch")?.addEventLi
 /* PWA */
 window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();window._installPrompt=e;let b=$("pwaInstallBtn");if(!b){b=document.createElement("button");b.id="pwaInstallBtn";b.className="pwa-install";b.textContent="📲 Instalar FreeChat";document.body.appendChild(b);b.onclick=async()=>{try{await window._installPrompt?.prompt();window._installPrompt=null;b.remove()}catch(e){}}}});
 if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js",{updateViaCache:"none"}).then(r=>r.update()).catch(()=>{}));
+
+
+
+/* ================= FreeChat 1.2.0 — Servidores + Conhecer alguém ================= */
+(function initCommunityFeatures(){
+  const $=id=>document.getElementById(id);
+  let selectedServerId=null;
+  let randomMatch=null;
+  let randomQueueActive=false;
+
+  function communityToast(msg,type="success"){
+    if(typeof appToast==="function") appToast(msg,type);
+    else console[type==="error"?"error":"log"](msg);
+  }
+  function currentUserId(){return Number(window.CONVERSA_USER?.id||0)}
+  function avatarBackground(el,u){
+    if(!el)return;
+    if(u?.avatarUrl){
+      el.style.backgroundImage=`url("${serverUrl()+u.avatarUrl}")`;
+      el.textContent="";
+    }else{
+      el.style.backgroundImage="";
+      el.textContent=(u?.name||"?").trim().charAt(0).toUpperCase()||"?";
+    }
+  }
+
+  function openServers(){
+    $("serversPanel")?.classList.remove("hidden");
+    loadServers();
+  }
+  function closeServers(){
+    $("serversPanel")?.classList.add("hidden");
+    selectedServerId=null;
+    $("serverDetailSection")?.classList.add("hidden");
+  }
+  async function loadServers(){
+    const status=$("serversStatus"); if(status)status.textContent="Carregando...";
+    try{
+      const d=await api("/api/servers");
+      const mine=d.mine||[], discover=d.discover||[];
+      const mineBox=$("myServersList"), pubBox=$("discoverServersList");
+      const card=(s,isMine)=>{
+        const joined=!!s.joined;
+        return `<article class="server-item">
+          <div class="server-icon">${messageEscape((s.name||"S").trim().charAt(0).toUpperCase())}</div>
+          <div><b>${messageEscape(s.name)}</b><small>${messageEscape(s.description||"Sem descrição")} · ${Number(s.member_count||0)} membro(s) · ${s.is_public?"Público":"Privado"}</small></div>
+          <div class="server-actions">
+            ${joined?`<button class="secondary-btn tiny-btn" data-open-server="${s.id}">Abrir</button>`:`<button class="secondary-btn tiny-btn" data-join-server="${s.id}">Entrar</button>`}
+          </div>
+        </article>`;
+      };
+      if(mineBox)mineBox.innerHTML=mine.length?mine.map(s=>card(s,true)).join():'<div class="social-empty"><span>🌐</span><b>Você ainda não participa de servidores.</b><small>Crie um ou entre com um convite.</small></div>';
+      if(pubBox)pubBox.innerHTML=discover.length?discover.map(s=>card(s,false)).join():'<div class="social-empty"><span>✦</span><b>Nenhum servidor público disponível.</b></div>';
+      document.querySelectorAll("[data-open-server]").forEach(b=>b.onclick=()=>openServer(Number(b.dataset.openServer)));
+      document.querySelectorAll("[data-join-server]").forEach(b=>b.onclick=()=>joinServer(Number(b.dataset.joinServer)));
+      if(status)status.textContent="";
+    }catch(e){if(status)status.textContent=e.message||"Não foi possível carregar os servidores."}
+  }
+  async function createServer(){
+    const name=$("serverNameInput")?.value.trim(), desc=$("serverDescInput")?.value.trim(), isPublic=$("serverVisibilityInput")?.value!=="private";
+    if(!name||name.length<2){communityToast("Dê um nome ao servidor.","error");return}
+    const btn=$("serverCreateBtn"); if(btn)btn.disabled=true;
+    try{
+      const d=await api("/api/servers",{method:"POST",body:JSON.stringify({name,description:desc,isPublic})});
+      $("serverNameInput").value="";$("serverDescInput").value="";
+      communityToast("Servidor criado!","success");
+      await loadServers();
+      if(d.server?.id)openServer(Number(d.server.id));
+    }catch(e){communityToast(e.message,"error")}finally{if(btn)btn.disabled=false}
+  }
+  async function joinServer(id){
+    try{await api(`/api/servers/${encodeURIComponent(id)}/join`,{method:"POST"});communityToast("Você entrou no servidor.","success");await loadServers();openServer(id)}
+    catch(e){communityToast(e.message,"error")}
+  }
+  async function joinServerByInvite(){
+    const code=$("serverInviteInput")?.value.trim();if(!code)return communityToast("Digite o código do convite.","error");
+    try{
+      const d=await api("/api/servers/join",{method:"POST",body:JSON.stringify({inviteCode:code})});
+      $("serverInviteInput").value="";communityToast("Você entrou no servidor!","success");await loadServers();if(d.server?.id)openServer(Number(d.server.id));
+    }catch(e){communityToast(e.message,"error")}
+  }
+  async function openServer(id){
+    try{
+      const d=await api(`/api/servers/${encodeURIComponent(id)}`);
+      const s=d.server; if(!s)return;
+      selectedServerId=id;
+      $("serverDetailSection")?.classList.remove("hidden");
+      $("myServersList")?.classList.add("hidden");$("discoverServersList")?.classList.add("hidden");
+      $("serverDetailName").textContent=s.name;
+      $("serverDetailDesc").textContent=s.description||"";
+      const ch=$("serverChannelsList");
+      ch.innerHTML=(s.channels||[]).map(c=>`<button class="server-channel" type="button" data-community-channel="${c.id}" data-room="${messageEscape(c.room_name)}"><b>${c.type==="voice"?"🔊":"#️⃣"} ${messageEscape(c.name)}</b><small>${c.type==="voice"?"Canal de voz":"Canal de texto"}</small></button>`).join("");
+      $("serverInviteCodeView").textContent=s.invite_code?`🔗 Convite: ${s.invite_code}`:"";
+      ch.querySelectorAll("[data-community-channel]").forEach(b=>b.onclick=async()=>{
+        const room=b.dataset.room;
+        $("serversPanel")?.classList.add("hidden");
+        joinRoom(room,window.CONVERSA_USER?.name||"Visitante");
+        appToast("Entrando no canal "+(b.querySelector("b")?.textContent||"")+"...","success");
+      });
+    }catch(e){communityToast(e.message,"error")}
+  }
+  function backServerList(){
+    $("serverDetailSection")?.classList.add("hidden");
+    $("myServersList")?.classList.remove("hidden");$("discoverServersList")?.classList.remove("hidden");
+  }
+
+  async function openRandomCall(){
+    $("randomCallPanel")?.classList.remove("hidden");
+    showRandomState("ready");
+  }
+  function showRandomState(state){
+    $("randomCallState")?.classList.toggle("hidden",state!=="ready");
+    $("randomCallWaiting")?.classList.toggle("hidden",state!=="waiting");
+    $("randomCallMatch")?.classList.toggle("hidden",state!=="match");
+  }
+  async function startRandomQueue(){
+    if(randomQueueActive)return;
+    randomQueueActive=true;showRandomState("waiting");
+    try{
+      const d=await api("/api/random/queue",{method:"POST"});
+      if(d.match){setRandomMatch(d.match)}
+      else if(d.waiting) communityToast("Você entrou na fila. Aguarde um momento.","success");
+    }catch(e){randomQueueActive=false;showRandomState("ready");communityToast(e.message,"error")}
+  }
+  async function leaveRandomQueue(){
+    try{await api("/api/random/leave",{method:"POST"})}catch(e){}
+    randomQueueActive=false;showRandomState("ready");randomMatch=null;
+  }
+  function setRandomMatch(m){
+    randomMatch=m;randomQueueActive=false;showRandomState("match");
+    $("randomMatchName").textContent=m.name||"Conexão encontrada";
+    $("randomMatchCode").textContent=m.code?("Código "+m.code):"";
+    avatarBackground($("randomMatchAvatar"),m);
+  }
+  async function nextRandom(){
+    try{
+      const d=await api("/api/random/next",{method:"POST"});
+      if(d.match)setRandomMatch(d.match);else{randomQueueActive=true;showRandomState("waiting")}
+    }catch(e){communityToast(e.message,"error")}
+  }
+  async function blockRandom(){
+    if(!randomMatch?.code)return leaveRandomQueue();
+    try{await api("/api/security/block",{method:"POST",body:JSON.stringify({code:randomMatch.code})});communityToast("Usuário bloqueado.","success")}catch(e){communityToast(e.message,"error")}
+    await leaveRandomQueue();
+  }
+  function joinRandomMatch(){
+    if(!randomMatch)return;
+    const room=randomMatch.room||("random-"+randomMatch.matchId);
+    $("randomCallPanel")?.classList.add("hidden");
+    joinRoom(room,window.CONVERSA_USER?.name||"Visitante");
+    setTimeout(()=>{if(socket?.connected&&!inCall)openCall()},300);
+  }
+
+  window.addEventListener("freechat:random-match",e=>{if(e.detail?.match){setRandomMatch(e.detail.match);communityToast("Você encontrou alguém!","success") }});
+  const watchSocket=setInterval(()=>{
+    if(window.__freechatRandomSocketBound||!window.socket)return;
+    try{
+      window.__freechatRandomSocketBound=true;
+      window.socket.on("random-match-found",payload=>{if(payload?.partner){setRandomMatch({matchId:payload.matchId,room:payload.room,...payload.partner});communityToast("Conexão encontrada!","success")}});
+      clearInterval(watchSocket);
+    }catch(e){}
+  },250);
+  window.openServers=openServers;window.openRandomCall=openRandomCall;
+
+  $("serversBtn")?.addEventListener("click",openServers);
+  $("serversClose")?.addEventListener("click",closeServers);
+  $("serversRefreshBtn")?.addEventListener("click",loadServers);
+  $("serverCreateBtn")?.addEventListener("click",createServer);
+  $("serverJoinBtn")?.addEventListener("click",joinServerByInvite);
+  $("serverDetailBack")?.addEventListener("click",backServerList);
+
+  $("randomCallBtn")?.addEventListener("click",openRandomCall);
+  $("randomCallClose")?.addEventListener("click",leaveRandomQueue);
+  $("randomCallStartBtn")?.addEventListener("click",startRandomQueue);
+  $("randomCallCancelBtn")?.addEventListener("click",leaveRandomQueue);
+  $("randomCallJoinBtn")?.addEventListener("click",joinRandomMatch);
+  $("randomCallNextBtn")?.addEventListener("click",nextRandom);
+  $("randomCallBlockBtn")?.addEventListener("click",blockRandom);
+
+  // Mantém o estado visual quando o usuário muda de call/sala.
+  document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&$("serversPanel")&&!$("serversPanel").classList.contains("hidden"))loadServers()});
+})();
