@@ -96,34 +96,34 @@ function unlockNotificationAudio(){
 document.addEventListener("pointerdown",unlockNotificationAudio,{passive:true});
 window.playFriendNotificationSound=playFriendNotificationSound;
 
-// Sons curtos da call, gerados localmente para não depender de arquivos externos.
-let callSoundLast=0;
+// Sons curtos e não repetitivos da call.
+let callSoundLast=0, callSoundNodes=[];
+function stopCallSound(){
+  for(const n of callSoundNodes){try{n.osc.stop()}catch(e){} try{n.gain.disconnect()}catch(e){}}
+  callSoundNodes=[];
+}
 function playCallSound(kind){
   const nowMs=Date.now();
-  if(nowMs-callSoundLast<180)return;
+  const cooldown={invite:1800,create:900,join:900,leave:900}[kind]||900;
+  if(nowMs-callSoundLast<cooldown)return;
   callSoundLast=nowMs;
   try{
     const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;
     audioNotifyContext=audioNotifyContext||new AC();
-    if(audioNotifyContext.state==='suspended')audioNotifyContext.resume().catch(()=>{});
-    const ctx=audioNotifyContext,now=ctx.currentTime;
-    const patterns={
-      invite:[[660,.08],[880,.12],[1040,.16]],
-      create:[[520,.08],[740,.11],[980,.18]],
-      join:[[620,.08],[820,.16]],
-      leave:[[820,.08],[620,.16]]
-    };
+    const ctx=audioNotifyContext;
+    if(ctx.state==='suspended')ctx.resume().catch(()=>{});
+    stopCallSound();
+    const patterns={invite:[[660,.09],[880,.12],[1040,.16]],create:[[520,.08],[740,.11],[980,.18]],join:[[620,.08],[820,.16]],leave:[[820,.08],[620,.16]]};
     const pattern=patterns[kind]||patterns.invite;
-    let t=now;
-    pattern.forEach(([freq,dur],i)=>{
+    let t=ctx.currentTime;
+    pattern.forEach(([freq,dur])=>{
       const osc=ctx.createOscillator(),gain=ctx.createGain();
       osc.type='sine';osc.frequency.setValueAtTime(freq,t);
-      gain.gain.setValueAtTime(.0001,t);
-      gain.gain.exponentialRampToValueAtTime(.045,t+.012);
-      gain.gain.exponentialRampToValueAtTime(.0001,t+dur);
-      osc.connect(gain);gain.connect(ctx.destination);osc.start(t);osc.stop(t+dur+.015);
-      t+=dur*.78;
+      gain.gain.setValueAtTime(0.0001,t);gain.gain.exponentialRampToValueAtTime(0.045,t+0.012);gain.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+      osc.connect(gain);gain.connect(ctx.destination);osc.start(t);osc.stop(t+dur+0.02);callSoundNodes.push({osc,gain});t+=dur*0.78;
     });
+    const total=pattern.reduce((a,x)=>a+x[1]*.78,0)+.3;
+    setTimeout(()=>{callSoundNodes=[]},Math.ceil(total*1000)+100);
   }catch(e){}
 }
 window.playCallSound=playCallSound;
@@ -600,6 +600,7 @@ function startSocket(){
   socket.on("dm-new",({code:fromCode,message,fromName})=>{
     if(fromCode===activeFriendCode && !$("messagesPanel")?.classList.contains("hidden")){
       lastLoadedMessages.push(message);
+      saveMessagesCache(activeFriendCode,lastLoadedMessages);
       renderMessagesList(true);
       api("/api/messages/"+encodeURIComponent(activeFriendCode)).then(d=>{lastLoadedMessages=d.messages||lastLoadedMessages;renderMessagesList(true)}).catch(()=>{});
     }else{
@@ -1789,7 +1790,7 @@ function restoreCameraAfterScreenShare(){
   const cameraTrack=localStream?.getVideoTracks()[0];
   if(cameraTrack){
     peers.forEach(pc=>{
-      const sender=pc.getSenders().find(x=>x.track?.kind==="video");
+      const sender=pc.getTransceivers().find(t=>t.sender?.track?.kind==="video")?.sender || pc.getSenders().find(x=>x.track?.kind==="video");
       if(sender)sender.replaceTrack(cameraTrack).catch(()=>{});
     });
     const localVideo=document.querySelector('[data-id="local"] video');
@@ -1845,18 +1846,15 @@ $("screen").onclick=async()=>{
     updateScreenButton();
     document.querySelector('[data-id="local"]')?.classList.add("sharing");
     peers.forEach(async(pc,id)=>{
-      const sender=pc.getSenders().find(x=>x.track?.kind==="video");
-      if(sender){
-        try{await sender.replaceTrack(track);}
-        catch(e){console.warn("screen replaceTrack",id,e);}
-      }else{
-        // Compatibilidade com conexões antigas criadas antes da versão 3.2.0.
-        try{
-          const tx=pc.addTransceiver("video",{direction:"sendrecv"});
-          await tx.sender.replaceTrack(track);
-          await renegotiatePeer(id,pc);
-        }catch(e){console.warn("screen addTransceiver",id,e);}
+      // Procure o transceiver de vídeo, não apenas um sender com track.
+      // Em chamadas iniciadas sem câmera o sender existe, mas track === null.
+      let tx=pc.getTransceivers().find(t=>t.receiver?.track?.kind==="video" || t.sender?.track?.kind==="video");
+      if(!tx)tx=pc.getTransceivers().find(t=>t.sender?.track==null && t.direction!=="inactive");
+      if(!tx){
+        try{tx=pc.addTransceiver("video",{direction:"sendrecv"});}catch(e){console.warn("screen addTransceiver",id,e);return;}
       }
+      try{await tx.sender.replaceTrack(track);}
+      catch(e){console.warn("screen replaceTrack",id,e);try{await renegotiatePeer(id,pc)}catch(_){} }
     });
     if(audioTrack)await setupScreenAudioMix(audioTrack);
     const v=document.querySelector('[data-id="local"] video');
@@ -1901,6 +1899,21 @@ window.addEventListener("beforeunload",()=>{try{if(inCall&&socket?.connected)soc
 
 /* FreeChat 2.5.1 — chat privado com fotos, vídeos e notificações */
 let activeFriendCode=null, messageTimer=null, lastLoadedMessages=[], selectedMessageFile=null;
+const DM_CACHE_PREFIX="freechat_dm_cache_v1_";
+function dmCacheKey(code){return DM_CACHE_PREFIX+String(code||"").toUpperCase();}
+function saveMessagesCache(code,messages){
+  if(!code||!Array.isArray(messages))return;
+  try{
+    const compact=messages.slice(-500).map(m=>({id:m.id,sender_id:m.sender_id,receiver_id:m.receiver_id,body:m.body||"",created_at:m.created_at,read_at:m.read_at||null,media:m.media?{id:m.media.id,type:m.media.type,name:m.media.name,mime:m.media.mime,size:m.media.size,duration:m.media.duration,url:m.media.url}:null}));
+    localStorage.setItem(dmCacheKey(code),JSON.stringify({savedAt:Date.now(),messages:compact}));
+    localStorage.setItem("freechat_dm_last",String(code).toUpperCase());
+  }catch(e){console.warn("dm cache",e)}
+}
+function loadMessagesCache(code){
+  try{const raw=localStorage.getItem(dmCacheKey(code));if(!raw)return null;const d=JSON.parse(raw);return Array.isArray(d?.messages)?d.messages:null}catch(e){return null}
+}
+function removeMessagesCache(code){try{localStorage.removeItem(dmCacheKey(code))}catch(e){}}
+
 const messageEscape=s=>{const d=document.createElement("div");d.textContent=s??"";return d.innerHTML};
 function mediaUrl(m){return serverUrl()+String(m?.url||("/api/messages/media/"+encodeURIComponent(m?.id||"")))}
 function requestDesktopNotifications(){try{if("Notification" in window&&Notification.permission==="default")Notification.requestPermission().catch(()=>{})}catch(e){}}
@@ -1910,29 +1923,50 @@ function notifyIncomingMessage(name,message){
   try{if(document.hidden&&"Notification" in window&&Notification.permission==="granted"){const n=new Notification("Nova mensagem — FreeChat",{body:message?.body||"Enviou uma foto ou vídeo",icon:"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%236d5dfc'/%3E%3Cpath d='M17 19h30v22H29l-8 7v-7h-4z' fill='white'/%3E%3C/svg%3E"});n.onclick=()=>{window.focus();if(activeFriendCode)loadMessages(true);n.close()}}}catch(e){}
 }
 window.notifyIncomingMessage=notifyIncomingMessage;
+function dmDateLabel(v){
+ const d=new Date(v);if(Number.isNaN(d.getTime()))return '';
+ const today=new Date();today.setHours(0,0,0,0);const x=new Date(d);x.setHours(0,0,0,0);const days=Math.round((today-x)/86400000);
+ if(days===0)return 'Hoje';if(days===1)return 'Ontem';return d.toLocaleDateString([], {day:'2-digit',month:'long',year:d.getFullYear()===today.getFullYear()?undefined:'numeric'});
+}
 function renderMessagesList(scroll=true){
  const list=$("messagesList");if(!list)return;
- const term=($("messagesSearch")?.value||"").trim().toLowerCase();
- const msgs=term?lastLoadedMessages.filter(m=>String(m.body||"").toLowerCase().includes(term)||String(m.media?.name||"").toLowerCase().includes(term)):lastLoadedMessages;
- if(msgs.length){
-  list.innerHTML=msgs.map(m=>{
-   const mine=String(m.sender_id)===String(window.CONVERSA_USER?.id);
-   let media="";
-   if(m.media?.id){
-    const src=mediaUrl(m.media),name=messageEscape(m.media.name||"arquivo");
-    if(m.media.type==="image") media=`<a class="dm-media-link" href="${src}" target="_blank" rel="noopener"><img class="dm-media-image" src="${src}" alt="${name}" loading="lazy"></a>`;
-    else media=`<video class="dm-media-video" controls preload="metadata" playsinline src="${src}"></video><a class="dm-download" href="${src}" target="_blank" rel="noopener">▶ Abrir vídeo</a>`;
+ const term=($("messagesSearch")?.value||'').trim().toLowerCase();
+ const msgs=term?lastLoadedMessages.filter(m=>String(m.body||'').toLowerCase().includes(term)||String(m.media?.name||'').toLowerCase().includes(term)):lastLoadedMessages;
+ if(!msgs.length){list.innerHTML=term?'<div class="dm-empty"><div>🔎</div><b>Nada encontrado</b><span>Nenhuma mensagem corresponde à sua busca.</span></div>':'<div class="dm-empty"><div>💬</div><b>Comece a conversar</b><span>Envie uma mensagem, foto ou vídeo.</span></div>';return}
+ let lastDay='';
+ list.innerHTML=msgs.map((m,i)=>{
+   const mine=String(m.sender_id)===String(window.CONVERSA_USER?.id),day=dmDateLabel(m.created_at),sep=day!==lastDay?(lastDay=day?`<div class="dm-day"><span>${messageEscape(day)}</span></div>`:'') : '';
+   let media='';
+   if(m.media?.id){const src=mediaUrl(m.media),name=messageEscape(m.media.name||'arquivo');
+     if(m.media.type==='image')media=`<a class="dm-media-link" href="${src}" target="_blank" rel="noopener"><img class="dm-media-image" src="${src}" alt="${name}" loading="lazy"></a>`;
+     else media=`<video class="dm-media-video" controls preload="metadata" playsinline src="${src}"></video><div class="dm-media-meta">🎬 ${name}${m.media.duration?` • ${Math.round(m.media.duration)}s`:''}</div>`;
    }
-   const body=m.body?`<div class="dm-body">${messageEscape(m.body)}</div>`:"";
-   return `<div class="message-bubble ${mine?"mine":"theirs"}">${media}${body}<small>${formatMessageTime(m.created_at)}</small></div>`;
-  }).join("");
- }else list.innerHTML=term?'<div class="muted">Nenhuma mensagem encontrada para "'+messageEscape(term)+'".</div>':'<div class="dm-empty"><div>💬</div><b>Conversa privada</b><span>Envie uma mensagem, foto ou vídeo.</span></div>';
+   let body=m.body?`<div class="dm-body">${messageEscape(m.body).replace(/\n/g,'<br>')}</div>`:'';
+   const time=formatMessageTime(m.created_at),status=mine?(m.read_at?'✓✓':'✓'):'';
+   const action=`<button class="dm-copy" type="button" title="Copiar mensagem" data-copy-id="${m.id}">⋯</button>`;
+   return `${sep}<div class="message-row ${mine?'mine':'theirs'}" data-message-id="${m.id}"><div class="message-bubble ${mine?'mine':'theirs'}">${media}${body}<div class="dm-meta"><time>${time}</time>${status?`<span class="dm-read">${status}</span>`:''}${action}</div></div></div>`;
+ }).join('');
+ list.querySelectorAll('[data-copy-id]').forEach(btn=>btn.addEventListener('click',async()=>{const m=lastLoadedMessages.find(x=>String(x.id)===String(btn.dataset.copyId));if(!m)return;try{await navigator.clipboard.writeText(m.body||m.media?.name||'');appToast('Mensagem copiada.','success')}catch(e){appToast('Não foi possível copiar.','error')}}));
  if(scroll)list.scrollTop=list.scrollHeight;
 }
 async function loadMessages(scroll=true){
  if(!activeFriendCode)return;
- try{const d=await api("/api/messages/"+encodeURIComponent(activeFriendCode));lastLoadedMessages=d.messages||[];renderMessagesList(scroll);$("messagesFriendState").textContent=d.friend?.online?"● Online":"Conversa privada";}
- catch(e){$("messageStatus").textContent=e.message||"Erro ao carregar mensagens."}
+ const code=activeFriendCode;
+ const cached=loadMessagesCache(code);
+ if(cached?.length){lastLoadedMessages=cached;renderMessagesList(scroll);$("messageStatus").textContent="Histórico salvo localmente • sincronizando…";}
+ try{
+   const d=await api("/api/messages/"+encodeURIComponent(code));
+   if(code!==activeFriendCode)return;
+   lastLoadedMessages=d.messages||[];
+   saveMessagesCache(code,lastLoadedMessages);
+   renderMessagesList(scroll);
+   $("messagesFriendState").textContent=d.friend?.online?"● Online":"Conversa privada";
+   $("messageStatus").textContent="";
+ }catch(e){
+   if(code!==activeFriendCode)return;
+   if(cached?.length){$("messageStatus").textContent="Você está offline. Mostrando o histórico salvo.";}
+   else $("messageStatus").textContent=e.message||"Não foi possível carregar a conversa.";
+ }
 }
 function formatMessageTime(v){const d=new Date(v);if(Number.isNaN(d.getTime()))return "";return d.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}
 function setSelectedMessageFile(file){selectedMessageFile=file||null;const info=$("messageFileInfo");if(!info)return;if(!file){info.textContent="";info.classList.add("hidden");return}info.classList.remove("hidden");info.innerHTML=`<span>${file.type.startsWith("image/")?"🖼️":"🎬"} ${messageEscape(file.name)}</span><button type="button" id="messageFileClear" aria-label="Remover arquivo">×</button>`;$("messageFileClear").onclick=()=>setSelectedMessageFile(null)}
@@ -1953,7 +1987,14 @@ $("messageFile")?.addEventListener("change",async e=>{
 });
 $("messageForm")?.addEventListener("submit",async e=>{
  e.preventDefault();const input=$("messageInput"),body=input.value.trim(),file=selectedMessageFile;if(!activeFriendCode||(!body&&!file))return;const btn=e.currentTarget.querySelector("button[type=submit]");btn.disabled=true;$("messageStatus").textContent=file?"Enviando arquivo...":"Enviando...";
- try{if(file){const fd=new FormData();fd.append("code",activeFriendCode);if(body)fd.append("body",body);fd.append("file",file);if(file._freechatDuration)fd.append("duration",String(file._freechatDuration));await api("/api/messages/media",{method:"POST",body:fd});$("messageFile").value="";setSelectedMessageFile(null)}else{await api("/api/messages",{method:"POST",body:JSON.stringify({code:activeFriendCode,body})})}input.value="";$("messageStatus").textContent="";await loadMessages(true)}catch(err){$("messageStatus").textContent=err.message||"Erro ao enviar."}finally{btn.disabled=false;input.focus()}
+ try{
+   const target=activeFriendCode;
+   if(file){const fd=new FormData();fd.append("code",target);if(body)fd.append("body",body);fd.append("file",file);if(file._freechatDuration)fd.append("duration",String(file._freechatDuration));await api("/api/messages/media",{method:"POST",body:fd});$("messageFile").value="";setSelectedMessageFile(null)}
+   else{await api("/api/messages",{method:"POST",body:JSON.stringify({code:target,body})})}
+   input.value="";$("messageStatus").textContent="Salvo ✓";
+   await loadMessages(true);
+ }catch(err){$("messageStatus").textContent=err.message||"Erro ao enviar."}
+ finally{btn.disabled=false;input.focus()}
 });
 function closePrivateChat(){ document.activeElement?.blur?.();const panel=$("messagesPanel");if(panel)panel.classList.add("hidden");activeFriendCode=null;setSelectedMessageFile(null);document.body.classList.remove("modal-open");refreshUnreadCounts(); }
 function initPrivateChatUI(){

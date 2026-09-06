@@ -1118,3 +1118,20 @@ html[data-accent] .call-stage-badge{border-color:var(--accent-main)!important}
   .post-like.liked{animation:none}
   .post-heart-burst{animation:none;opacity:0}
 }
+
+/* FreeChat 3.2.4 — Direct Messages premium refinement */
+body.modal-open{overflow:hidden}
+.messages-card{width:min(760px,96vw)!important;height:min(820px,92vh);display:flex;flex-direction:column;overflow:hidden;background:linear-gradient(145deg,#0d0a15,#07070c)!important;border:1px solid rgba(167,139,250,.28)!important;box-shadow:0 35px 120px #000d!important}
+.messages-head{min-height:68px!important;padding:10px 14px!important;background:linear-gradient(180deg,#171020,#0d0a14)!important;border-bottom:1px solid #ffffff10!important}
+.messages-person{display:flex;align-items:center;gap:11px;min-width:0;flex:1}.messages-person strong{font-size:15px}.messages-person small{display:block;margin-top:3px;color:#8f829f;font-size:10px}
+.messages-toolbar{padding:9px 12px!important;background:#0a0810!important;border-bottom:1px solid #ffffff08}.messages-toolbar .friends-search{width:100%;box-sizing:border-box;border-radius:12px!important;background:#12101a!important;border-color:#30273c!important}
+.messages-list{flex:1!important;min-height:0;overflow:auto!important;padding:18px 16px 22px!important;scroll-behavior:smooth;background:radial-gradient(circle at 50% 0,#191024,#07070c 60%)!important}
+.message-row{display:flex;width:100%;margin:2px 0}.message-row.mine{justify-content:flex-end}.message-row.theirs{justify-content:flex-start}
+.message-bubble{position:relative;max-width:min(76%,560px)!important;border-radius:18px!important;padding:10px 12px 7px!important;margin:3px 0!important;transition:transform .15s,box-shadow .15s}.message-bubble:hover{transform:translateY(-1px);box-shadow:0 12px 30px #0008!important}.message-bubble.mine{border-bottom-right-radius:6px!important}.message-bubble.theirs{border-bottom-left-radius:6px!important}
+.dm-body{font-size:14px;line-height:1.5}.dm-meta{display:flex;align-items:center;justify-content:flex-end;gap:4px;margin-top:5px;min-height:14px}.dm-meta time{font-size:9px!important;color:#c7b9d4!important}.dm-read{font-size:9px;color:#d8b4ff}.dm-copy{opacity:0;border:0;background:transparent;color:#a897b7;font-size:15px;padding:0 1px;cursor:pointer;line-height:1}.message-bubble:hover .dm-copy,.dm-copy:focus{opacity:1}
+.dm-day{display:flex;justify-content:center;margin:15px 0 10px}.dm-day span{font-size:10px;color:#9f91aa;background:#17111f;border:1px solid #ffffff0b;border-radius:99px;padding:5px 10px}
+.dm-media-image{max-width:min(430px,70vw)!important;max-height:360px!important;border-radius:14px!important;cursor:pointer}.dm-media-video{width:min(430px,70vw)!important;max-height:360px!important;border-radius:14px!important}.dm-media-meta{font-size:9px;color:#a99ab5;margin-top:5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dm-empty{height:100%;min-height:240px;display:grid;place-items:center;align-content:center;text-align:center;gap:6px;color:#7f718c}.dm-empty div{font-size:42px;opacity:.8}.dm-empty b{font-size:15px;color:#cfc1d9}.dm-empty span{font-size:11px;max-width:300px}
+.message-form{min-height:64px!important;box-sizing:border-box!important;padding:9px 12px!important;background:linear-gradient(180deg,#100c16,#09070c)!important}.message-form input#messageInput{font-size:14px!important;padding:12px 14px!important}.dm-send{transition:.15s}.dm-send:hover{transform:translateY(-1px);filter:brightness(1.08)}
+.dm-file-preview{position:absolute;left:12px;right:12px;bottom:70px;padding:9px 11px;border-radius:11px;background:#191223;border:1px solid #4a3560;color:#cbb9d8;font-size:11px;box-shadow:0 12px 35px #0009}.dm-file-preview button{float:right;border:0;background:transparent;color:#fff;font-size:17px;cursor:pointer}
+@media(max-width:650px){.messages-card{width:100vw!important;height:100dvh;max-height:none;border-radius:0!important}.message-bubble{max-width:84%!important}.dm-media-image,.dm-media-video{max-width:76vw!important}.messages-list{padding:14px 10px 18px!important}.messages-head{min-height:60px!important}}
