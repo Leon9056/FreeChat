@@ -4,14 +4,14 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#0a1020"><meta name="color-scheme" content="dark light">
 <meta name="description" content="FreeChat — chat, chamadas, música e compartilhamento de tela.">
-<title>FreeChat v3.2.9</title>
+<title>FreeChat 1.0.0</title>
 <link rel="manifest" href="manifest.json"><link rel="icon" type="image/svg+xml" href="icon.svg">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <section id="login" class="screen">
   <div class="auth-card">
-    <div class="brand-icon brand-logo-icon"><img src="icon.svg" alt="FreeChat" width="46" height="46"></div><div class="auth-brand">FREECHAT <span>v3.2.9</span></div><h1>FreeChat</h1>
+    <div class="brand-icon brand-logo-icon"><img src="icon.svg" alt="FreeChat" width="46" height="46"></div><div class="auth-brand">FREECHAT <span>v1.0.0</span></div><h1>FreeChat</h1>
     <p id="authSubtitle" class="muted">Entre na sua conta para continuar</p>
     <div class="auth-tabs"><button id="loginTab" class="auth-tab active" type="button">Entrar</button><button id="registerTab" class="auth-tab" type="button">Criar conta</button></div>
     <div id="registerFields" class="hidden"><label for="name">👤 Nome de usuário</label><input id="name" maxlength="24" autocomplete="name" placeholder="Como quer ser chamado?"></div>
@@ -27,9 +27,10 @@
   <div class="call-menu-card menu-main-card">
     <div class="menu-header">
       <div class="brand-icon brand-logo-icon"><img src="icon.svg" alt="FreeChat" width="46" height="46"></div>
-      <div>
-        <h1>Olá, <span id="welcomeName">usuário</span>! 👋</h1>
-        <p class="muted">Crie uma chamada ou entre em uma existente.</p>
+      <div class="menu-greeting">
+        <span class="menu-eyebrow">SEU ESPAÇO DE CONVERSA</span>
+        <h1>Olá, <span id="welcomeName">usuário</span>! <span class="wave-emoji" aria-hidden="true">👋</span></h1>
+        <p class="muted">Tudo pronto para conversar, chamar seus amigos e compartilhar.</p>
       </div>
       <div class="profile-code menu-header-code"><span>Seu código</span><b id="myCode">CL-000000</b><button id="copyUserCode" type="button">📋 Copiar</button></div>
       <button id="feedBtnMenu" class="feed-main-btn feed-main-btn-menu" type="button" title="Abrir Feed">📰 <span>Feed</span></button>
@@ -60,6 +61,23 @@
           <div id="friendsList" class="friends-list"></div>
         </div>
       </div>
+    </div>
+
+    <div class="menu-quick-strip" aria-label="Ações rápidas">
+      <button type="button" class="menu-quick-card" data-menu-action="call">
+        <span class="menu-quick-icon">📞</span><span><b>Começar uma call</b><small>Crie uma sala em segundos</small></span><i>›</i>
+      </button>
+      <button type="button" class="menu-quick-card" data-menu-action="feed">
+        <span class="menu-quick-icon">📰</span><span><b>Ver o Feed</b><small>Veja novidades dos seus amigos</small></span><i>›</i>
+      </button>
+      <button type="button" class="menu-quick-card" data-menu-action="friend">
+        <span class="menu-quick-icon">👥</span><span><b>Adicionar amigo</b><small>Use o código de alguém</small></span><i>›</i>
+      </button>
+    </div>
+
+    <div class="menu-tip">
+      <span class="menu-tip-dot"></span>
+      <span><b>Dica rápida</b> — você pode entrar em uma call e ajustar áudio, microfone e transmissão antes de começar.</span>
     </div>
 
     <button id="logoutBtn" class="logout-btn" type="button">Sair da conta</button>
@@ -190,13 +208,18 @@
 <section id="feedScreen" class="screen feed-screen hidden">
  <header class="feed-topbar">
   <button id="feedBack" class="icon-btn" type="button" aria-label="Voltar">‹</button>
-  <b class="feed-topbar-title">FreeChat</b>
+  <div class="feed-brand"><span class="feed-brand-mark">✦</span><div><b>FreeChat</b><small>Social</small></div></div>
   <div class="feed-topbar-actions"><button id="feedRefreshBtn" class="icon-btn" type="button" aria-label="Atualizar" title="Atualizar">↻</button><button id="feedNewPostBtn" class="icon-btn" type="button" aria-label="Nova publicação" title="Nova publicação">➕</button></div>
  </header>
  <div class="feed-scroll">
+  <nav class="feed-tabs" aria-label="Filtro do feed"><button class="feed-tab active" data-feed-filter="friends">Amigos</button><button class="feed-tab" data-feed-filter="recent">Mais recentes</button></nav>
+  <section class="feed-stories" aria-label="Amigos recentes"><div class="stories-title"><b>Momentos</b><small>Amigos ativos e recentes</small></div><div id="feedStories" class="stories-row"></div></section>
+  <section class="feed-composer-inline"><div id="feedComposerAvatar" class="composer-avatar">?</div><button id="feedInlineComposer" type="button">Compartilhe algo com seus amigos...</button><button id="feedInlineMedia" class="composer-media" type="button" aria-label="Adicionar mídia">＋</button></section>
   <div id="feedList" class="feed-ig-list"></div>
+  <div id="feedLoadMore" class="feed-load-more hidden"><span class="feed-spinner"></span><span>Carregando mais publicações...</span></div>
+  <div id="feedEndState" class="feed-end-state hidden">Você chegou ao fim ✦</div>
  </div>
- <button id="feedFab" class="feed-fab" type="button" title="Nova publicação">➕</button>
+ <button id="feedFab" class="feed-fab" type="button" title="Nova publicação">＋</button>
 </section>
 
 <div id="postComposerModal" class="modal hidden" role="dialog" aria-modal="true">
@@ -224,5 +247,5 @@
 </form>
 <div id="messageStatus" class="status"></div>
 </div></div>
-<script src="config.js?v=3.2.9"></script><script src="app.js?v=3.2.9"></script>
+<script src="config.js?v=1.0.0"></script><script src="app.js?v=1.0.0"></script>
 </body></html>
