@@ -238,26 +238,48 @@
   <div class="modal-card servers-card">
     <div class="settings-head">
       <div><b id="serversTitle">🌐 Servidores</b><small>Crie comunidades, participe de canais e encontre seus grupos.</small></div>
-      <button id="serversClose" class="icon-btn" type="button" aria-label="Fechar">×</button>
+      <div class="servers-head-actions">
+        <button id="serverJoinToggleBtn" class="icon-btn" type="button" title="Entrar com convite" aria-label="Entrar com convite">🔗</button>
+        <button id="serverCreateToggleBtn" class="icon-btn servers-add-btn" type="button" title="Criar servidor" aria-label="Criar servidor">➕</button>
+        <button id="serversClose" class="icon-btn" type="button" aria-label="Fechar">×</button>
+      </div>
     </div>
-    <section class="servers-create-box">
+
+    <section id="serverCreateBox" class="servers-create-box hidden">
       <h3>➕ Criar servidor</h3>
       <div class="servers-form-grid">
         <input id="serverNameInput" maxlength="48" placeholder="Nome do servidor">
         <input id="serverDescInput" maxlength="180" placeholder="Descrição (opcional)">
-        <select id="serverVisibilityInput"><option value="public">🌍 Público</option><option value="private">🔒 Privado por convite</option></select>
+        <select id="serverVisibilityInput"><option value="public">🌍 Público — qualquer um pode entrar</option><option value="private">🔒 Privado — só por convite</option></select>
       </div>
-      <button id="serverCreateBtn" class="primary-btn small-btn" type="button">Criar servidor</button>
+      <div class="servers-inline-actions"><button id="serverCreateCancelBtn" class="text-btn" type="button">Cancelar</button><button id="serverCreateBtn" class="primary-btn small-btn" type="button">Criar servidor</button></div>
     </section>
-    <section class="servers-join-box">
+    <section id="serverJoinBox" class="servers-join-box hidden">
       <h3>🔗 Entrar por convite</h3>
       <div class="servers-join-row"><input id="serverInviteInput" maxlength="32" placeholder="Código do convite"><button id="serverJoinBtn" class="secondary-btn" type="button">Entrar</button></div>
     </section>
     <div id="serversStatus" class="status"></div>
-    <section><div class="social-section-title"><b>Seus servidores</b><button id="serversRefreshBtn" class="icon-btn" type="button">↻</button></div><div id="myServersList" class="servers-list"></div></section>
-    <section><div class="social-section-title"><b>Descobrir servidores públicos</b></div><div id="discoverServersList" class="servers-list"></div></section>
-    <section id="serverDetailSection" class="hidden"><div class="social-section-title"><button id="serverDetailBack" class="icon-btn" type="button">‹</button><div><b id="serverDetailName">Servidor</b><small id="serverDetailDesc"></small></div></div><div id="serverChannelsList" class="server-channels"></div><div id="serverInviteCodeView" class="server-invite-code"></div></section>
+
+    <nav class="servers-tabs" aria-label="Filtro de servidores">
+      <button class="servers-tab active" data-servers-tab="mine">Meus servidores</button>
+      <button class="servers-tab" data-servers-tab="discover">Descobrir</button>
+      <button id="serversRefreshBtn" class="icon-btn servers-refresh" type="button" title="Atualizar" aria-label="Atualizar">↻</button>
+    </nav>
+    <section id="myServersSection"><div id="myServersList" class="servers-list"></div></section>
+    <section id="discoverServersSection" class="hidden"><div id="discoverServersList" class="servers-list"></div></section>
+
+    <section id="serverDetailSection" class="hidden server-detail">
+      <div class="server-detail-head">
+        <button id="serverDetailBack" class="icon-btn" type="button" aria-label="Voltar">‹</button>
+        <div class="server-detail-icon" id="serverDetailIcon">S</div>
+        <div class="server-detail-info"><b id="serverDetailName">Servidor</b><small id="serverDetailDesc"></small></div>
+        <button id="serverInviteCopyBtn" class="icon-btn hidden" type="button" title="Copiar convite" aria-label="Copiar convite">📋</button>
+      </div>
+      <div id="serverInviteCodeView" class="server-invite-code hidden"></div>
+      <div id="serverChannelsList" class="server-channels"></div>
+    </section>
   </div>
+</div>
 </div>
 
 <div id="randomCallPanel" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="randomCallTitle">

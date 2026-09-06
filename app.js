@@ -412,12 +412,18 @@ function loadSocketIO(){
     s.src=src; s.async=true; s.onload=()=>{socketScriptLoading=false;startSocket()};
     s.onerror=onError; document.head.appendChild(s);
   };
-  // FreeChat 1.2.0: o cliente Socket.IO é servido pelo próprio backend.
+  // Tenta primeiro o cliente servido pelo próprio backend (garante que a
+  // versão bate com o servidor). Se isso falhar por qualquer motivo — o
+  // servidor demorando pra acordar, uma instabilidade passageira, etc. —
+  // cai para o CDN em vez de deixar a pessoa sem conexão nenhuma.
   const backend=serverUrl()+"/socket.io/socket.io.js";
   load(backend,()=>{
-    socketScriptLoading=false;
-    $("status").textContent="Não foi possível carregar o módulo de conexão.";
-    setConnectionLevel(0,"Falha no Socket.IO");
+    $("status").textContent="Servidor lento para responder, tentando via CDN...";
+    load("https://cdn.socket.io/4.8.1/socket.io.min.js",()=>{
+      socketScriptLoading=false;
+      $("status").textContent="Não foi possível carregar o módulo de conexão.";
+      setConnectionLevel(0,"Falha no Socket.IO");
+    });
   });
 }
 function startSocket(){
@@ -741,6 +747,28 @@ $("invite").onclick=async()=>{
 $("audioUnlock")?.addEventListener("click",async()=>{unlockAllAudio();await new Promise(r=>setTimeout(r,180));const blocked=[...remoteAudioEls.values()].some(v=>v.paused&&!v.muted);if(blocked){$("callSettingsPanel")?.classList.remove("hidden");setCallStatus("O navegador bloqueou o áudio. Verifique a saída de áudio nas configurações.","warn");}});
 $("musicStop")?.addEventListener("click",()=>musicControl("music-stop"));$("musicSkip")?.addEventListener("click",()=>musicControl("music-next"));
 $("callOpen").onclick=openCall;
+
+// Fallback de fechamento: mantém os botões X funcionais mesmo após re-renderizações.
+document.addEventListener("click",(e)=>{
+  const btn=e.target?.closest?.("#friendsClose,#emojiClose,#callClose,#callPanelClose,#callMusicClose,#callSettingsClose,#settingsClose,#socialClose,#serversClose,#randomCallClose,#postComposerClose,#messagesClose");
+  if(!btn)return;
+  e.preventDefault(); e.stopPropagation();
+  const actions={
+    friendsClose:()=>$("friendsPanel")?.classList.add("hidden"),
+    emojiClose:()=>$("emojiPicker")?.classList.add("hidden"),
+    callClose:()=>inCall?leaveCall(true):$("call")?.classList.add("hidden"),
+    callPanelClose:()=>closeCallPanel?.(),
+    callMusicClose:()=>$("callMusicPanel")?.classList.add("hidden"),
+    callSettingsClose:()=>$("callSettingsPanel")?.classList.add("hidden"),
+    settingsClose:()=>closeSettings?.(),
+    socialClose:()=>closeSocialPanel?.(),
+    serversClose:()=>closeServers?.(),
+    randomCallClose:()=>leaveRandomQueue?.(),
+    postComposerClose:()=>closePostComposer?.(),
+    messagesClose:()=>closePrivateChat?.()
+  };
+  actions[btn.id]?.();
+},true);
 $("callClose").onclick=()=>leaveCall(true);
 $("hang").onclick=()=>leaveCall(true);
 
@@ -1913,41 +1941,55 @@ $("screen").onclick=async()=>{
     $("callStatus").textContent="Seu navegador não oferece compartilhamento de tela.";
     return;
   }
+  const screenBtn=$("screen");
+  setBusy(screenBtn,true,"Abrindo...");
   try{
-    const s=await navigator.mediaDevices.getDisplayMedia({video:{frameRate:{ideal:30,max:60}},audio:{systemAudio:"include",surfaceSwitching:"include"}}).catch(async()=>navigator.mediaDevices.getDisplayMedia({video:{frameRate:{ideal:30,max:60}},audio:true}));
-    const track=s.getVideoTracks()[0];
-    const audioTrack=s.getAudioTracks()[0];
+    let s=null,lastError=null;
+    const attempts=[
+      {video:{frameRate:{ideal:30,max:60}},audio:{systemAudio:"include",surfaceSwitching:"include"}},
+      {video:{frameRate:{ideal:30,max:60}},audio:true},
+      {video:true,audio:false}
+    ];
+    for(const constraints of attempts){
+      try{s=await navigator.mediaDevices.getDisplayMedia(constraints);break;}
+      catch(err){lastError=err;if(err?.name==="NotAllowedError"||err?.name==="AbortError")break;}
+    }
+    if(!s)throw lastError||new Error("Não foi possível iniciar o compartilhamento.");
+    const track=s.getVideoTracks()[0],audioTrack=s.getAudioTracks()[0];
+    if(!track){s.getTracks().forEach(t=>{try{t.stop()}catch(_){}});throw new Error("O navegador não retornou uma trilha de vídeo.");}
     screenTrack=track;
     updateScreenButton();
-    document.querySelector('[data-id="local"]')?.classList.add("sharing");
-    document.querySelector('[data-id="local"]')?.classList.remove("cam-off");
+    const localTile=document.querySelector('[data-id="local"]');
+    localTile?.classList.add("sharing"); localTile?.classList.remove("cam-off");
     updateScreenShareBanner();
     if(socket?.connected)socket.emit("call-screen-state",{room,sharing:true});
-    peers.forEach(async(pc,id)=>{
-      // Procure o transceiver de vídeo, não apenas um sender com track.
-      // Em chamadas iniciadas sem câmera o sender existe, mas track === null.
-      let tx=pc.getTransceivers().find(t=>t.receiver?.track?.kind==="video" || t.sender?.track?.kind==="video");
-      if(!tx)tx=pc.getTransceivers().find(t=>t.sender?.track==null && t.direction!=="inactive");
-      if(!tx){
-        try{tx=pc.addTransceiver("video",{direction:"sendrecv"});}catch(e){console.warn("screen addTransceiver",id,e);return;}
-      }
-      try{await tx.sender.replaceTrack(track);}
-      catch(e){console.warn("screen replaceTrack",id,e);try{await renegotiatePeer(id,pc)}catch(_){} }
+    const negotiations=[];
+    peers.forEach((pc,id)=>{
+      try{
+        let tx=pc.getTransceivers().find(t=>t.sender?.track?.kind==="video"||t.receiver?.track?.kind==="video");
+        if(!tx)tx=pc.getTransceivers().find(t=>t.kind==="video"&&t.direction!=="inactive");
+        if(!tx)tx=pc.addTransceiver("video",{direction:"sendrecv"});
+        const hadTrack=!!tx.sender.track;
+        negotiations.push(tx.sender.replaceTrack(track).then(async()=>{
+          if(!hadTrack&&pc.signalingState==="stable")await renegotiatePeer(id,pc);
+        }).catch(async err=>{
+          console.warn("screen replaceTrack",id,err);
+          try{if(pc.signalingState==="stable")await renegotiatePeer(id,pc)}catch(e){console.warn("screen renegotiate",id,e);}
+        }));
+      }catch(e){console.warn("screen setup",id,e);}
     });
+    await Promise.allSettled(negotiations);
     if(audioTrack)await setupScreenAudioMix(audioTrack);
     const v=document.querySelector('[data-id="local"] video');
-    if(v){v.srcObject=s;v.play().catch(()=>{});}
+    if(v){v.srcObject=s;v.muted=true;v.play().catch(()=>{});}
     $("callStatus").textContent=audioTrack?"Transmitindo sua tela com áudio. 🖥️🔊":"Transmitindo sua tela. 🖥️";
-    track.onended=()=>{
-      if(screenTrack!==track)return; // já foi trocada/parada por outra ação
-      restoreCameraAfterScreenShare();
-    };
-    audioTrack&&(audioTrack.onended=()=>{
-      if(screenAudioTrack!==audioTrack)return;
-      teardownScreenAudioMix();
-    });
+    track.onended=()=>{if(screenTrack===track)restoreCameraAfterScreenShare();};
+    if(audioTrack)audioTrack.onended=()=>{if(screenAudioTrack===audioTrack)teardownScreenAudioMix();};
   }catch(e){
-    $("callStatus").textContent=e?.name==="NotAllowedError"?"Compartilhamento cancelado.":"Não foi possível compartilhar a tela.";
+    $("callStatus").textContent=(e?.name==="NotAllowedError"||e?.name==="AbortError")?"Compartilhamento cancelado.":"Não foi possível compartilhar a tela. Tente novamente.";
+    console.warn("screen-share",e);
+  }finally{
+    setBusy(screenBtn,false); updateScreenButton();
   }
 };
 function leaveChatRoom(){
@@ -2187,8 +2229,12 @@ if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.ser
     }
   }
 
+  let serversTab="mine", serversData={mine:[],discover:[]};
   function openServers(){
     $("serversPanel")?.classList.remove("hidden");
+    $("serverCreateBox")?.classList.add("hidden");
+    $("serverJoinBox")?.classList.add("hidden");
+    switchServersTab("mine");
     loadServers();
   }
   function closeServers(){
@@ -2196,24 +2242,42 @@ if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.ser
     selectedServerId=null;
     $("serverDetailSection")?.classList.add("hidden");
   }
+  function switchServersTab(tab){
+    serversTab=tab;
+    document.querySelectorAll(".servers-tab").forEach(b=>b.classList.toggle("active",b.dataset.serversTab===tab));
+    $("myServersSection")?.classList.toggle("hidden",tab!=="mine");
+    $("discoverServersSection")?.classList.toggle("hidden",tab!=="discover");
+    $("serverDetailSection")?.classList.add("hidden");
+  }
+  function toggleCreateBox(){
+    $("serverJoinBox")?.classList.add("hidden");
+    $("serverCreateBox")?.classList.toggle("hidden");
+  }
+  function toggleJoinBox(){
+    $("serverCreateBox")?.classList.add("hidden");
+    $("serverJoinBox")?.classList.toggle("hidden");
+  }
+  function serverCard(s){
+    const joined=!!s.joined;
+    const initial=messageEscape((s.name||"S").trim().charAt(0).toUpperCase());
+    return `<article class="server-item">
+      <div class="server-icon">${initial}</div>
+      <div class="server-item-info"><b>${messageEscape(s.name)}</b><small>${messageEscape(s.description||"Sem descrição")}</small>
+        <div class="server-item-meta"><span class="server-pill">${Number(s.member_count||0)} membro${Number(s.member_count||0)===1?"":"s"}</span><span class="server-pill ${s.is_public?"public":"private"}">${s.is_public?"🌍 Público":"🔒 Privado"}</span></div>
+      </div>
+      <div class="server-actions">
+        ${joined?`<button class="secondary-btn tiny-btn" data-open-server="${s.id}">Abrir</button>`:`<button class="primary-btn tiny-btn" data-join-server="${s.id}">Entrar</button>`}
+      </div>
+    </article>`;
+  }
   async function loadServers(){
     const status=$("serversStatus"); if(status)status.textContent="Carregando...";
     try{
       const d=await api("/api/servers");
-      const mine=d.mine||[], discover=d.discover||[];
+      serversData={mine:d.mine||[],discover:d.discover||[]};
       const mineBox=$("myServersList"), pubBox=$("discoverServersList");
-      const card=(s,isMine)=>{
-        const joined=!!s.joined;
-        return `<article class="server-item">
-          <div class="server-icon">${messageEscape((s.name||"S").trim().charAt(0).toUpperCase())}</div>
-          <div><b>${messageEscape(s.name)}</b><small>${messageEscape(s.description||"Sem descrição")} · ${Number(s.member_count||0)} membro(s) · ${s.is_public?"Público":"Privado"}</small></div>
-          <div class="server-actions">
-            ${joined?`<button class="secondary-btn tiny-btn" data-open-server="${s.id}">Abrir</button>`:`<button class="secondary-btn tiny-btn" data-join-server="${s.id}">Entrar</button>`}
-          </div>
-        </article>`;
-      };
-      if(mineBox)mineBox.innerHTML=mine.length?mine.map(s=>card(s,true)).join():'<div class="social-empty"><span>🌐</span><b>Você ainda não participa de servidores.</b><small>Crie um ou entre com um convite.</small></div>';
-      if(pubBox)pubBox.innerHTML=discover.length?discover.map(s=>card(s,false)).join():'<div class="social-empty"><span>✦</span><b>Nenhum servidor público disponível.</b></div>';
+      if(mineBox)mineBox.innerHTML=serversData.mine.length?serversData.mine.map(serverCard).join(""):'<div class="social-empty"><span>🌐</span><b>Você ainda não participa de servidores.</b><small>Crie um ou entre com um convite.</small></div>';
+      if(pubBox)pubBox.innerHTML=serversData.discover.length?serversData.discover.map(serverCard).join(""):'<div class="social-empty"><span>✦</span><b>Nenhum servidor público disponível.</b></div>';
       document.querySelectorAll("[data-open-server]").forEach(b=>b.onclick=()=>openServer(Number(b.dataset.openServer)));
       document.querySelectorAll("[data-join-server]").forEach(b=>b.onclick=()=>joinServer(Number(b.dataset.joinServer)));
       if(status)status.textContent="";
@@ -2226,6 +2290,7 @@ if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.ser
     try{
       const d=await api("/api/servers",{method:"POST",body:JSON.stringify({name,description:desc,isPublic})});
       $("serverNameInput").value="";$("serverDescInput").value="";
+      $("serverCreateBox")?.classList.add("hidden");
       communityToast("Servidor criado!","success");
       await loadServers();
       if(d.server?.id)openServer(Number(d.server.id));
@@ -2239,7 +2304,8 @@ if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.ser
     const code=$("serverInviteInput")?.value.trim();if(!code)return communityToast("Digite o código do convite.","error");
     try{
       const d=await api("/api/servers/join",{method:"POST",body:JSON.stringify({inviteCode:code})});
-      $("serverInviteInput").value="";communityToast("Você entrou no servidor!","success");await loadServers();if(d.server?.id)openServer(Number(d.server.id));
+      $("serverInviteInput").value="";$("serverJoinBox")?.classList.add("hidden");
+      communityToast("Você entrou no servidor!","success");await loadServers();if(d.server?.id)openServer(Number(d.server.id));
     }catch(e){communityToast(e.message,"error")}
   }
   async function openServer(id){
@@ -2247,24 +2313,34 @@ if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.ser
       const d=await api(`/api/servers/${encodeURIComponent(id)}`);
       const s=d.server; if(!s)return;
       selectedServerId=id;
+      $("myServersSection")?.classList.add("hidden");$("discoverServersSection")?.classList.add("hidden");
       $("serverDetailSection")?.classList.remove("hidden");
-      $("myServersList")?.classList.add("hidden");$("discoverServersList")?.classList.add("hidden");
+      $("serverDetailIcon").textContent=(s.name||"S").trim().charAt(0).toUpperCase();
       $("serverDetailName").textContent=s.name;
       $("serverDetailDesc").textContent=s.description||"";
+      const textCh=(s.channels||[]).filter(c=>c.type!=="voice"), voiceCh=(s.channels||[]).filter(c=>c.type==="voice");
+      const channelBtn=c=>`<button class="server-channel" type="button" data-community-channel="${c.id}" data-room="${messageEscape(c.room_name)}"><span class="server-channel-icon">${c.type==="voice"?"🔊":"#️⃣"}</span><span>${messageEscape(c.name)}</span></button>`;
       const ch=$("serverChannelsList");
-      ch.innerHTML=(s.channels||[]).map(c=>`<button class="server-channel" type="button" data-community-channel="${c.id}" data-room="${messageEscape(c.room_name)}"><b>${c.type==="voice"?"🔊":"#️⃣"} ${messageEscape(c.name)}</b><small>${c.type==="voice"?"Canal de voz":"Canal de texto"}</small></button>`).join("");
-      $("serverInviteCodeView").textContent=s.invite_code?`🔗 Convite: ${s.invite_code}`:"";
+      ch.innerHTML=""
+        +(textCh.length?`<div class="server-channel-group"><small>CANAIS DE TEXTO</small>${textCh.map(channelBtn).join("")}</div>`:"")
+        +(voiceCh.length?`<div class="server-channel-group"><small>CANAIS DE VOZ</small>${voiceCh.map(channelBtn).join("")}</div>`:"");
+      const inviteBtn=$("serverInviteCopyBtn"), inviteView=$("serverInviteCodeView");
+      if(s.invite_code){
+        inviteBtn?.classList.remove("hidden");
+        inviteBtn.onclick=async()=>{try{await navigator.clipboard?.writeText(s.invite_code);communityToast("Convite copiado: "+s.invite_code,"success")}catch(e){communityToast("Convite: "+s.invite_code,"success")}};
+        inviteView?.classList.remove("hidden");inviteView.textContent="🔗 Convite: "+s.invite_code;
+      }else{inviteBtn?.classList.add("hidden");inviteView?.classList.add("hidden")}
       ch.querySelectorAll("[data-community-channel]").forEach(b=>b.onclick=async()=>{
         const room=b.dataset.room;
         $("serversPanel")?.classList.add("hidden");
         joinRoom(room,window.CONVERSA_USER?.name||"Visitante");
-        appToast("Entrando no canal "+(b.querySelector("b")?.textContent||"")+"...","success");
+        appToast("Entrando no canal "+(b.querySelector("span:last-child")?.textContent||"")+"...","success");
       });
     }catch(e){communityToast(e.message,"error")}
   }
   function backServerList(){
     $("serverDetailSection")?.classList.add("hidden");
-    $("myServersList")?.classList.remove("hidden");$("discoverServersList")?.classList.remove("hidden");
+    switchServersTab(serversTab);
   }
 
   async function openRandomCall(){
@@ -2328,9 +2404,13 @@ if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.ser
   $("serversBtn")?.addEventListener("click",openServers);
   $("serversClose")?.addEventListener("click",closeServers);
   $("serversRefreshBtn")?.addEventListener("click",loadServers);
+  $("serverCreateToggleBtn")?.addEventListener("click",toggleCreateBox);
+  $("serverJoinToggleBtn")?.addEventListener("click",toggleJoinBox);
+  $("serverCreateCancelBtn")?.addEventListener("click",()=>$("serverCreateBox")?.classList.add("hidden"));
   $("serverCreateBtn")?.addEventListener("click",createServer);
   $("serverJoinBtn")?.addEventListener("click",joinServerByInvite);
   $("serverDetailBack")?.addEventListener("click",backServerList);
+  document.querySelectorAll(".servers-tab").forEach(b=>b.addEventListener("click",()=>switchServersTab(b.dataset.serversTab)));
 
   $("randomCallBtn")?.addEventListener("click",openRandomCall);
   $("randomCallClose")?.addEventListener("click",leaveRandomQueue);
