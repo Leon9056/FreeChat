@@ -2095,3 +2095,71 @@ nav button.active,.nav-item.active,.tab.active,.active{
 .post-follow-btn.following{border-color:rgba(39,229,154,.35);background:rgba(39,229,154,.1);color:#27e59a}
 .post-follow-btn:disabled{opacity:.55;cursor:wait}
 @media(max-width:600px){.post-follow-btn{padding:6px 10px;font-size:12px}.post-author{min-width:0}.post-author b{max-width:130px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}
+
+/* FreeChat 1.6.2 — enquadramento perfeito do post no feed TikTok */
+#feedScreen .feed-scroll.tiktok-mode{box-sizing:border-box;overflow-x:hidden}
+#feedScreen .feed-tiktok-card{
+  box-sizing:border-box!important;
+  width:100%!important;
+  height:calc(100dvh - 115px)!important;
+  min-height:calc(100dvh - 115px)!important;
+  max-height:calc(100dvh - 115px)!important;
+  margin:0!important;
+  overflow:hidden!important;
+  display:flex!important;
+  flex-direction:column!important;
+  justify-content:flex-start!important;
+}
+#feedScreen .feed-tiktok-card .post-head{flex:0 0 auto;min-height:52px}
+#feedScreen .feed-tiktok-card .post-media{
+  flex:1 1 auto!important;
+  min-height:0!important;
+  max-height:none!important;
+  width:100%!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  margin-top:0!important;
+  border-radius:16px!important;
+  overflow:hidden!important;
+}
+#feedScreen .feed-tiktok-card .post-media img,
+#feedScreen .feed-tiktok-card .post-media video{
+  display:block!important;
+  width:100%!important;
+  height:100%!important;
+  max-width:100%!important;
+  max-height:100%!important;
+  object-fit:contain!important;
+  background:#000!important;
+}
+#feedScreen .feed-tiktok-card .post-body{
+  flex:0 0 auto;
+  max-height:54px;
+  overflow:hidden;
+  padding:7px 12px 2px!important;
+  line-height:1.35;
+}
+#feedScreen .feed-tiktok-card .post-caption{
+  flex:0 0 auto;
+  max-height:40px;
+  overflow:hidden;
+  padding:3px 12px 4px!important;
+  line-height:1.3;
+}
+#feedScreen .feed-tiktok-card .post-actions{flex:0 0 auto;min-height:45px}
+#feedScreen .feed-tiktok-card:not(:has(.post-media)) .post-body{max-height:260px}
+
+@media(max-width:700px){
+  #feedScreen .feed-tiktok-card{
+    height:calc(100dvh - 76px)!important;
+    min-height:calc(100dvh - 76px)!important;
+    max-height:calc(100dvh - 76px)!important;
+    border-radius:20px!important;
+  }
+  #feedScreen .feed-tiktok-card .post-media{border-radius:14px!important}
+}
+@media(max-width:460px){
+  #feedScreen .feed-tiktok-card .post-head{min-height:48px}
+  #feedScreen .feed-tiktok-card .post-actions{min-height:43px}
+}

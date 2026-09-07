@@ -2488,7 +2488,7 @@ if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.ser
   }
   function queueServerSearch(){clearTimeout(serverSearchTimer);serverSearchTimer=setTimeout(loadServers,260);renderServers();}
   async function createServer(){
-    const name=$("serverNameInput")?.value.trim(),desc=$("serverDescInput")?.value.trim(),isPublic=$("serverVisibilityInput")?.value!=="private";if(!name||name.length<2)return communityToast("Dê um nome com pelo menos 2 caracteres.","error");
+    const name=$("serverNameInput")?.value.trim(),desc=$("serverDescInput")?.value.trim(),visibility=String($("serverVisibilityInput")?.value||"public").toLowerCase(),isPublic=visibility!=="private";if(!name||name.length<2)return communityToast("Dê um nome com pelo menos 2 caracteres.","error");
     const btn=$("serverCreateBtn");if(btn)btn.disabled=true;
     try{const d=await api("/api/servers",{method:"POST",body:JSON.stringify({name,description:desc,isPublic})});$("serverNameInput").value="";$("serverDescInput").value="";$("serverCreateBox")?.classList.add("hidden");communityToast("Servidor criado com sucesso!","success");await loadServers();if(d.server?.id)openServer(Number(d.server.id));}
     catch(e){communityToast(e.message||"Não foi possível criar o servidor.","error")}finally{if(btn)btn.disabled=false}
