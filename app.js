@@ -1,4 +1,4 @@
-/* FreeChat v1.1.0 — conexão resiliente, WebRTC, feed, segurança e estabilidade */
+/* FreeChat v1.4.4 — conexão resiliente, WebRTC, feed, segurança e estabilidade */
 function serverUrl(){return window.SIGNALING_URL?window.SIGNALING_URL.replace(/\/$/,""):(location.protocol==="https:"?"https://"+location.host:"http://"+location.host)}
 (function(){
  const $=id=>document.getElementById(id),
@@ -2329,6 +2329,45 @@ document.addEventListener("DOMContentLoaded",()=>{$("friendsSearch")?.addEventLi
   updateScrollLock();
 })();
 
+
+/* FreeChat 1.4.4 — modo tela cheia */
+(function initFullscreen(){
+  const btn=$("fullscreenBtn");
+  if(!btn)return;
+  const update=()=>{const active=!!document.fullscreenElement;btn.innerHTML=active?'↙ <span>Sair da tela cheia</span>':'⛶ <span>Tela cheia</span>';btn.title=active?'Sair da tela cheia':'Tela cheia'};
+  btn.addEventListener("click",async()=>{
+    try{
+      if(document.fullscreenElement) await document.exitFullscreen();
+      else if(document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen({navigationUI:"hide"});
+      else appToast("Seu navegador não permite tela cheia nesta página.","error");
+    }catch(e){appToast("Não foi possível ativar a tela cheia. Tente novamente.","error")}
+    update();
+  });
+  document.addEventListener("fullscreenchange",update);
+  update();
+})();
+
+/* FreeChat 1.4.4 — apoio ao criador / PIX */
+(function initCreatorSupport(){
+  const modal=$("supportCreatorModal"), openBtn=$("supportCreatorBtn"), closeBtn=$("supportCreatorClose"), copyBtn=$("copyPixBtn"), keyEl=$("pixKey"), statusEl=$("pixCopyStatus");
+  if(!modal||!openBtn)return;
+  const close=()=>{modal.classList.add("hidden");document.body.classList.remove("modal-open")};
+  const open=()=>{modal.classList.remove("hidden");document.body.classList.add("modal-open");setTimeout(()=>closeBtn?.focus(),0)};
+  openBtn.addEventListener("click",open);
+  closeBtn?.addEventListener("click",close);
+  modal.addEventListener("click",e=>{if(e.target===modal)close()});
+  document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!modal.classList.contains("hidden"))close()});
+  copyBtn?.addEventListener("click",async()=>{
+    const key=keyEl?.textContent?.trim()||"";
+    if(!key)return;
+    try{
+      if(navigator.clipboard?.writeText) await navigator.clipboard.writeText(key);
+      else {const ta=document.createElement("textarea");ta.value=key;ta.style.position="fixed";ta.style.opacity="0";document.body.appendChild(ta);ta.select();document.execCommand("copy");ta.remove();}
+      if(statusEl){statusEl.textContent="Chave PIX copiada!";statusEl.className="status ok";setTimeout(()=>{statusEl.textContent="";statusEl.className="status"},2200)}
+    }catch(e){if(statusEl){statusEl.textContent="Não foi possível copiar. Selecione a chave manualmente.";statusEl.className="status error"}}
+  });
+})();
+
 /* PWA */
 window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();window._installPrompt=e;let b=$("pwaInstallBtn");if(!b){b=document.createElement("button");b.id="pwaInstallBtn";b.className="pwa-install";b.textContent="📲 Instalar FreeChat";document.body.appendChild(b);b.onclick=async()=>{try{await window._installPrompt?.prompt();window._installPrompt=null;b.remove()}catch(e){}}}});
 if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js",{updateViaCache:"none"}).then(r=>r.update()).catch(()=>{}));
@@ -2574,6 +2613,27 @@ if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.ser
   $("randomCallJoinBtn")?.addEventListener("click",joinRandomMatch);
   $("randomCallNextBtn")?.addEventListener("click",nextRandom);
   $("randomCallBlockBtn")?.addEventListener("click",blockRandom);
+
+  // PWA: registra o Service Worker para cache/offline e abertura como aplicativo.
+  // O registro é feito somente em HTTPS/localhost, conforme as regras do navegador.
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("./sw.js", {scope: "./"})
+        .then(reg => {
+          if (reg.waiting) reg.waiting.postMessage({type: "SKIP_WAITING"});
+          reg.addEventListener("updatefound", () => {
+            const worker = reg.installing;
+            if (!worker) return;
+            worker.addEventListener("statechange", () => {
+              if (worker.state === "installed" && navigator.serviceWorker.controller) {
+                worker.postMessage({type: "SKIP_WAITING"});
+              }
+            });
+          });
+        })
+        .catch(err => console.warn("Service Worker não pôde ser registrado:", err));
+    }, {once:true});
+  }
 
   // Mantém o estado visual quando o usuário muda de call/sala.
   document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&$("serversPanel")&&!$("serversPanel").classList.contains("hidden"))loadServers()});

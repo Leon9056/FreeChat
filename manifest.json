@@ -1,5 +1,5 @@
 {
-  "name": "FreeChat 1.2.0",
+  "name": "FreeChat 1.4.4",
   "short_name": "FreeChat",
   "start_url": "/",
   "display": "standalone",
@@ -26,5 +26,11 @@
       "short_name": "FreeChat",
       "url": "/"
     }
-  ]
+  ],
+  "display_override": [
+    "window-controls-overlay",
+    "standalone"
+  ],
+  "scope": "/",
+  "id": "/"
 }
