@@ -173,7 +173,7 @@
 .password-toggle:hover{background:rgba(255,255,255,.08)!important;color:#fff!important;filter:none!important}
 .password-toggle:focus-visible{outline:2px solid #8b7cff;outline-offset:1px}
 .password-toggle.visible{color:#a99cff!important;background:rgba(109,93,252,.12)!important}
-.eye-icon{font-size:17px;line-height:1;display:block;position:relative}
+.eye-icon{display:block}
 .eye-icon:before{content:"";position:absolute;left:-7px;top:2px;width:14px;height:9px;border:1.5px solid currentColor;border-radius:12px/8px;transform:scaleX(1.15)}
 .eye-icon:after{content:"";position:absolute;left:-1px;top:5px;width:4px;height:4px;background:currentColor;border-radius:50%}
 .password-strength{display:grid;grid-template-columns:1fr auto;align-items:center;gap:9px;margin-top:8px;text-align:left;color:#7f8da4;font-size:11px}

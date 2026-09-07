@@ -16,9 +16,9 @@
     <div class="auth-tabs"><button id="loginTab" class="auth-tab active" type="button">Entrar</button><button id="registerTab" class="auth-tab" type="button">Criar conta</button></div>
     <div id="registerFields" class="hidden"><label for="name">👤 Nome de usuário</label><input id="name" maxlength="24" autocomplete="name" placeholder="Como quer ser chamado?"></div>
     <label id="emailLabel" for="email">📧 E-mail</label><input id="email" type="email" maxlength="120" autocomplete="email" inputmode="email" placeholder="voce@email.com">
-    <label id="passwordLabel" for="password">🔒 Senha</label><div class="password-wrap"><input id="password" type="password" maxlength="64" autocomplete="current-password" placeholder="Digite sua senha"><button id="togglePassword" class="icon-btn password-toggle" type="button" aria-label="Mostrar senha" aria-pressed="false"><span class="eye-icon" aria-hidden="true">◉</span></button></div>
+    <label id="passwordLabel" for="password">🔒 Senha</label><div class="password-wrap"><input id="password" type="password" maxlength="64" autocomplete="current-password" placeholder="Digite sua senha"><button id="togglePassword" class="icon-btn password-toggle" type="button" aria-label="Mostrar senha" aria-pressed="false"><svg class="eye-icon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
     <div id="passwordStrength" class="password-strength hidden"><div class="strength-track"><span id="strengthBar"></span></div><span id="strengthText">Senha</span></div>
-    <div id="confirmPasswordWrap" class="hidden"><label for="confirmPassword">🔐 Confirmar senha</label><div class="password-wrap"><input id="confirmPassword" type="password" maxlength="64" autocomplete="new-password" placeholder="Digite a senha novamente"><button id="toggleConfirmPassword" class="icon-btn password-toggle" type="button" aria-label="Mostrar confirmação da senha" aria-pressed="false"><span class="eye-icon" aria-hidden="true">◉</span></button></div></div>
+    <div id="confirmPasswordWrap" class="hidden"><label for="confirmPassword">🔐 Confirmar senha</label><div class="password-wrap"><input id="confirmPassword" type="password" maxlength="64" autocomplete="new-password" placeholder="Digite a senha novamente"><button id="toggleConfirmPassword" class="icon-btn password-toggle" type="button" aria-label="Mostrar confirmação da senha" aria-pressed="false"><svg class="eye-icon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"/><circle cx="12" cy="12" r="3"/></svg></button></div></div>
     <button id="loginBtn" class="primary-btn" type="button">🚀 Entrar</button>
     <button id="forgotPasswordBtn" class="auth-link-btn" type="button">Esqueci minha senha</button>
     <button id="resendVerificationBtn" class="auth-link-btn hidden" type="button">📩 Reenviar verificação de e-mail</button>
@@ -372,5 +372,5 @@
 </form>
 <div id="messageStatus" class="status"></div>
 </div></div>
-<script src="config.js?v=1.4.2"></script><script src="app.js?v=1.4.2"></script>
+<script src="config.js?v=1.4.3"></script><script src="app.js?v=1.4.3"></script>
 </body></html>
