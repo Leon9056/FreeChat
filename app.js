@@ -62,7 +62,7 @@ async function savePrivacy(){
  try{
   const payload={message_policy:$("privacyMessages")?.value||"friends",call_policy:$("privacyCalls")?.value||"friends",friend_policy:$("privacyFriends")?.value||"everyone",random_enabled:!!$("privacyRandom")?.checked};
   const btn=$("savePrivacyBtn");setBusy(btn,true,"Salvando...");
-  const d=await api("/api/security/privacy",{method:"PATCH",body:JSON.stringify(payload)});
+  const d=await api("/api/security/privacy",{method:"POST",body:JSON.stringify(payload)});
   if($("privacyMessages"))$("privacyMessages").value=d.message_policy||payload.message_policy;
   if($("privacyCalls"))$("privacyCalls").value=d.call_policy||payload.call_policy;
   if($("privacyFriends"))$("privacyFriends").value=d.friend_policy||payload.friend_policy;
@@ -2553,7 +2553,7 @@ if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.ser
     try{
       const privacy=await api("/api/security/privacy");
       if(!privacy.random_enabled){
-        const updated=await api("/api/security/privacy",{method:"PATCH",body:JSON.stringify({random_enabled:true,message_policy:privacy.message_policy||"friends",call_policy:privacy.call_policy||"friends",friend_policy:privacy.friend_policy||"everyone"})});
+        const updated=await api("/api/security/privacy",{method:"POST",body:JSON.stringify({random_enabled:true,message_policy:privacy.message_policy||"friends",call_policy:privacy.call_policy||"friends",friend_policy:privacy.friend_policy||"everyone"})});
         if($("privacyRandom"))$("privacyRandom").checked=!!updated.random_enabled;
         window.freechatPrivacy=updated;
       }
@@ -2572,7 +2572,7 @@ if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.ser
   async function enableRandomAndRetry(){
     const btn=$("randomCallEnableBtn");if(btn)btn.disabled=true;
     try{
-      await api("/api/security/privacy",{method:"PATCH",body:JSON.stringify({random_enabled:true,message_policy:$("privacyMessages")?.value||"friends",call_policy:$("privacyCalls")?.value||"friends",friend_policy:$("privacyFriends")?.value||"everyone"})});
+      await api("/api/security/privacy",{method:"POST",body:JSON.stringify({random_enabled:true,message_policy:$("privacyMessages")?.value||"friends",call_policy:$("privacyCalls")?.value||"friends",friend_policy:$("privacyFriends")?.value||"everyone"})});
       if($("privacyRandom"))$("privacyRandom").checked=true;
       $("randomCallEnablePrompt")?.classList.add("hidden");
       await startRandomQueue();
