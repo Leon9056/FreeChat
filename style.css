@@ -54,6 +54,23 @@
   color:inherit;outline:none;font-size:15px;
 }
 .auth-card input:focus,.call-menu-card input:focus{border-color:var(--accent-main);box-shadow:0 0 0 3px var(--accent-glow)}
+
+/* Links de texto abaixo do botão principal (Esqueci minha senha / Reenviar verificação) */
+.auth-link-btn{display:block;width:100%;margin-top:12px;padding:8px;border:0;background:none;color:var(--muted);font-size:13px;font-weight:600;cursor:pointer;text-align:center;border-radius:8px;transition:color .15s ease,background .15s ease}
+.auth-link-btn:hover{color:var(--accent-main);background:color-mix(in srgb,var(--accent-main) 8%,transparent)}
+
+/* Cartão de recuperação de senha / redefinir senha — mesmo tom do resto do site */
+.auth-recovery{margin-top:18px;padding:18px;border:1px solid var(--line);border-radius:16px;background:color-mix(in srgb,var(--panel2) 70%,transparent)}
+.auth-recovery-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px}
+.auth-recovery-head b{font-size:16px;color:var(--text)}
+.auth-recovery-head button{border:0;background:none;color:var(--accent-main);font-weight:700;font-size:13px;cursor:pointer;padding:4px 6px;border-radius:6px}
+.auth-recovery-head button:hover{background:color-mix(in srgb,var(--accent-main) 10%,transparent);text-decoration:underline}
+.auth-recovery p.muted{margin:0 0 14px;font-size:13px;color:var(--muted)}
+.auth-recovery label{display:block;margin:0 0 7px;font-weight:700;color:var(--text)}
+.auth-recovery input{width:100%;box-sizing:border-box;padding:13px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);color:inherit;outline:none;font-size:15px;margin-bottom:14px;transition:border-color .18s,box-shadow .18s}
+.auth-recovery input:focus{border-color:var(--accent-main);box-shadow:0 0 0 3px var(--accent-glow)}
+.auth-recovery .primary-btn{width:100%}
+.auth-recovery .status{margin-top:10px}
 .password-wrap{position:relative}
 .password-wrap input{padding-right:52px}
 .password-wrap .icon-btn{position:absolute;right:7px;top:7px;height:40px;width:40px}
@@ -150,6 +167,7 @@
 .auth-card button{transition:transform .16s,filter .16s,opacity .16s}
 .auth-card button:disabled{cursor:wait;opacity:.62;transform:none!important}
 .password-wrap{position:relative;display:flex;align-items:center}
+.password-wrap input{padding-right:46px!important}
 .password-wrap input{padding-right:54px!important}
 .password-toggle{position:absolute!important;right:7px;top:50%;transform:translateY(-50%)!important;width:40px!important;height:40px!important;margin:0!important;padding:0!important;display:grid!important;place-items:center;background:transparent!important;color:#9eabc0!important;border:0!important;border-radius:10px!important;box-shadow:none!important;z-index:2}
 .password-toggle:hover{background:rgba(255,255,255,.08)!important;color:#fff!important;filter:none!important}

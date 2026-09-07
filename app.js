@@ -184,19 +184,19 @@ function showAuthMain(){
   $("loginTab")?.classList.remove("hidden");$("registerTab")?.classList.remove("hidden");
   $("registerFields")?.classList.toggle("hidden",mode!=="register");$("confirmPasswordWrap")?.classList.toggle("hidden",mode!=="register");
   $("passwordStrength")?.classList.toggle("hidden",mode!=="register");
-  $("passwordLabel")?.classList.remove("hidden");$("password")?.classList.remove("hidden");
+  $("passwordLabel")?.classList.remove("hidden");$("password")?.classList.remove("hidden");$("password")?.closest(".password-wrap")?.classList.remove("hidden");
   $("loginBtn")?.classList.remove("hidden");$("forgotPasswordBtn")?.classList.remove("hidden");
 }
 function showRecovery(){
   $("emailRecovery")?.classList.remove("hidden");$("resetPasswordBox")?.classList.add("hidden");
   $("loginTab")?.classList.add("hidden");$("registerTab")?.classList.add("hidden");$("registerFields")?.classList.add("hidden");$("confirmPasswordWrap")?.classList.add("hidden");$("passwordStrength")?.classList.add("hidden");
-  $("passwordLabel")?.classList.add("hidden");$("password")?.classList.add("hidden");$("loginBtn")?.classList.add("hidden");$("forgotPasswordBtn")?.classList.add("hidden");$("resendVerificationBtn")?.classList.add("hidden");
+  $("passwordLabel")?.classList.add("hidden");$("password")?.classList.add("hidden");$("password")?.closest(".password-wrap")?.classList.add("hidden");$("loginBtn")?.classList.add("hidden");$("forgotPasswordBtn")?.classList.add("hidden");$("resendVerificationBtn")?.classList.add("hidden");
   $("recoveryEmail").value=email.value.trim().toLowerCase();$("recoveryStatus").textContent="";
 }
 function showResetPassword(token){
   $("emailRecovery")?.classList.add("hidden");$("resetPasswordBox")?.classList.remove("hidden");
   $("loginTab")?.classList.add("hidden");$("registerTab")?.classList.add("hidden");$("registerFields")?.classList.add("hidden");$("confirmPasswordWrap")?.classList.add("hidden");$("passwordStrength")?.classList.add("hidden");
-  $("passwordLabel")?.classList.add("hidden");$("password")?.classList.add("hidden");$("loginBtn")?.classList.add("hidden");$("forgotPasswordBtn")?.classList.add("hidden");$("resendVerificationBtn")?.classList.add("hidden");
+  $("passwordLabel")?.classList.add("hidden");$("password")?.classList.add("hidden");$("password")?.closest(".password-wrap")?.classList.add("hidden");$("loginBtn")?.classList.add("hidden");$("forgotPasswordBtn")?.classList.add("hidden");$("resendVerificationBtn")?.classList.add("hidden");
   window.FREECHAT_RESET_TOKEN=token;$("resetStatus").textContent="";
 }
 async function verifyEmailFromUrl(){
