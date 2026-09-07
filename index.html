@@ -4,14 +4,14 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0a1020"><meta name="color-scheme" content="dark light">
 <meta name="description" content="FreeChat — chat, chamadas, música e compartilhamento de tela.">
-<title>FreeChat 1.4.4</title>
+<title>FreeChat 1.5.0</title>
 <link rel="manifest" href="manifest.json"><link rel="icon" type="image/svg+xml" href="icon.svg">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <section id="login" class="screen">
   <div class="auth-card">
-    <div class="brand-icon brand-logo-icon"><img src="icon.svg" alt="FreeChat" width="46" height="46"></div><div class="auth-brand">FREECHAT <span>v1.4.4</span></div><h1>FreeChat</h1>
+    <div class="brand-icon brand-logo-icon"><img src="icon.svg" alt="FreeChat" width="46" height="46"></div><div class="auth-brand">FREECHAT <span>v1.5.0</span></div><h1>FreeChat</h1>
     <p id="authSubtitle" class="muted">Entre na sua conta para continuar</p>
     <div class="auth-tabs"><button id="loginTab" class="auth-tab active" type="button">Entrar</button><button id="registerTab" class="auth-tab" type="button">Criar conta</button></div>
     <div id="registerFields" class="hidden"><label for="name">👤 Nome de usuário</label><input id="name" maxlength="24" autocomplete="name" placeholder="Como quer ser chamado?"></div>
@@ -111,6 +111,16 @@
 </section>
 
 <div id="app" class="hidden">
+<header class="global-topbar" aria-label="Barra principal">
+  <div class="global-brand"><span class="global-brand-icon"><img src="icon.svg" alt="" width="24" height="24"></span><b>FreeChat</b><span class="global-version">1.5.0</span></div>
+  <div class="global-search"><span>⌕</span><input id="globalSearchInput" type="search" placeholder="Buscar conversas, amigos ou usuários..." autocomplete="off"><kbd>Ctrl K</kbd></div>
+  <div class="global-actions">
+    <button id="globalNotificationsBtn" class="global-action-btn" type="button" title="Notificações">🔔<span class="global-badge hidden" id="globalNotificationBadge">0</span></button>
+    <button id="globalFriendsBtn" class="global-action-btn" type="button" title="Amigos">👥</button>
+    <button id="globalSettingsBtn" class="global-action-btn" type="button" title="Configurações">⚙️</button>
+    <div class="global-user"><span id="globalUserAvatar" class="global-user-avatar">?</span><span><b id="globalUserName">Usuário</b><small>● Online</small></span><span class="global-chevron">⌄</span></div>
+  </div>
+</header>
 <aside class="side">
   <div class="brand"><span class="mini mini-logo"><img src="icon.svg" alt="" width="20" height="20"></span><b>FreeChat</b></div>
   <div class="label">SALA</div><div class="room" id="roomName"># geral</div>
@@ -125,6 +135,29 @@
   <button id="leaveChat" class="leave-chat-btn" type="button" title="Sair do chat e voltar ao menu">🚪 Sair do chat</button>
   <div class="label">PARTICIPANTES</div><div id="people"></div>
   <div class="me"><span id="avatar">?</span><div><b id="me">Você</b><small>Online</small></div></div>
+</aside>
+<aside id="profileSidebar" class="profile-sidebar" aria-label="Painel lateral">
+  <div class="profile-summary">
+    <div id="profileSidebarAvatar" class="profile-sidebar-avatar">G</div>
+    <b id="profileSidebarName"># geral</b>
+    <small><span class="profile-online-dot"></span> Online</small>
+  </div>
+  <div class="profile-action-grid">
+    <button id="profileCallBtn" type="button"><span>☎</span><small>Chamar</small></button>
+    <button id="profileVideoBtn" type="button"><span>▣</span><small>Vídeo</small></button>
+    <button id="profileSettingsBtn" type="button"><span>♙</span><small>Perfil</small></button>
+    <button id="profileMoreBtn" type="button" title="Mais">•••</button>
+  </div>
+  <div class="profile-divider"></div>
+  <section class="profile-section"><b>Sobre</b><p>Conversa atual do FreeChat.</p></section>
+  <section class="profile-section"><b>Status</b><p><span class="profile-online-dot"></span> Online</p></section>
+  <section class="profile-section"><b>Opções</b>
+    <button type="button" id="profileAddFriendBtn">♙ <span>Adicionar amigo</span></button>
+    <button type="button" id="profileBlockBtn">⊘ <span>Bloquear usuário</span></button>
+    <button type="button" id="profileReportBtn">△ <span>Denunciar</span></button>
+    <button type="button" id="profileClearBtn">▱ <span>Limpar conversa</span></button>
+  </section>
+  <button id="profileSupportBtn" class="profile-support" type="button"><span>♥</span><span><b>Apoie o criador</b><small>Ajude a manter o FreeChat online!</small></span><i>›</i></button>
 </aside>
 <div id="friendsPanel" class="friends-panel hidden"><div class="friends-panel-head"><b>👥 Amigos</b><button id="friendsClose" type="button">×</button></div><div class="friend-add-row"><input id="friendCodeApp" maxlength="20" placeholder="Código CL-XXXXXX"><button id="addFriendApp" class="secondary-btn" type="button" title="Enviar convite">📨</button></div><div id="friendAppStatus" class="status"></div><div class="friends-toolbar"><input id="friendsSearchApp" class="friends-search" placeholder="🔎 Procurar amigo..." autocomplete="off"></div><div id="friendsAppList" class="friends-list"></div></div>
 <main class="main">
@@ -150,7 +183,7 @@
    <div class="call-head-actions">
      <span class="mobile-call-position" id="mobileCallPosition">1/3 • Call</span>
      <button id="callParticipantsBtn" class="call-head-btn" type="button" title="Participantes">👥 <span id="callParticipantCount">0</span></button>
-     <button id="callSettingsBtn" class="call-head-btn" type="button" title="Configurações">⚙️</button>
+     <button id="callSettingsBtn" class="call-head-btn" type="button" title="Configurações">⚙️️</button>
      <button id="callClose" class="call-head-btn close-call" type="button" aria-label="Fechar">×</button>
    </div>
  </div>
@@ -392,5 +425,5 @@
 </form>
 <div id="messageStatus" class="status"></div>
 </div></div>
-<script src="config.js?v=1.4.4"></script><script src="app.js?v=1.4.4"></script>
+<script src="config.js?v=1.5.0"></script><script src="app.js?v=1.5.0"></script>
 </body></html>

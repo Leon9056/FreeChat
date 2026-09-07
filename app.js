@@ -1,4 +1,4 @@
-/* FreeChat v1.4.4 — conexão resiliente, WebRTC, feed, segurança e estabilidade */
+/* FreeChat v1.5.0 — conexão resiliente, WebRTC, feed, segurança e estabilidade */
 function serverUrl(){return window.SIGNALING_URL?window.SIGNALING_URL.replace(/\/$/,""):(location.protocol==="https:"?"https://"+location.host:"http://"+location.host)}
 (function(){
  const $=id=>document.getElementById(id),
@@ -2330,7 +2330,7 @@ document.addEventListener("DOMContentLoaded",()=>{$("friendsSearch")?.addEventLi
 })();
 
 
-/* FreeChat 1.4.4 — modo tela cheia */
+/* FreeChat 1.5.0 — modo tela cheia */
 (function initFullscreen(){
   const btn=$("fullscreenBtn");
   if(!btn)return;
@@ -2347,7 +2347,7 @@ document.addEventListener("DOMContentLoaded",()=>{$("friendsSearch")?.addEventLi
   update();
 })();
 
-/* FreeChat 1.4.4 — apoio ao criador / PIX */
+/* FreeChat 1.5.0 — apoio ao criador / PIX */
 (function initCreatorSupport(){
   const modal=$("supportCreatorModal"), openBtn=$("supportCreatorBtn"), closeBtn=$("supportCreatorClose"), copyBtn=$("copyPixBtn"), keyEl=$("pixKey"), statusEl=$("pixCopyStatus");
   if(!modal||!openBtn)return;
@@ -2637,4 +2637,52 @@ if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.ser
 
   // Mantém o estado visual quando o usuário muda de call/sala.
   document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&$("serversPanel")&&!$("serversPanel").classList.contains("hidden"))loadServers()});
+})();
+
+/* FreeChat 1.5.0 — barra global, painel lateral e atalhos do novo layout */
+(function initV150Shell(){
+  const bind=(id,fn)=>{const el=$(id);if(el)el.addEventListener("click",fn)};
+  const click=(id)=>$(id)?.click();
+  bind("globalFriendsBtn",()=>click("friendsBtn"));
+  bind("globalSettingsBtn",()=>click("settingsBtn"));
+  bind("globalNotificationsBtn",()=>{if(typeof openSocial==="function")openSocial("notifications");});
+  bind("profileCallBtn",()=>click("callOpen"));
+  bind("profileVideoBtn",()=>click("callOpen"));
+  bind("profileSettingsBtn",()=>click("settingsBtn"));
+  bind("profileSupportBtn",()=>click("supportCreatorBtn"));
+  bind("profileAddFriendBtn",()=>click("friendsBtn"));
+  bind("profileReportBtn",()=>{
+    const p=document.querySelector("#people .person");
+    p?.querySelector("[data-report-user]")?.click();
+  });
+  bind("profileClearBtn",()=>{
+    if(confirm("Limpar as mensagens desta sala neste dispositivo?")){
+      try{localStorage.removeItem("conversaMessages");}catch{}
+      if(typeof renderMessagesList==="function")renderMessagesList();
+    }
+  });
+  const search=$("globalSearchInput");
+  if(search){
+    const focusSearch=()=>{
+      const target=$("friendsSearchApp")||$("friendsSearch")||$("msg");
+      if(target){target.focus();target.select?.();}
+    };
+    search.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();focusSearch();}});
+    document.addEventListener("keydown",e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="k"){e.preventDefault();search.focus();search.select();}});
+  }
+  function syncShell(){
+    const user=window.CONVERSA_USER||{};
+    const name=user.name||$("me")?.textContent?.trim()||"Usuário";
+    const code=$("headRoom")?.textContent?.trim()||$("roomName")?.textContent?.trim()||"geral";
+    const avatar=(name||"?").charAt(0).toUpperCase();
+    [$("globalUserName")].filter(Boolean).forEach(e=>e.textContent=name);
+    [$("globalUserAvatar")].filter(Boolean).forEach(e=>e.textContent=avatar);
+    [$("profileSidebarName")].filter(Boolean).forEach(e=>e.textContent=code.startsWith("#")?code:"# "+code);
+    [$("profileSidebarAvatar")].filter(Boolean).forEach(e=>e.textContent=avatar);
+  }
+  syncShell();
+  const room=$("headRoom");
+  if(room)new MutationObserver(syncShell).observe(room,{subtree:true,childList:true,characterData:true});
+  const me=$("me");
+  if(me)new MutationObserver(syncShell).observe(me,{subtree:true,childList:true,characterData:true});
 })();
