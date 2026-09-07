@@ -498,7 +498,7 @@ const ICE={
 };
 
 let socket=null,name="",room="",localStream=null,screenTrack=null;
-let peers=new Map(),pendingRemoteIce=new Map(),remoteAudioEls=new Map(),people=new Map(),inCall=false;
+let peers=new Map(),pendingRemoteIce=new Map(),remoteAudioEls=new Map(),remoteMediaStreams=new Map(),people=new Map(),inCall=false;
 let micOn=true,camOn=true,callHostId=null,remoteMuted=new Set(),kicked=false,forcedMuted=false;
 let callVolumeMuted=localStorage.getItem("freechatCallVolumeMuted")==="1",callVolumeLevel=Math.max(0,Math.min(1,Number(localStorage.getItem("freechatCallVolumeLevel")??100)/100));
 let callReady=false;
@@ -1538,9 +1538,12 @@ $("markNotificationsRead")?.addEventListener("click",async()=>{try{await api("/a
   const localAudio=localStream.getAudioTracks()[0];
   if(localAudio){await applyMicTrackSettings(localAudio);}
   micOn=localStream.getAudioTracks().length>0;
-  // A câmera começa desligada por padrão — a pessoa liga quando quiser pelo botão.
-  camOn=false;
-  localStream.getVideoTracks().forEach(t=>t.enabled=false);
+  // A câmera começa ligada quando o dispositivo a disponibiliza. Isso evita
+  // que participantes, especialmente em celulares, entrem na call com o
+  // vídeo silenciosamente desativado e pareçam "invisíveis" para os outros.
+  // O usuário continua podendo desligá-la imediatamente pelo controle.
+  camOn=localStream.getVideoTracks().length>0;
+  localStream.getVideoTracks().forEach(t=>{t.enabled=camOn});
   forcedMuted=false;
   updateMicButton();
   const b=$("cam");if(b){b.innerHTML=`<span class="control-icon">${camOn?"📷":"🚫"}</span><span>${camOn?"Câmera":"Câmera off"}</span>`;b.classList.toggle("muted",!camOn);}
@@ -1648,19 +1651,32 @@ async function createPeer(id,initiator){
     if(!track)return;
     track.enabled=true;
 
-    let stream=e.streams?.[0];
-    if(!stream){stream=new MediaStream([track]);}
+    // Alguns navegadores móveis entregam áudio e vídeo em eventos ontrack
+    // separados, e outros reutilizam o mesmo MediaStream. Manter um stream
+    // remoto por participante evita que a chegada da segunda trilha substitua
+    // a primeira e deixa o vídeo consistente entre Chrome Android, Safari iOS
+    // e desktop.
+    let stream=remoteMediaStreams.get(id);
+    if(!stream){
+      stream=e.streams?.[0]||new MediaStream();
+      remoteMediaStreams.set(id,stream);
+    }
+    if(!stream.getTracks().some(t=>t.id===track.id)){
+      try{stream.addTrack(track)}catch(err){console.warn("remote addTrack",id,err)}
+    }
 
     const u=people.get(id);
-    // Always make sure the remote tile exists. Video is rendered muted and
-    // audio is rendered by a dedicated <audio> element so browser autoplay
-    // policies cannot interfere with the remote video element's media track.
     addVideo(u?.name||"Participante",stream,id);
     const tile=document.querySelector(`[data-id="${CSS.escape(id)}"]`);
     if(!tile)return;
-
     const video=tile.querySelector("video");
-    if(video)video.muted=true;
+    if(video){
+      video.muted=true;
+      video.autoplay=true;
+      video.playsInline=true;
+      video.srcObject=stream;
+      video.play().catch(()=>{});
+    }
 
     if(track.kind==="audio"){
       let audio=remoteAudioEls.get(id);
@@ -1685,15 +1701,8 @@ async function createPeer(id,initiator){
       });
       setCallStatus("Áudio remoto recebido. 🎧","ok");
     }else if(track.kind==="video"){
-      if(video){
-        // If the browser supplied separate streams for audio/video, keep the
-        // video element bound to the video stream only.
-        video.srcObject=new MediaStream([track]);
-        video.muted=true;
-        video.autoplay=true;
-        video.playsInline=true;
-        video.play().catch(()=>{});
-      }
+      setTileCamOff(id,!track.enabled);
+      setCallStatus("Vídeo remoto recebido. 📷","ok");
     }
   };
 
@@ -1802,6 +1811,7 @@ function closePeer(id){
   if(pc){try{pc.close();}catch(e){}peers.delete(id);}
   const audio=remoteAudioEls.get(id);
   if(audio){try{audio.pause()}catch(e){}try{audio.srcObject=null}catch(e){}audio.remove();remoteAudioEls.delete(id);}
+  remoteMediaStreams.delete(id);
   stopSpeakingMeter(id);
   removeVideo(id);
 }
