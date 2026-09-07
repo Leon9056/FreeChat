@@ -58,7 +58,19 @@ async function loadSecuritySettings(){
  }catch(e){$("securityStatus")?.replaceChildren(document.createTextNode(e.message||"Não foi possível carregar a segurança."))}
 }
 async function changeSecurityPassword(){const status=$("securityStatus");try{setBusy($("changePasswordBtn"),true,"Salvando...");const d=await api("/api/security/password",{method:"POST",body:JSON.stringify({currentPassword:$("currentPassword")?.value||"",newPassword:$("newPassword")?.value||""})});if(status)status.textContent=d.message||"Senha alterada.";$("currentPassword").value="";$("newPassword").value="";appToast("Senha alterada com sucesso.","success");loadSecuritySettings()}catch(e){if(status)status.textContent=e.message||"Erro.";appToast(e.message||"Erro ao alterar senha.","error")}finally{setBusy($("changePasswordBtn"),false)}}
-async function savePrivacy(){try{const d=await api("/api/security/privacy",{method:"PATCH",body:JSON.stringify({message_policy:$("privacyMessages").value,call_policy:$("privacyCalls").value,friend_policy:$("privacyFriends").value,random_enabled:!!$("privacyRandom")?.checked})});appToast("Privacidade atualizada.","success")}catch(e){appToast(e.message,"error")}}
+async function savePrivacy(){
+ try{
+  const payload={message_policy:$("privacyMessages")?.value||"friends",call_policy:$("privacyCalls")?.value||"friends",friend_policy:$("privacyFriends")?.value||"everyone",random_enabled:!!$("privacyRandom")?.checked};
+  const btn=$("savePrivacyBtn");setBusy(btn,true,"Salvando...");
+  const d=await api("/api/security/privacy",{method:"PATCH",body:JSON.stringify(payload)});
+  if($("privacyMessages"))$("privacyMessages").value=d.message_policy||payload.message_policy;
+  if($("privacyCalls"))$("privacyCalls").value=d.call_policy||payload.call_policy;
+  if($("privacyFriends"))$("privacyFriends").value=d.friend_policy||payload.friend_policy;
+  if($("privacyRandom"))$("privacyRandom").checked=!!d.random_enabled;
+  window.freechatPrivacy=d;
+  appToast(d.random_enabled?"Preferências salvas. Conhecer alguém está ativado.":"Preferências salvas.","success");
+ }catch(e){appToast(e.message||"Não foi possível salvar suas preferências.","error")}finally{setBusy($("savePrivacyBtn"),false)}
+}
 function openSettings(){const p=$("settingsPanel");if(!p)return;p.classList.remove("hidden");renderThemeChoices();loadSecuritySettings();}
 function closeSettings(){$("settingsPanel")?.classList.add("hidden");}
 window.closeSettings=closeSettings;
@@ -1403,7 +1415,7 @@ function renderFeedStories(friends=[]){const box=$("feedStories");if(!box)return
 async function loadFeedStories(){try{const d=await api("/api/friends");renderFeedStories(d.friends||[])}catch(e){renderFeedStories([])}}
 function setFeedLoading(on){$("feedLoadMore")?.classList.toggle("hidden",!on)}
 function renderFeedError(e){const list=$("feedList");if(!list)return;list.innerHTML=`<div class="social-empty feed-error-state"><span>📡</span><b>Não foi possível carregar o feed</b><small>${messageEscape(e.message||"Verifique sua conexão.")}</small><button id="feedRetryBtn" class="secondary-btn small-btn" type="button">↻ Tentar novamente</button></div>`;$("feedRetryBtn")?.addEventListener("click",()=>loadFeed(true,true))}
-async function loadFeed(reset=true,showSpinner=true){if(feedLoading)return;if(reset){feedOffset=0;feedHasMore=true;if($("feedList"))$("feedList").innerHTML="";$("feedEndState")?.classList.add("hidden")}if(!feedHasMore)return;feedLoading=true;setFeedLoading(true);try{const d=await api(`/api/feed?limit=12&offset=${feedOffset}&filter=${encodeURIComponent(feedFilter)}`);const list=$("feedList");if(!list)return;if(reset&&!d.posts?.length){list.innerHTML='<div class="social-empty"><span>✦</span><b>Seu feed está esperando por você</b><small>Publique algo ou adicione amigos para começar.</small><button id="feedEmptyPost" class="primary-btn small-btn" type="button">＋ Criar publicação</button></div>';$("feedEmptyPost")?.addEventListener("click",openPostComposer)}else{list.insertAdjacentHTML("beforeend",(d.posts||[]).map(postHtml).join(""));bindFeedCards(list);feedOffset=d.offset||feedOffset+(d.posts||[]).length;feedHasMore=!!d.hasMore;if(!feedHasMore&&list.children.length)$("feedEndState")?.classList.remove("hidden")}}catch(e){if(reset)renderFeedError(e);else appToast(e.message,"error")}finally{feedLoading=false;setFeedLoading(false)}}
+async function loadFeed(reset=true,showSpinner=true){if(feedLoading)return;if(reset){feedOffset=0;feedHasMore=true;if($("feedList"))$("feedList").innerHTML="";$("feedEndState")?.classList.add("hidden")}if(!feedHasMore)return;feedLoading=true;setFeedLoading(true);try{const d=await api(`/api/feed?limit=12&offset=${feedOffset}&filter=${encodeURIComponent(feedFilter)}`);const list=$("feedList");if(!list)return;if(reset&&!d.posts?.length){list.innerHTML='<div class="social-empty"><span>✦</span><b>Seu feed está esperando por você</b><small>Publique algo e compartilhe com a comunidade do FreeChat.</small><button id="feedEmptyPost" class="primary-btn small-btn" type="button">＋ Criar publicação</button></div>';$("feedEmptyPost")?.addEventListener("click",openPostComposer)}else{list.insertAdjacentHTML("beforeend",(d.posts||[]).map(postHtml).join(""));bindFeedCards(list);feedOffset=d.offset||feedOffset+(d.posts||[]).length;feedHasMore=!!d.hasMore;if(!feedHasMore&&list.children.length)$("feedEndState")?.classList.remove("hidden")}}catch(e){if(reset)renderFeedError(e);else appToast(e.message,"error")}finally{feedLoading=false;setFeedLoading(false)}}
 function bindFeedCards(root){root.querySelectorAll(".post-card:not([data-feed-bound])").forEach(card=>{card.dataset.feedBound="1";const id=card.dataset.postId;card.querySelector(`[data-like="${id}"]`)?.addEventListener("click",()=>toggleLike(id,card));card.querySelector(`[data-save="${id}"]`)?.addEventListener("click",()=>toggleSave(id));card.querySelector(`[data-comments="${id}"]`)?.addEventListener("click",()=>toggleComments(card,id));card.querySelector(`[data-share="${id}"]`)?.addEventListener("click",()=>{const p={body:card.querySelector(".post-body")?.innerText||card.querySelector(".post-caption")?.innerText||""};sharePost(p)});const more=card.querySelector(".post-more"),menu=card.querySelector(".post-menu");more?.addEventListener("click",e=>{e.stopPropagation();document.querySelectorAll(".post-menu:not(.hidden)").forEach(m=>{if(m!==menu)m.classList.add("hidden")});menu?.classList.toggle("hidden")});card.querySelector(`[data-delete-post="${id}"]`)?.addEventListener("click",()=>deleteOwnPost(id,card));card.querySelector(`[data-close-post-menu="${id}"]`)?.addEventListener("click",()=>menu?.classList.add("hidden"));card.querySelector("[data-dbltap]")?.addEventListener("dblclick",()=>{const b=card.querySelector(`[data-like="${id}"]`);if(b&&!b.classList.contains("liked"))toggleLike(id,card);else burstHeart(card)});let last=0;card.querySelector("[data-dbltap]")?.addEventListener("touchend",()=>{const now=Date.now();if(now-last<320){const b=card.querySelector(`[data-like="${id}"]`);if(b&&!b.classList.contains("liked"))toggleLike(id,card);else burstHeart(card)}last=now},{passive:true})})}
 
 function initFeedScroll(){const scroll=$("feedScreen")?.querySelector(".feed-scroll");if(!scroll||scroll.dataset.ready)return;scroll.dataset.ready="1";scroll.addEventListener("scroll",()=>{if(scroll.scrollHeight-scroll.scrollTop-scroll.clientHeight<700)loadFeed(false,false)},{passive:true})}
@@ -2541,7 +2553,9 @@ if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.ser
     try{
       const privacy=await api("/api/security/privacy");
       if(!privacy.random_enabled){
-        await api("/api/security/privacy",{method:"PATCH",body:JSON.stringify({random_enabled:true,message_policy:privacy.message_policy||"friends",call_policy:privacy.call_policy||"friends",friend_policy:privacy.friend_policy||"everyone"})});
+        const updated=await api("/api/security/privacy",{method:"PATCH",body:JSON.stringify({random_enabled:true,message_policy:privacy.message_policy||"friends",call_policy:privacy.call_policy||"friends",friend_policy:privacy.friend_policy||"everyone"})});
+        if($("privacyRandom"))$("privacyRandom").checked=!!updated.random_enabled;
+        window.freechatPrivacy=updated;
       }
       randomQueueActive=true;showRandomState("waiting");
       const status=$("randomCallStatus");if(status)status.textContent="Conectando você à fila...";
@@ -2603,6 +2617,9 @@ if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.ser
 
   window.addEventListener("freechat:random-match",e=>{if(e.detail?.match){setRandomMatch(e.detail.match);communityToast("Você encontrou alguém!","success") }});
   window.addEventListener("pagehide",()=>{if(randomQueueActive&&window.CONVERSA_TOKEN){try{fetch(serverUrl()+"/api/random/leave",{method:"POST",headers:{Authorization:"Bearer "+window.CONVERSA_TOKEN,"Content-Type":"application/json"},keepalive:true,body:"{}"})}catch(_){}}});
+  // Reativa o heartbeat imediatamente ao voltar para a aba ou à internet.
+  document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&randomQueueActive)pollRandomQueue()},{passive:true});
+  window.addEventListener("online",()=>{if(randomQueueActive)pollRandomQueue()});
   const watchSocket=setInterval(()=>{
     if(window.__freechatRandomSocketBound||!window.socket)return;
     try{
