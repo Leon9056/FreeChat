@@ -4,14 +4,14 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0a1020"><meta name="color-scheme" content="dark light">
 <meta name="description" content="FreeChat — chat, chamadas, música e compartilhamento de tela.">
-<title>FreeChat 1.6.0</title>
+<title>FreeChat 1.6.2</title>
 <link rel="manifest" href="manifest.json"><link rel="icon" type="image/svg+xml" href="icon.svg">
 <link rel="stylesheet" href="style.css">
 </head>
 <body class="fc-visual-overhaul">
 <section id="login" class="screen">
   <div class="auth-card">
-    <div class="brand-icon brand-logo-icon"><img src="icon.svg" alt="FreeChat" width="46" height="46"></div><div class="auth-brand">FREECHAT <span>v1.6.0</span></div><h1>FreeChat</h1>
+    <div class="brand-icon brand-logo-icon"><img src="icon.svg" alt="FreeChat" width="46" height="46"></div><div class="auth-brand">FREECHAT <span>v1.6.2</span></div><h1>FreeChat</h1>
     <p id="authSubtitle" class="muted">Entre na sua conta para continuar</p>
     <div class="auth-tabs"><button id="loginTab" class="auth-tab active" type="button">Entrar</button><button id="registerTab" class="auth-tab" type="button">Criar conta</button></div>
     <div id="registerFields" class="hidden"><label for="name">👤 Nome de usuário</label><input id="name" maxlength="24" autocomplete="name" placeholder="Como quer ser chamado?"></div>
@@ -92,6 +92,7 @@
       <button type="button" class="menu-quick-card" data-menu-action="friend">
         <span class="menu-quick-icon">👥</span><span><b>Adicionar amigo</b><small>Use o código de alguém</small></span><i>›</i>
       </button>
+      <button type="button" class="menu-quick-card" data-menu-action="settings"><span class="menu-quick-icon">⚙️</span><span><b>Configurações</b><small>Privacidade, segurança e aparência</small></span><i>›</i></button>
       <button type="button" class="menu-quick-card" data-menu-action="servers">
         <span class="menu-quick-icon">🌐</span><span><b>Servidores</b><small>Crie ou entre numa comunidade</small></span><i>›</i>
       </button>
@@ -112,7 +113,7 @@
 
 <div id="app" class="hidden">
 <header class="global-topbar" aria-label="Barra principal">
-  <div class="global-brand"><span class="global-brand-icon"><img src="icon.svg" alt="" width="24" height="24"></span><b>FreeChat</b><span class="global-version">1.6.0</span></div>
+  <div class="global-brand"><span class="global-brand-icon"><img src="icon.svg" alt="" width="24" height="24"></span><b>FreeChat</b><span class="global-version">1.6.2</span></div>
   <div class="global-search"><span>⌕</span><input id="globalSearchInput" type="search" placeholder="Buscar conversas, amigos ou usuários..." autocomplete="off"><kbd>Ctrl K</kbd></div>
   <div class="global-actions">
     <button id="globalNotificationsBtn" class="global-action-btn" type="button" title="Notificações">🔔<span class="global-badge hidden" id="globalNotificationBadge">0</span></button>
@@ -257,7 +258,7 @@
 </div>
 </div>
 
-<div id="settingsPanel" class="modal hidden" role="dialog" aria-modal="true"><div class="modal-card settings-card"><div class="settings-head"><div><b>⚙️ Configurações</b><small>Personalize o visual e o comportamento do FreeChat</small></div><button id="settingsClose" class="icon-btn" type="button" aria-label="Fechar">×</button></div><section class="settings-section"><h3>🎨 Tema do aplicativo</h3><p>O tema altera o conjunto de cores de toda a interface.</p><div id="themeChoices" class="theme-choices"></div></section><section class="settings-section"><h3>✨ Aparência</h3><label class="settings-toggle"><span>Animações reduzidas</span><input id="reduceMotionToggle" type="checkbox"></label><label class="settings-toggle"><span>Tema claro/escuro</span><button id="modeToggle" class="secondary-btn small-btn" type="button">Alternar modo</button></label></section><section class="settings-section"><h3>🔐 Segurança</h3><p>Proteções da sua conta, sessões e senha.</p><div class="security-actions"><button id="securityRefresh" class="secondary-btn small-btn" type="button">↻ Atualizar</button><button id="securityRevokeAll" class="secondary-btn small-btn" type="button">Encerrar outros dispositivos</button></div><div id="securitySessions" class="security-list"><span class="muted">Carregando sessões...</span></div><div class="security-password"><b>Alterar senha</b><div class="security-password-grid"><input id="currentPassword" type="password" autocomplete="current-password" placeholder="Senha atual"><input id="newPassword" type="password" autocomplete="new-password" placeholder="Nova senha (10+ caracteres)"></div><button id="changePasswordBtn" class="primary-btn small-btn" type="button">Alterar senha</button><div id="securityStatus" class="status"></div></div></section><section class="settings-section"><h3>🛡️ Privacidade</h3><div class="privacy-grid"><label>Mensagens<select id="privacyMessages"><option value="everyone">Todos</option><option value="friends">Amigos</option><option value="nobody">Ninguém</option></select></label><label>Chamadas<select id="privacyCalls"><option value="everyone">Todos</option><option value="friends">Amigos</option><option value="nobody">Ninguém</option></select></label><label>Amizades<select id="privacyFriends"><option value="everyone">Todos</option><option value="friends">Amigos de amigos</option><option value="nobody">Ninguém</option></select></label></div><label class="settings-toggle privacy-random-toggle"><span>Permitir “Conhecer alguém”</span><input id="privacyRandom" type="checkbox"></label><small class="privacy-note">Quando ativado, você pode entrar na fila e ser pareado com outra pessoa que também optou por participar.</small><button id="savePrivacyBtn" class="primary-btn small-btn" type="button">Salvar privacidade</button></section><section class="settings-section"><h3>🚫 Bloqueios</h3><div id="blockedUsers" class="security-list"><span class="muted">Nenhum bloqueio carregado.</span></div></section></div></div>
+<div id="settingsPanel" class="modal hidden" role="dialog" aria-modal="true"><div class="modal-card settings-card"><div class="settings-head"><div><b>⚙️ Configurações</b><small>Personalize o visual e o comportamento do FreeChat</small></div><button id="settingsClose" class="icon-btn" type="button" aria-label="Fechar">×</button></div><section class="settings-section"><h3>🎨 Tema do aplicativo</h3><p>O tema altera o conjunto de cores de toda a interface.</p><div id="themeChoices" class="theme-choices"></div></section><section class="settings-section"><h3>✨ Aparência</h3><label class="settings-toggle"><span>Animações reduzidas</span><input id="reduceMotionToggle" type="checkbox"></label><label class="settings-toggle"><span>Tema claro/escuro</span><button id="modeToggle" class="secondary-btn small-btn" type="button">Alternar modo</button></label></section><section class="settings-section"><h3>🔐 Segurança</h3><p>Proteções da sua conta, sessões e senha.</p><div class="security-actions"><button id="securityRefresh" class="secondary-btn small-btn" type="button">↻ Atualizar</button><button id="securityRevokeAll" class="secondary-btn small-btn" type="button">Encerrar outros dispositivos</button></div><div id="securitySessions" class="security-list"><span class="muted">Carregando sessões...</span></div><div class="security-password"><b>Alterar senha</b><div class="security-password-grid"><input id="currentPassword" type="password" autocomplete="current-password" placeholder="Senha atual"><input id="newPassword" type="password" autocomplete="new-password" placeholder="Nova senha (10+ caracteres)"></div><button id="changePasswordBtn" class="primary-btn small-btn" type="button">Alterar senha</button><div id="securityStatus" class="status"></div></div></section><section class="settings-section"><h3>🛡️ Privacidade</h3><div class="privacy-grid"><label>Mensagens<select id="privacyMessages"><option value="everyone">Todos</option><option value="friends">Amigos</option><option value="nobody">Ninguém</option></select></label><label>Chamadas<select id="privacyCalls"><option value="everyone">Todos</option><option value="friends">Amigos</option><option value="nobody">Ninguém</option></select></label><label>Pedidos de amizade<select id="privacyFriends"><option value="everyone">Aceitar de todos</option><option value="friends">Somente amigos de amigos</option><option value="nobody">Não aceitar pedidos</option></select></label></div><label class="settings-toggle privacy-random-toggle"><span>Permitir “Conhecer alguém”</span><input id="privacyRandom" type="checkbox"></label><small class="privacy-note">Quando ativado, você pode entrar na fila e ser pareado com outra pessoa que também optou por participar.</small><button id="savePrivacyBtn" class="primary-btn small-btn" type="button">Salvar privacidade</button></section><section class="settings-section"><h3>🚫 Bloqueios</h3><div id="blockedUsers" class="security-list"><span class="muted">Nenhum bloqueio carregado.</span></div></section></div></div>
 
 <div id="socialPanel" class="modal hidden" role="dialog" aria-modal="true">
  <div class="modal-card social-card social-v3-card">
@@ -464,5 +465,5 @@
 </form>
 <div id="messageStatus" class="status"></div>
 </div></div>
-<script src="config.js?v=1.6.0r2"></script><script src="app.js?v=1.6.0r2"></script>
+<script src="config.js?v=1.6.2r2"></script><script src="app.js?v=1.6.2r2"></script>
 </body></html>

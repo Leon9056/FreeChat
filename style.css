@@ -2086,3 +2086,12 @@ nav button.active,.nav-item.active,.tab.active,.active{
 #feedScreen .feed-scroll{padding-top:0!important}
 #feedScreen .feed-topbar{background:rgba(6,7,11,.55)!important;backdrop-filter:blur(16px);position:relative;z-index:10}
 #feedScreen .feed-fab{right:18px;bottom:22px;z-index:20}
+
+
+/* FreeChat 1.6.1 — following controls */
+.post-head{position:relative;display:flex;align-items:center;gap:10px}
+.post-follow-btn{margin-left:auto;border:1px solid rgba(124,92,255,.45);background:rgba(124,92,255,.12);color:var(--fc-text,#f5f7fb);border-radius:999px;padding:7px 13px;font-weight:800;cursor:pointer;transition:.2s}
+.post-follow-btn:hover{transform:translateY(-1px);background:rgba(124,92,255,.22)}
+.post-follow-btn.following{border-color:rgba(39,229,154,.35);background:rgba(39,229,154,.1);color:#27e59a}
+.post-follow-btn:disabled{opacity:.55;cursor:wait}
+@media(max-width:600px){.post-follow-btn{padding:6px 10px;font-size:12px}.post-author{min-width:0}.post-author b{max-width:130px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}
