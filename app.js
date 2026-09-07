@@ -14,6 +14,8 @@ let mode="login";
 const setStatus=(msg,type="error")=>{const el=$("loginStatus");el.textContent=msg||"";el.className="status "+type};
 const setBusy=(el,busy,label)=>{if(!el)return;el.disabled=busy;if(busy){el.dataset.originalText=el.textContent;el.textContent=label||"Aguarde..."}else if(el.dataset.originalText){el.textContent=el.dataset.originalText;delete el.dataset.originalText}};
 window.setBusy=setBusy;
+const messageEscape=s=>{const d=document.createElement("div");d.textContent=s??"";return d.innerHTML};
+window.messageEscape=messageEscape;
 function modeSet(m){
  mode=m;
  $("loginTab").classList.toggle("active",m==="login");$("registerTab").classList.toggle("active",m==="register");
@@ -176,6 +178,62 @@ function startFriendRequestPolling(){
   friendPollTimer=setInterval(pollFriendRequests,5000);
 }
 
+
+function showAuthMain(){
+  $("emailRecovery")?.classList.add("hidden");$("resetPasswordBox")?.classList.add("hidden");
+  $("loginTab")?.classList.remove("hidden");$("registerTab")?.classList.remove("hidden");
+  $("registerFields")?.classList.toggle("hidden",mode!=="register");$("confirmPasswordWrap")?.classList.toggle("hidden",mode!=="register");
+  $("passwordStrength")?.classList.toggle("hidden",mode!=="register");
+  $("passwordLabel")?.classList.remove("hidden");$("password")?.classList.remove("hidden");
+  $("loginBtn")?.classList.remove("hidden");$("forgotPasswordBtn")?.classList.remove("hidden");
+}
+function showRecovery(){
+  $("emailRecovery")?.classList.remove("hidden");$("resetPasswordBox")?.classList.add("hidden");
+  $("loginTab")?.classList.add("hidden");$("registerTab")?.classList.add("hidden");$("registerFields")?.classList.add("hidden");$("confirmPasswordWrap")?.classList.add("hidden");$("passwordStrength")?.classList.add("hidden");
+  $("passwordLabel")?.classList.add("hidden");$("password")?.classList.add("hidden");$("loginBtn")?.classList.add("hidden");$("forgotPasswordBtn")?.classList.add("hidden");$("resendVerificationBtn")?.classList.add("hidden");
+  $("recoveryEmail").value=email.value.trim().toLowerCase();$("recoveryStatus").textContent="";
+}
+function showResetPassword(token){
+  $("emailRecovery")?.classList.add("hidden");$("resetPasswordBox")?.classList.remove("hidden");
+  $("loginTab")?.classList.add("hidden");$("registerTab")?.classList.add("hidden");$("registerFields")?.classList.add("hidden");$("confirmPasswordWrap")?.classList.add("hidden");$("passwordStrength")?.classList.add("hidden");
+  $("passwordLabel")?.classList.add("hidden");$("password")?.classList.add("hidden");$("loginBtn")?.classList.add("hidden");$("forgotPasswordBtn")?.classList.add("hidden");$("resendVerificationBtn")?.classList.add("hidden");
+  window.FREECHAT_RESET_TOKEN=token;$("resetStatus").textContent="";
+}
+async function verifyEmailFromUrl(){
+  const params=new URLSearchParams(location.search),token=params.get("verify");
+  if(!token)return false;
+  setStatus("Verificando seu e-mail...","loading");
+  try{
+    const d=await fetch(serverUrl()+"/api/verify-email?token="+encodeURIComponent(token)).then(async r=>{const x=await r.json().catch(()=>({}));if(!r.ok)throw Error(x.error||"Não foi possível verificar o e-mail.");return x});
+    history.replaceState({},document.title,location.pathname);
+    setStatus(d.message||"E-mail verificado. Agora você pode entrar.","success");
+  }catch(e){setStatus(e.message||"Link de verificação inválido.")}
+  return true;
+}
+async function sendRecovery(){
+  const em=$("recoveryEmail").value.trim().toLowerCase();
+  if(!/^\S+@\S+\.\S+$/.test(em)){ $("recoveryStatus").textContent="Digite um e-mail válido.";return; }
+  setBusy($("recoverySendBtn"),true,"Enviando...");
+  try{
+    const d=await authRequest("/api/forgot-password",{email:em},15000);
+    $("recoveryStatus").textContent=d.message||"Se houver uma conta, enviaremos as instruções.";
+    $("recoveryStatus").className="status success";
+  }catch(e){$("recoveryStatus").textContent=e.message||"Não foi possível enviar o e-mail.";$("recoveryStatus").className="status error"}
+  finally{setBusy($("recoverySendBtn"),false,"📨 Enviar link")}
+}
+async function resetPassword(){
+  const p=$("resetPassword").value,c=$("resetPasswordConfirm").value;
+  if(p.length<10||!/[A-Za-z]/.test(p)||!/[0-9]/.test(p)){ $("resetStatus").textContent="A senha precisa ter pelo menos 10 caracteres e incluir letras e números.";return; }
+  if(p!==c){$("resetStatus").textContent="As senhas não coincidem.";return;}
+  setBusy($("resetPasswordBtn"),true,"Salvando...");
+  try{
+    const d=await authRequest("/api/reset-password",{token:window.FREECHAT_RESET_TOKEN,password:p},15000);
+    history.replaceState({},document.title,location.pathname);
+    showAuthMain();modeSet("login");setStatus(d.message||"Senha redefinida. Agora você pode entrar.","success");
+  }catch(e){$("resetStatus").textContent=e.message||"Não foi possível redefinir a senha.";$("resetStatus").className="status error"}
+  finally{setBusy($("resetPasswordBtn"),false,"🔐 Redefinir senha")}
+}
+
 function showApp(d){
  localStorage.setItem("conversaLiveToken",d.token);localStorage.setItem("conversaLiveUser",JSON.stringify(d.user));
  window.CONVERSA_TOKEN=d.token;window.CONVERSA_USER=d.user;login.classList.add("hidden");menu.classList.remove("hidden");animateMainMenu();
@@ -189,7 +247,7 @@ async function authRequest(path,body,timeoutMs){
  try{
   const r=await fetch(serverUrl()+path,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body),signal:controller.signal});
   const d=await r.json().catch(()=>({}));
-  if(!r.ok)throw Error(d.error||"Não foi possível concluir a operação.");
+  if(!r.ok){const err=Error(d.error||"Não foi possível concluir a operação.");Object.assign(err,d);throw err;}
   return d;
  }finally{clearTimeout(timer)}
 }
@@ -207,53 +265,109 @@ async function auth(){
   try{
    d=await authRequest(path,body,15000);
   }catch(e){
-   // Backends gratuitos (ex.: Render free tier) "dormem" após um tempo sem uso e
-   // podem levar dezenas de segundos para acordar — o que dá timeout na primeira
-   // tentativa mesmo com tudo certo. Tenta de novo automaticamente, com mais tempo,
-   // em vez de simplesmente informar falha na primeira tentativa.
    if(e?.name==="AbortError"||/failed to fetch|networkerror|load failed/i.test(String(e?.message||""))){
-    setStatus("O servidor pode estar iniciando (isso é normal em planos gratuitos). Tentando de novo...","loading");
+    setStatus("O servidor pode estar iniciando. Tentando novamente...","loading");
     d=await authRequest(path,body,30000);
    }else throw e;
+  }
+  if(mode==="register"&&d.requiresEmailVerification){
+   setStatus(d.message||"Conta criada. Verifique seu e-mail antes de entrar.","success");
+   $("resendVerificationBtn")?.classList.remove("hidden");
+   return;
   }
   showApp(d);
  }catch(e){
   const msg=String(e?.message||"");
-  if(e?.name==="AbortError")setStatus("O servidor não respondeu a tempo. Ele pode estar offline — verifique o serviço no Render.");
+  $("resendVerificationBtn")?.classList.toggle("hidden",!(e?.verificationRequired||/confirme seu e-mail/i.test(msg)));
+  if(e?.name==="AbortError")setStatus("O servidor não respondeu a tempo. Tente novamente.");
   else if(/failed to fetch|networkerror|load failed/i.test(msg))setStatus("Não foi possível conectar ao servidor. Verifique sua internet e se o backend está no ar.");
   else setStatus(msg||"Não foi possível concluir a operação.");
+ }finally{
+  setBusy(btn,false,mode==="register"?"✨ Criar conta":"🚀 Entrar");
  }
- finally{setBusy(btn,false,mode==="register"?"✨ Criar conta":"🚀 Entrar")}
 }
-$("loginTab").onclick=()=>modeSet("login");$("registerTab").onclick=()=>modeSet("register");$("loginBtn").onclick=auth;
- $("togglePassword").onclick=()=>togglePasswordField("password","togglePassword");$("toggleConfirmPassword").onclick=()=>togglePasswordField("confirmPassword","toggleConfirmPassword");
- password.addEventListener("input",updatePasswordStrength);$("confirmPassword")?.addEventListener("input",()=>{$("confirmPassword").setCustomValidity(password.value!==$("confirmPassword").value?"As senhas não coincidem.":"")});
- [email,password,name,$("confirmPassword")].filter(Boolean).forEach(el=>el.addEventListener("keydown",e=>{if(e.key==="Enter")auth()}));
- const t=localStorage.getItem("conversaLiveToken"),u=localStorage.getItem("conversaLiveUser");if(t&&u)try{window.CONVERSA_TOKEN=t;window.CONVERSA_USER=JSON.parse(u);login.classList.add("hidden");menu.classList.remove("hidden");animateMainMenu();$("welcomeName").textContent=window.CONVERSA_USER.name;$("sideWelcomeName").textContent=window.CONVERSA_USER.name;$("myCode").textContent=window.CONVERSA_USER.code;$("sideCode").textContent=window.CONVERSA_USER.code;window.applyAvatar?.($("avatar"),window.CONVERSA_USER.avatarUrl,window.CONVERSA_USER.name);window.renderFriends?.();startFriendRequestPolling();connectLobby()}catch(e){localStorage.removeItem("conversaLiveToken");localStorage.removeItem("conversaLiveUser")}
- async function api(path,opts={}){const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),12000);let externalAbort;try{if(opts.signal){externalAbort=()=>controller.abort();if(opts.signal.aborted)controller.abort();else opts.signal.addEventListener("abort",externalAbort,{once:true})}const isForm=typeof FormData!=="undefined"&&opts.body instanceof FormData;const baseHeaders={Authorization:"Bearer "+(window.CONVERSA_TOKEN||localStorage.getItem("conversaLiveToken"))};if(!isForm)baseHeaders["Content-Type"]="application/json";const r=await fetch(serverUrl()+path,{...opts,signal:controller.signal,headers:{...baseHeaders,...(opts.headers||{})}});const d=await r.json().catch(()=>({}));if(r.status===401){window.CONVERSA_SESSION_INVALID=true;throw Error(d.error||"Sua sessão não está mais válida. Faça login novamente se necessário.")}if(!r.ok)throw Error(d.error||"Erro.");return d}catch(e){if(e?.name==="AbortError")throw Error("O servidor demorou demais para responder. Tente novamente.");throw e}finally{clearTimeout(timeout);if(externalAbort&&opts.signal)opts.signal.removeEventListener("abort",externalAbort)}} 
- let unreadCounts={},unreadInitialized=false;
- async function refreshUnreadCounts(){try{const d=await api("/api/messages/unread");const next=d.unread||{};if(unreadInitialized){Object.keys(next).forEach(code=>{const before=Number(unreadCounts[code]||0),after=Number(next[code]||0);if(after>before&&code!==activeFriendCode){const friend=(window.friendDirectory?.friends||[]).find(x=>x.code===code);window.notifyIncomingMessage?.(friend?.name||code,{body:"Nova mensagem"})}})}unreadCounts=next;unreadInitialized=true;window.renderFriends?.()}catch(e){}}
- function bumpUnread(code){unreadCounts[code]=(unreadCounts[code]||0)+1;window.renderFriends?.();}
- function clearUnread(code){unreadCounts[code]=0;window.renderFriends?.();}
- window.refreshUnreadCounts=refreshUnreadCounts; window.conversaApi=api; window.api=api; window.bumpUnread=bumpUnread; window.clearUnread=clearUnread;
- function applyAvatar(el,avatarUrl,name){
-   if(!el)return;
-   if(avatarUrl){
-     const src=serverUrl()+avatarUrl+(String(avatarUrl).includes("?")?"&":"?")+"_cb="+encodeURIComponent(localStorage.getItem("conversaLiveAvatarVersion")||"");
-     el.style.backgroundImage=`url("${src}")`;
-     el.style.backgroundSize="cover";el.style.backgroundPosition="center";
-     el.textContent="";el.classList.add("has-avatar-photo");
-   }else{
-     el.style.backgroundImage="";
-     el.textContent=(name||"?").trim().charAt(0).toUpperCase()||"?";
-     el.classList.remove("has-avatar-photo");
-   }
- }
- window.applyAvatar=applyAvatar;
- window.friendDirectory={friends:[],requests:[]};
-window.friendSearchTerm="";
-function filterFriends(v){window.friendSearchTerm=String(v||"");renderFriends()}
+$("loginTab").onclick=()=>modeSet("login");
+$("registerTab").onclick=()=>modeSet("register");
+$("loginBtn").onclick=auth;
+$("forgotPasswordBtn")?.addEventListener("click",showRecovery);
+$("recoveryBackBtn")?.addEventListener("click",()=>{showAuthMain();modeSet("login")});
+$("resetBackBtn")?.addEventListener("click",()=>{history.replaceState({},document.title,location.pathname);showAuthMain();modeSet("login")});
+$("recoverySendBtn")?.addEventListener("click",sendRecovery);
+$("resetPasswordBtn")?.addEventListener("click",resetPassword);
+$("resendVerificationBtn")?.addEventListener("click",async()=>{
+ const em=email.value.trim().toLowerCase();
+ setBusy($("resendVerificationBtn"),true,"Enviando...");
+ try{const d=await authRequest("/api/resend-verification",{email:em},15000);setStatus(d.message||"Se necessário, enviamos um novo link.","success")}
+ catch(e){setStatus(e.message||"Não foi possível reenviar.")}
+ finally{setBusy($("resendVerificationBtn"),false,"📩 Reenviar verificação de e-mail")}
+});
+$("togglePassword").onclick=()=>togglePasswordField("password","togglePassword");
+$("toggleConfirmPassword").onclick=()=>togglePasswordField("confirmPassword","toggleConfirmPassword");
+password.addEventListener("input",updatePasswordStrength);
+$("confirmPassword")?.addEventListener("input",()=>{$("confirmPassword").setCustomValidity(password.value!==$("confirmPassword").value?"As senhas não coincidem.":"")});
+[email,password,name,$("confirmPassword")].filter(Boolean).forEach(el=>el.addEventListener("keydown",e=>{if(e.key==="Enter")auth()}));
 
+const resetToken=new URLSearchParams(location.search).get("reset");
+if(resetToken){showResetPassword(resetToken)}
+else {verifyEmailFromUrl();}
+const t=localStorage.getItem("conversaLiveToken"),u=localStorage.getItem("conversaLiveUser");
+if(!resetToken&&t&&u)try{
+ window.CONVERSA_TOKEN=t;window.CONVERSA_USER=JSON.parse(u);login.classList.add("hidden");menu.classList.remove("hidden");animateMainMenu();
+ $("welcomeName").textContent=window.CONVERSA_USER.name;$("sideWelcomeName").textContent=window.CONVERSA_USER.name;$("myCode").textContent=window.CONVERSA_USER.code;$("sideCode").textContent=window.CONVERSA_USER.code;
+ window.applyAvatar?.($("avatar"),window.CONVERSA_USER.avatarUrl,window.CONVERSA_USER.name);window.renderFriends?.();startFriendRequestPolling();connectLobby()
+}catch(e){localStorage.removeItem("conversaLiveToken");localStorage.removeItem("conversaLiveUser")}
+
+async function api(path,opts={}){const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),12000);let externalAbort;try{if(opts.signal){externalAbort=()=>controller.abort();if(opts.signal.aborted)controller.abort();else opts.signal.addEventListener("abort",externalAbort,{once:true})}const isForm=typeof FormData!=="undefined"&&opts.body instanceof FormData;const baseHeaders={Authorization:"Bearer "+(window.CONVERSA_TOKEN||localStorage.getItem("conversaLiveToken"))};if(!isForm)baseHeaders["Content-Type"]="application/json";const r=await fetch(serverUrl()+path,{...opts,signal:controller.signal,headers:{...baseHeaders,...(opts.headers||{})}});const d=await r.json().catch(()=>({}));if(r.status===401){window.CONVERSA_SESSION_INVALID=true;throw Error(d.error||"Sua sessão não está mais válida. Faça login novamente se necessário.")}if(!r.ok)throw Error(d.error||"Erro.");return d}catch(e){if(e?.name==="AbortError")throw Error("O servidor demorou demais para responder. Tente novamente.");throw e}finally{clearTimeout(timeout);if(externalAbort&&opts.signal)opts.signal.removeEventListener("abort",externalAbort)}}
+window.api=api;window.conversaApi=api;
+let unreadCounts={},unreadInitialized=false;
+async function refreshUnreadCounts(){try{const d=await api("/api/messages/unread");const next=d.unread||{};if(unreadInitialized){Object.keys(next).forEach(code=>{const before=Number(unreadCounts[code]||0),after=Number(next[code]||0);if(after>before&&code!==activeFriendCode){const friend=(window.friendDirectory?.friends||[]).find(x=>x.code===code);window.notifyIncomingMessage?.(friend?.name||code,{body:"Nova mensagem"})}})}unreadCounts=next;unreadInitialized=true;window.renderFriends?.()}catch(e){}}
+function bumpUnread(code){unreadCounts[code]=(unreadCounts[code]||0)+1;window.renderFriends?.();}
+function clearUnread(code){unreadCounts[code]=0;window.renderFriends?.();}
+window.refreshUnreadCounts=refreshUnreadCounts;window.bumpUnread=bumpUnread;window.clearUnread=clearUnread;
+function applyAvatar(el,avatarUrl,name){
+  if(!el)return;
+  if(avatarUrl){
+    const src=serverUrl()+avatarUrl+(String(avatarUrl).includes("?")?"&":"?")+"_cb="+encodeURIComponent(localStorage.getItem("conversaLiveAvatarVersion")||"");
+    el.style.backgroundImage=`url("${src}")`;
+    el.style.backgroundSize="cover";el.style.backgroundPosition="center";
+    el.textContent="";el.classList.add("has-avatar-photo");
+  }else{
+    el.style.backgroundImage="";
+    el.textContent=(name||"?").trim().charAt(0).toUpperCase()||"?";
+    el.classList.remove("has-avatar-photo");
+  }
+}
+window.applyAvatar=applyAvatar;
+window.friendDirectory={friends:[],requests:[]};
+window.friendSearchTerm="";
+function openReportModal(u){
+  const modal=$("reportModal");
+  if(!modal){appToast("Não foi possível abrir a denúncia.","error");return;}
+  modal.dataset.targetCode=u.code;
+  $("reportTargetName").textContent=u.name||u.code;
+  $("reportReasonSelect").value="";
+  $("reportDetailsInput").value="";
+  modal.classList.remove("hidden");
+}
+function closeReportModal(){$("reportModal")?.classList.add("hidden");}
+async function submitReport(){
+  const modal=$("reportModal");const code=modal?.dataset.targetCode;
+  const reason=$("reportReasonSelect")?.value;
+  const details=$("reportDetailsInput")?.value.trim();
+  if(!code)return;
+  if(!reason){appToast("Escolha um motivo para a denúncia.","error");return;}
+  const btn=$("reportSubmitBtn");if(btn)btn.disabled=true;
+  try{
+    await api("/api/security/report",{method:"POST",body:JSON.stringify({code,reason,details})});
+    appToast("Denúncia registrada. Nossa equipe vai revisar.","success");
+    closeReportModal();
+  }catch(e){appToast(e.message,"error")}
+  finally{if(btn)btn.disabled=false}
+}
+window.closeReportModal=closeReportModal;
+$("reportClose")?.addEventListener("click",closeReportModal);
+$("reportCancelBtn")?.addEventListener("click",closeReportModal);
+$("reportSubmitBtn")?.addEventListener("click",submitReport);
 window.renderFriends=async()=>{
  let d;try{d=await api("/api/friends")}catch(e){d=window.friendDirectory||{friends:[],requests:[]}};window.friendDirectory=d;
  [$("friendsList"),$("friendsAppList")].filter(Boolean).forEach(list=>{
@@ -274,6 +388,12 @@ window.renderFriends=async()=>{
     const callBtn=x.querySelector(".friend-call-btn");
     if(!online){callBtn.disabled=true;callBtn.title="Amigo offline — não é possível chamar agora"}
     callBtn.onclick=()=>{const newRoom=makeCallCode();openApp(newRoom,true);inviteFriendToCall(u.code,newRoom,u.name)};
+    x.querySelector(".friend-block-btn").onclick=async()=>{
+      if(!confirm("Bloquear "+(u.name||"este usuário")+"? Vocês não vão mais conseguir se contatar."))return;
+      try{await api("/api/security/block",{method:"POST",body:JSON.stringify({code:u.code})});appToast("Usuário bloqueado.","success");renderFriends()}
+      catch(e){appToast(e.message,"error")}
+    };
+    x.querySelector(".friend-report-btn").onclick=()=>openReportModal(u);
     x.querySelector(".remove-friend-btn").onclick=async()=>{if(!confirm("Remover "+(u.name||"este amigo")+" da sua lista?"))return;try{await api("/api/friends/remove",{method:"POST",body:JSON.stringify({code:u.code})});delete unreadCounts[u.code];appToast("Amigo removido");renderFriends()}catch(e){appToast(e.message,"error")}};
     list.appendChild(x);
   });
@@ -765,6 +885,8 @@ document.addEventListener("click",(e)=>{
     settingsClose:()=>closeSettings?.(),
     socialClose:()=>closeSocialPanel?.(),
     serversClose:()=>closeServers?.(),
+    reportClose:()=>window.closeReportModal?.(),
+    reportCancelBtn:()=>window.closeReportModal?.(),
     randomCallClose:()=>closeRandomCall?.(),
     postComposerClose:()=>closePostComposer?.(),
     messagesClose:()=>closePrivateChat?.()
@@ -2042,7 +2164,6 @@ function loadMessagesCache(code){
 }
 function removeMessagesCache(code){try{localStorage.removeItem(dmCacheKey(code))}catch(e){}}
 
-const messageEscape=s=>{const d=document.createElement("div");d.textContent=s??"";return d.innerHTML};
 function mediaUrl(m){return serverUrl()+String(m?.url||("/api/messages/media/"+encodeURIComponent(m?.id||"")))}
 function requestDesktopNotifications(){try{if("Notification" in window&&Notification.permission==="default")Notification.requestPermission().catch(()=>{})}catch(e){}}
 function notifyIncomingMessage(name,message){
@@ -2359,15 +2480,36 @@ if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.ser
     $("randomCallState")?.classList.toggle("hidden",state!=="ready");
     $("randomCallWaiting")?.classList.toggle("hidden",state!=="waiting");
     $("randomCallMatch")?.classList.toggle("hidden",state!=="match");
+    if(state!=="ready")$("randomCallEnablePrompt")?.classList.add("hidden");
   }
   async function startRandomQueue(){
     if(randomQueueActive)return;
+    $("randomCallEnablePrompt")?.classList.add("hidden");
     randomQueueActive=true;showRandomState("waiting");
     try{
       const d=await api("/api/random/queue",{method:"POST"});
       if(d.match){setRandomMatch(d.match)}
       else if(d.waiting) communityToast("Você entrou na fila. Aguarde um momento.","success");
-    }catch(e){randomQueueActive=false;showRandomState("ready");communityToast(e.message,"error")}
+    }catch(e){
+      randomQueueActive=false;showRandomState("ready");
+      if(/privacidade/i.test(e.message||"")){
+        $("randomCallEnablePrompt")?.classList.remove("hidden");
+        $("randomCallStatus").textContent="";
+      }else{
+        communityToast(e.message,"error");
+      }
+    }
+  }
+  async function enableRandomAndRetry(){
+    const btn=$("randomCallEnableBtn");if(btn)btn.disabled=true;
+    try{
+      await api("/api/security/privacy",{method:"PATCH",body:JSON.stringify({random_enabled:true})});
+      if($("privacyRandom"))$("privacyRandom").checked=true;
+      $("randomCallEnablePrompt")?.classList.add("hidden");
+      communityToast("Pronto! Agora é só procurar alguém.","success");
+      await startRandomQueue();
+    }catch(e){communityToast(e.message,"error")}
+    finally{if(btn)btn.disabled=false}
   }
   async function leaveRandomQueue(){
     try{await api("/api/random/leave",{method:"POST"})}catch(e){}
@@ -2427,6 +2569,7 @@ if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.ser
   $("randomCallBtn")?.addEventListener("click",openRandomCall);
   $("randomCallClose")?.addEventListener("click",closeRandomCall);
   $("randomCallStartBtn")?.addEventListener("click",startRandomQueue);
+  $("randomCallEnableBtn")?.addEventListener("click",enableRandomAndRetry);
   $("randomCallCancelBtn")?.addEventListener("click",leaveRandomQueue);
   $("randomCallJoinBtn")?.addEventListener("click",joinRandomMatch);
   $("randomCallNextBtn")?.addEventListener("click",nextRandom);
