@@ -58,13 +58,13 @@
     <div class="menu-grid">
       <div class="menu-col menu-col-actions">
         <div class="menu-section-title">📞 Chamada</div>
-        <button id="createCallBtn" class="primary-btn big-btn">📞 Criar nova call</button>
+        <button type="button" id="createCallBtn" class="primary-btn big-btn">📞 Criar nova call</button>
         <div class="call-actions-divider">ou</div>
-        <button id="joinCallBtn" class="secondary-btn big-btn">🔗 Entrar em uma call</button>
+        <button type="button" id="joinCallBtn" class="secondary-btn big-btn">🔗 Entrar em uma call</button>
         <div id="joinBox" class="join-box hidden">
           <label>🔑 Código da call</label>
           <input id="roomCodeInput" maxlength="32" placeholder="Ex.: ABC123">
-          <button id="confirmJoinBtn" class="primary-btn">🎧 Entrar na call</button>
+          <button type="button" id="confirmJoinBtn" class="primary-btn">🎧 Entrar na call</button>
         </div>
         <div id="menuStatus" class="status"></div>
 
@@ -125,7 +125,7 @@
   <div class="brand"><span class="mini mini-logo"><img src="icon.svg" alt="" width="20" height="20"></span><b>FreeChat</b></div>
   <div class="label">SALA</div><div class="room" id="roomName"># geral</div>
   <div class="status" id="status">Desconectado</div>
-  <div class="menu-welcome"><div class="menu-welcome-icon">💬</div><div><small>Bem-vindo de volta</small><b id="sideWelcomeName">Usuário</b></div></div><div class="side-tools"><button id="invite" class="secondary">🔗 Copiar convite</button><span class="side-code">ID: <b id="sideCode">CL-000000</b></span><button id="feedBtn" class="feed-main-btn" type="button" title="Abrir Feed">📰 <span>Feed</span><small>Fotos e vídeos até 1 min</small></button><div class="side-action-row">
+  <div class="menu-welcome"><div class="menu-welcome-icon">💬</div><div><small>Bem-vindo de volta</small><b id="sideWelcomeName">Usuário</b></div></div><div class="side-tools"><button type="button" id="invite" class="secondary">🔗 Copiar convite</button><span class="side-code">ID: <b id="sideCode">CL-000000</b></span><button id="feedBtn" class="feed-main-btn" type="button" title="Abrir Feed">📰 <span>Feed</span><small>Fotos e vídeos até 1 min</small></button><div class="side-action-row">
 <button id="friendsBtn" class="icon-header" type="button" title="Amigos">👥<span>Amigos</span></button>
 <button id="socialBtn" class="icon-header" type="button" title="Social">🌎<span>Social</span></button>
 <button id="serversBtn" class="icon-header" type="button" title="Servidores">🌐<span>Servidores</span></button>
@@ -136,33 +136,34 @@
   <div class="label">PARTICIPANTES</div><div id="people"></div>
   <div class="me"><span id="avatar">?</span><div><b id="me">Você</b><small>Online</small></div></div>
 </aside>
-<aside id="profileSidebar" class="profile-sidebar" aria-label="Painel lateral">
-  <div class="profile-summary">
-    <div id="profileSidebarAvatar" class="profile-sidebar-avatar">G</div>
-    <b id="profileSidebarName"># geral</b>
+<aside id="profileSidebar" class="profile-sidebar" aria-label="Perfil do usuário">
+  <div class="profile-summary profile-summary-user">
+    <div id="profileSidebarAvatar" class="profile-sidebar-avatar">?</div>
+    <b id="profileSidebarName">Usuário</b>
     <small><span class="profile-online-dot"></span> Online</small>
+    <span id="profileSidebarCode" class="profile-sidebar-code">CL-000000</span>
   </div>
-  <div class="profile-action-grid">
-    <button id="profileCallBtn" type="button"><span>☎</span><small>Chamar</small></button>
-    <button id="profileVideoBtn" type="button"><span>▣</span><small>Vídeo</small></button>
+  <div class="profile-action-grid profile-action-grid-user">
     <button id="profileSettingsBtn" type="button"><span>♙</span><small>Perfil</small></button>
+    <button id="profileFriendsBtn" type="button"><span>♧</span><small>Amigos</small></button>
+    <button id="profileSupportBtnTop" type="button"><span>♥</span><small>Apoiar</small></button>
     <button id="profileMoreBtn" type="button" title="Mais">•••</button>
   </div>
   <div class="profile-divider"></div>
-  <section class="profile-section"><b>Sobre</b><p>Conversa atual do FreeChat.</p></section>
+  <section class="profile-section"><b>Sobre você</b><p id="profileSidebarAbout">Seu perfil do FreeChat.</p></section>
   <section class="profile-section"><b>Status</b><p><span class="profile-online-dot"></span> Online</p></section>
-  <section class="profile-section"><b>Opções</b>
-    <button type="button" id="profileAddFriendBtn">♙ <span>Adicionar amigo</span></button>
-    <button type="button" id="profileBlockBtn">⊘ <span>Bloquear usuário</span></button>
-    <button type="button" id="profileReportBtn">△ <span>Denunciar</span></button>
-    <button type="button" id="profileClearBtn">▱ <span>Limpar conversa</span></button>
+  <section class="profile-section"><b>Conta</b>
+    <button type="button" id="profileEditBtn">✎ <span>Editar perfil</span></button>
+    <button type="button" id="profileCopyCodeBtn">▣ <span>Copiar meu código</span></button>
+    <button type="button" id="profileNotificationsBtn">♧ <span>Notificações</span></button>
+    <button type="button" id="profileLogoutBtn">⇥ <span>Sair da conta</span></button>
   </section>
   <button id="profileSupportBtn" class="profile-support" type="button"><span>♥</span><span><b>Apoie o criador</b><small>Ajude a manter o FreeChat online!</small></span><i>›</i></button>
 </aside>
 <div id="friendsPanel" class="friends-panel hidden"><div class="friends-panel-head"><b>👥 Amigos</b><button id="friendsClose" type="button">×</button></div><div class="friend-add-row"><input id="friendCodeApp" maxlength="20" placeholder="Código CL-XXXXXX"><button id="addFriendApp" class="secondary-btn" type="button" title="Enviar convite">📨</button></div><div id="friendAppStatus" class="status"></div><div class="friends-toolbar"><input id="friendsSearchApp" class="friends-search" placeholder="🔎 Procurar amigo..." autocomplete="off"></div><div id="friendsAppList" class="friends-list"></div></div>
 <main class="main">
 <header><div><b># <span id="headRoom">geral</span></b><small>Conversa em tempo real</small></div>
-<div class="header-actions"><div id="connectionMeter" class="connection-meter"><div class="connection-bars"><i></i><i></i><i></i><i></i><i></i></div><span id="connectionText">Conectando...</span></div><button id="callOpen">🎥 Call</button></div></header>
+<div class="header-actions"><div id="connectionMeter" class="connection-meter"><div class="connection-bars"><i></i><i></i><i></i><i></i><i></i></div><span id="connectionText">Conectando...</span></div><button type="button" id="callOpen">🎥 Call</button></div></header>
 <section id="messages" class="messages"><div class="empty-chat" id="emptyChat"><div>💬</div><b>Comece a conversa</b><span>Envie uma mensagem para a sala.</span></div></section>
 <div id="emojiPicker" class="emoji-picker hidden" aria-label="Seletor de emojis">
   <div class="emoji-picker-head">
@@ -203,13 +204,13 @@
    <button id="audioUnlock" class="audio-unlock-banner hidden" type="button"><span class="control-icon">🔊</span><span>Toque para ativar o áudio</span></button>
    <div class="call-controls-top"><span id="callStatus" class="callStatus" aria-live="polite">Pronto.</span><span id="callStatsMini">-- ms • -- fps</span></div>
    <div class="controls">
-    <button id="mic" title="Microfone"><span class="control-icon">🎙️</span><span>Microfone</span></button>
-    <button id="cam" title="Câmera"><span class="control-icon">📷</span><span>Câmera</span></button>
-    <button id="screen" title="Compartilhar tela"><span class="control-icon">🖥️</span><span>Tela</span></button>
-    <button id="callVolumeBtn" title="Volume da call"><span class="control-icon">🔊</span><span>Volume</span></button>
-    <button id="callMusicBtn" title="Música"><span class="control-icon">🎵</span><span>Música</span></button>
-    <button id="callParticipantsBtnBottom" title="Participantes"><span class="control-icon">👥</span><span>Pessoas</span></button>
-    <button id="hang" class="danger" title="Sair da chamada"><span class="control-icon">☎</span><span>Sair</span></button>
+    <button type="button" id="mic" title="Microfone"><span class="control-icon">🎙️</span><span>Microfone</span></button>
+    <button type="button" id="cam" title="Câmera"><span class="control-icon">📷</span><span>Câmera</span></button>
+    <button type="button" id="screen" title="Compartilhar tela"><span class="control-icon">🖥️</span><span>Tela</span></button>
+    <button type="button" id="callVolumeBtn" title="Volume da call"><span class="control-icon">🔊</span><span>Volume</span></button>
+    <button type="button" id="callMusicBtn" title="Música"><span class="control-icon">🎵</span><span>Música</span></button>
+    <button type="button" id="callParticipantsBtnBottom" title="Participantes"><span class="control-icon">👥</span><span>Pessoas</span></button>
+    <button type="button" id="hang" class="danger" title="Sair da chamada"><span class="control-icon">☎</span><span>Sair</span></button>
    </div>
  </div>
  <div id="callMusicPanel" class="call-float-panel hidden">
@@ -261,7 +262,7 @@
 <div id="socialPanel" class="modal hidden" role="dialog" aria-modal="true">
  <div class="modal-card social-card">
   <div class="social-head"><div><b>🌎 Social</b><small>Amigos, avisos e seu perfil</small></div><button id="socialClose" class="icon-btn" type="button" aria-label="Voltar">×</button></div>
-  <div class="social-tabs"><button class="social-tab active" data-social-tab="friends">👥 Amigos</button><button class="social-tab" data-social-tab="notifications">🔔 Avisos <span id="notificationBadge" class="mini-badge hidden">0</span></button><button class="social-tab" data-social-tab="profile">👤 Perfil</button></div>
+  <div class="social-tabs"><button type="button" class="social-tab active" data-social-tab="friends">👥 Amigos</button><button type="button" class="social-tab" data-social-tab="notifications">🔔 Avisos <span id="notificationBadge" class="mini-badge hidden">0</span></button><button type="button" class="social-tab" data-social-tab="profile">👤 Perfil</button></div>
   <section id="socialFriends" class="social-section"><div class="social-section-title"><b>👥 Seus amigos</b><button id="socialRefreshFriends" class="icon-btn" type="button">↻</button></div><div class="friends-toolbar"><input id="socialFriendsSearch" class="friends-search" placeholder="🔎 Procurar amigo..." autocomplete="off"></div><div id="socialFriendsList" class="friends-list"></div></section>
   <section id="socialNotifications" class="social-section hidden"><div class="social-section-title"><b>🔔 Notificações</b><button id="markNotificationsRead" class="secondary-btn small-btn" type="button">Marcar como lidas</button></div><div id="notificationList" class="notification-list"></div></section>
   <section id="socialProfile" class="social-section hidden"><div class="profile-hero"><button id="profileAvatarBtn" class="profile-avatar profile-avatar-btn" type="button" title="Trocar foto de perfil"><span id="profileAvatar">?</span><span class="profile-avatar-edit">📷</span></button><input id="profileAvatarInput" type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden><div><h2 id="profileName">Usuário</h2><p id="profileCode">CL-000000</p><button id="removeAvatarBtn" class="text-btn hidden" type="button">Remover foto</button></div></div><label>Nome de usuário</label><input id="profileNameInput" maxlength="24" placeholder="Seu nome"><button id="saveProfileBtn" class="primary-btn" type="button">Salvar perfil</button><div id="profileStatus" class="status"></div><div class="profile-tip">Seu código é seu identificador para adicionar amigos.</div></section>
@@ -275,7 +276,7 @@
   <div class="feed-topbar-actions"><button id="feedRefreshBtn" class="icon-btn" type="button" aria-label="Atualizar" title="Atualizar">↻</button><button id="feedNewPostBtn" class="icon-btn" type="button" aria-label="Nova publicação" title="Nova publicação">➕</button></div>
  </header>
  <div class="feed-scroll">
-  <nav class="feed-tabs" aria-label="Filtro do feed"><button class="feed-tab" data-feed-filter="friends">Amigos</button><button class="feed-tab active" data-feed-filter="recent">Mais recentes</button></nav>
+  <nav class="feed-tabs" aria-label="Filtro do feed"><button type="button" class="feed-tab" data-feed-filter="friends">Amigos</button><button type="button" class="feed-tab active" data-feed-filter="recent">Mais recentes</button></nav>
   <section class="feed-stories" aria-label="Amigos recentes"><div class="stories-title"><b>Momentos</b><small>Amigos ativos e recentes</small></div><div id="feedStories" class="stories-row"></div></section>
   <section class="feed-composer-inline"><div id="feedComposerAvatar" class="composer-avatar">?</div><button id="feedInlineComposer" type="button">Compartilhe algo com seus amigos...</button><button id="feedInlineMedia" class="composer-media" type="button" aria-label="Adicionar mídia">＋</button></section>
   <div id="feedList" class="feed-ig-list"></div>
@@ -314,8 +315,8 @@
     <div id="serversStatus" class="status"></div>
 
     <nav class="servers-tabs" aria-label="Filtro de servidores">
-      <button class="servers-tab active" data-servers-tab="mine">Meus servidores</button>
-      <button class="servers-tab" data-servers-tab="discover">Descobrir</button>
+      <button type="button" class="servers-tab active" data-servers-tab="mine">Meus servidores</button>
+      <button type="button" class="servers-tab" data-servers-tab="discover">Descobrir</button>
       <button id="serversRefreshBtn" class="icon-btn servers-refresh" type="button" title="Atualizar" aria-label="Atualizar">↻</button>
     </nav>
     <section id="myServersSection"><div id="myServersList" class="servers-list"></div></section>
@@ -414,7 +415,7 @@
 
 <div id="messagesPanel" class="modal hidden" role="dialog" aria-modal="true">
 <div class="modal-card messages-card">
-<div class="messages-head"><button id="messagesBack" class="icon-btn" aria-label="Voltar">‹</button><div class="messages-person"><div id="messagesFriendAvatar" class="dm-avatar">?</div><div><strong id="messagesFriendName">Selecione um amigo</strong><small id="messagesFriendState">Conversa privada</small></div></div><button id="messagesClose" class="icon-btn" aria-label="Fechar">×</button></div>
+<div class="messages-head"><button type="button" id="messagesBack" class="icon-btn" aria-label="Voltar">‹</button><div class="messages-person"><div id="messagesFriendAvatar" class="dm-avatar">?</div><div><strong id="messagesFriendName">Selecione um amigo</strong><small id="messagesFriendState">Conversa privada</small></div></div><button type="button" id="messagesClose" class="icon-btn" aria-label="Fechar">×</button></div>
 <div class="messages-toolbar"><input id="messagesSearch" class="friends-search" placeholder="🔎 Buscar mensagens" autocomplete="off"></div><div id="messagesList" class="messages-list"><div class="muted">Escolha um amigo para começar.</div></div>
 <form id="messageForm" class="message-form">
   <button id="messageAttach" class="dm-tool" type="button" title="Foto ou vídeo">＋</button>

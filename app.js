@@ -2646,20 +2646,17 @@ if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.ser
   bind("globalFriendsBtn",()=>click("friendsBtn"));
   bind("globalSettingsBtn",()=>click("settingsBtn"));
   bind("globalNotificationsBtn",()=>{if(typeof openSocial==="function")openSocial("notifications");});
-  bind("profileCallBtn",()=>click("callOpen"));
-  bind("profileVideoBtn",()=>click("callOpen"));
-  bind("profileSettingsBtn",()=>click("settingsBtn"));
+  bind("profileSettingsBtn",()=>{ if(typeof openSocial==="function") openSocial("profile"); else click("settingsBtn"); });
+  bind("profileEditBtn",()=>{ if(typeof openSocial==="function") openSocial("profile"); else click("settingsBtn"); });
+  bind("profileFriendsBtn",()=>click("friendsBtn"));
+  bind("profileNotificationsBtn",()=>{ if(typeof openSocial==="function") openSocial("notifications"); });
+  bind("profileSupportBtnTop",()=>click("supportCreatorBtn"));
   bind("profileSupportBtn",()=>click("supportCreatorBtn"));
-  bind("profileAddFriendBtn",()=>click("friendsBtn"));
-  bind("profileReportBtn",()=>{
-    const p=document.querySelector("#people .person");
-    p?.querySelector("[data-report-user]")?.click();
-  });
-  bind("profileClearBtn",()=>{
-    if(confirm("Limpar as mensagens desta sala neste dispositivo?")){
-      try{localStorage.removeItem("conversaMessages");}catch{}
-      if(typeof renderMessagesList==="function")renderMessagesList();
-    }
+  bind("profileCopyCodeBtn",()=>click("copyUserCode"));
+  bind("profileLogoutBtn",()=>click("logoutBtn"));
+  bind("profileMoreBtn",()=>{
+    const panel=document.querySelector("#profileSidebar");
+    panel?.classList.toggle("profile-more-open");
   });
   const search=$("globalSearchInput");
   if(search){
@@ -2673,12 +2670,14 @@ if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.ser
   function syncShell(){
     const user=window.CONVERSA_USER||{};
     const name=user.name||$("me")?.textContent?.trim()||"Usuário";
-    const code=$("headRoom")?.textContent?.trim()||$("roomName")?.textContent?.trim()||"geral";
+    const code=user.code||$("myCode")?.textContent?.trim()||"CL-000000";
     const avatar=(name||"?").charAt(0).toUpperCase();
     [$("globalUserName")].filter(Boolean).forEach(e=>e.textContent=name);
     [$("globalUserAvatar")].filter(Boolean).forEach(e=>e.textContent=avatar);
-    [$("profileSidebarName")].filter(Boolean).forEach(e=>e.textContent=code.startsWith("#")?code:"# "+code);
+    [$("profileSidebarName")].filter(Boolean).forEach(e=>e.textContent=name);
     [$("profileSidebarAvatar")].filter(Boolean).forEach(e=>e.textContent=avatar);
+    [$("profileSidebarCode")].filter(Boolean).forEach(e=>e.textContent=code);
+    [$("profileSidebarAbout")].filter(Boolean).forEach(e=>e.textContent=user.about||user.bio||"Seu perfil do FreeChat.");
   }
   syncShell();
   const room=$("headRoom");

@@ -1814,3 +1814,6 @@ body{overflow:hidden}
 .profile-support>span:first-child,
 .pix-label{color:var(--accent-main)}
 .profile-support>span:first-child{background:color-mix(in srgb,var(--accent-main) 18%,transparent)}
+
+/* 1.5.0 — painel direito dedicado ao perfil do usuário logado */
+.profile-summary-user{padding-top:2px}.profile-sidebar-code{display:inline-flex;margin-top:7px;padding:4px 9px;border-radius:999px;background:rgba(107,91,255,.10);border:1px solid rgba(107,91,255,.22);color:#9ea8ff;font-size:9px;letter-spacing:.3px}.profile-action-grid-user button span{color:#dce5ff}.profile-action-grid-user button:nth-child(3) span{color:#a99cff}.profile-action-grid-user button:hover{border-color:color-mix(in srgb,var(--accent-main) 45%,var(--line));box-shadow:0 8px 22px color-mix(in srgb,var(--accent-main) 10%,transparent)}.profile-support{transition:.18s}.profile-support>span:first-child{color:var(--accent-main)}
