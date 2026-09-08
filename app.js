@@ -1,4 +1,4 @@
-/* FreeChat v1.6.7 — conexão resiliente, WebRTC, feed, segurança e estabilidade */
+/* FreeChat v1.6.8 — conexão resiliente, WebRTC, feed, segurança e estabilidade */
 function serverUrl(){return window.SIGNALING_URL?window.SIGNALING_URL.replace(/\/$/,""):(location.protocol==="https:"?"https://"+location.host:"http://"+location.host)}
 (function(){
  const $=id=>document.getElementById(id),

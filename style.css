@@ -2173,12 +2173,27 @@ nav button.active,.nav-item.active,.tab.active,.active{
   overscroll-behavior-y:contain;
 }
 #feedScreen .feed-tiktok-card{
-  scroll-snap-align:start!important;
+  scroll-snap-align:center!important;
   scroll-snap-stop:always!important;
   margin-bottom:0!important;
 }
 #feedScreen .feed-ig-list.tiktok-list{gap:0!important}
 @media(max-width:700px){#feedScreen .feed-scroll.tiktok-mode{scroll-padding-block:0!important}}
+
+/* FreeChat 1.6.8 — centralização real por publicação
+   O navegador faz o encaixe nativo; não usamos scrollIntoView durante a rolagem. */
+#feedScreen .feed-scroll.tiktok-mode{
+  scroll-snap-type:y mandatory!important;
+  scroll-padding-block:0!important;
+  scroll-behavior:auto!important;
+}
+#feedScreen .feed-tiktok-card{
+  scroll-snap-align:center!important;
+  scroll-snap-stop:always!important;
+}
+#feedScreen .feed-ig-list.tiktok-list{
+  gap:0!important;
+}
 
 
 /* ================= FreeChat 1.6.7 — diálogos integrados ================= */
