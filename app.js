@@ -1,4 +1,4 @@
-/* FreeChat v1.6.10 — conexão resiliente, WebRTC, feed, segurança e estabilidade */
+/* FreeChat v1.6.11 — conexão resiliente, WebRTC, feed, segurança e estabilidade */
 function serverUrl(){return window.SIGNALING_URL?window.SIGNALING_URL.replace(/\/$/,""):(location.protocol==="https:"?"https://"+location.host:"http://"+location.host)}
 (function(){
  const $=id=>document.getElementById(id),
@@ -1484,11 +1484,16 @@ function initFeedScroll(){
   const scroll=$("feedScreen")?.querySelector(".feed-scroll");
   if(!scroll||scroll.dataset.ready)return;
   scroll.dataset.ready="1";
-  let loadTimer=0,snapTimer=0,snapping=false;
+  let loadTimer=0,snapTimer=0,snapping=false,resizeTimer=0;
   const updateSnapMetrics=()=>{
-    scroll.style.setProperty("--feed-scroll-h",`${scroll.clientHeight}px`);
+    const h=scroll.clientHeight;
+    scroll.style.setProperty("--feed-scroll-h",`${h}px`);
     const tabs=scroll.querySelector(".feed-tiktok-tabs");
     if(tabs)scroll.style.setProperty("--feed-tabs-h",`${tabs.offsetHeight}px`);
+    // Gives the first and last post enough breathing room to also reach the center.
+    const space=Math.max(0,Math.round((h*0.5)-72));
+    const list=$("feedList");
+    if(list)list.style.setProperty("--feed-center-space",`${space}px`);
   };
   const snapToNearest=()=>{
     if(snapping||!scroll.classList.contains("tiktok-mode"))return;
@@ -1497,34 +1502,47 @@ function initFeedScroll(){
     const sr=scroll.getBoundingClientRect(),center=sr.top+scroll.clientHeight/2;
     let best=null,bestDist=Infinity;
     for(const card of cards){
-      const r=card.getBoundingClientRect(),d=Math.abs((r.top+r.height/2)-center);
+      const r=card.getBoundingClientRect();
+      const d=Math.abs((r.top+r.height/2)-center);
       if(d<bestDist){bestDist=d;best=card;}
     }
     if(!best)return;
     const r=best.getBoundingClientRect();
     const delta=(r.top+r.height/2)-center;
-    if(Math.abs(delta)<2)return;
-    const start=scroll.scrollTop,target=Math.max(0,start+delta),distance=target-start;
-    const duration=Math.min(620,Math.max(420,Math.abs(distance)*1.15));
-    const t0=performance.now();snapping=true;
-    const ease=t=>t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;
+    if(Math.abs(delta)<3)return;
+    const start=scroll.scrollTop;
+    const target=Math.max(0,Math.min(scroll.scrollHeight-scroll.clientHeight,start+delta));
+    const distance=target-start;
+    const duration=Math.min(720,Math.max(520,Math.abs(distance)*1.35));
+    const t0=performance.now();
+    snapping=true;
+    const ease=t=>1-Math.pow(1-t,3);
     const step=now=>{
       const p=Math.min(1,(now-t0)/duration);
       scroll.scrollTop=start+distance*ease(p);
-      if(p<1)requestAnimationFrame(step);else{scroll.scrollTop=target;snapping=false;}
+      if(p<1)requestAnimationFrame(step);
+      else{scroll.scrollTop=target;snapping=false;}
     };
     requestAnimationFrame(step);
   };
+  const scheduleSnap=(delay=650)=>{
+    clearTimeout(snapTimer);
+    snapTimer=setTimeout(snapToNearest,delay);
+  };
   updateSnapMetrics();
-  window.addEventListener("resize",updateSnapMetrics,{passive:true});
+  window.addEventListener("resize",()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(updateSnapMetrics,100)},{passive:true});
   scroll.addEventListener("scroll",()=>{
     if(scroll.scrollHeight-scroll.scrollTop-scroll.clientHeight<700){
-      clearTimeout(loadTimer);loadTimer=setTimeout(()=>loadFeed(false,false),120);
+      clearTimeout(loadTimer);loadTimer=setTimeout(()=>loadFeed(false,false),180);
     }
-    if(!snapping){clearTimeout(snapTimer);snapTimer=setTimeout(snapToNearest,260);}
+    if(!snapping && !("onscrollend" in window))scheduleSnap(700);
   },{passive:true});
-  scroll.addEventListener("touchend",()=>{clearTimeout(snapTimer);snapTimer=setTimeout(snapToNearest,280)},{passive:true});
-  scroll.addEventListener("wheel",()=>{clearTimeout(snapTimer);snapTimer=setTimeout(snapToNearest,300)},{passive:true});
+  if("onscrollend" in window){
+    scroll.addEventListener("scrollend",()=>{if(!snapping)scheduleSnap(80)},{passive:true});
+  }else{
+    scroll.addEventListener("touchend",()=>scheduleSnap(700),{passive:true});
+    scroll.addEventListener("wheel",()=>scheduleSnap(700),{passive:true});
+  }
 }
 function setFeedFilter(v){feedFilter=v;document.querySelectorAll(".feed-tab").forEach(b=>b.classList.toggle("active",b.dataset.feedFilter===v));loadFeed(true,true)}
 function sendFeedEvent(postId,eventType,dwellMs=0){if(!postId)return;api("/api/feed/event",{method:"POST",body:JSON.stringify({postId:Number(postId),eventType,dwellMs})}).catch(()=>{});}
@@ -2386,8 +2404,52 @@ async function loadMessages(scroll=true){
 }
 function formatMessageTime(v){const d=new Date(v);if(Number.isNaN(d.getTime()))return "";return d.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}
 function setSelectedMessageFile(file){selectedMessageFile=file||null;const info=$("messageFileInfo");if(!info)return;if(!file){info.textContent="";info.classList.add("hidden");return}info.classList.remove("hidden");info.innerHTML=`<span>${file.type.startsWith("image/")?"🖼️":"🎬"} ${messageEscape(file.name)}</span><button type="button" id="messageFileClear" aria-label="Remover arquivo">×</button>`;$("messageFileClear").onclick=()=>setSelectedMessageFile(null)}
+let dmConversationsCache=[];
+async function loadDirectConversations(){
+ const box=$("messagesConversations");if(!box)return;
+ box.innerHTML='<div class="dm-inbox-loading"><span>◌</span><b>Carregando conversas...</b></div>';
+ try{
+   const d=await api("/api/messages/conversations");
+   dmConversationsCache=Array.isArray(d.conversations)?d.conversations:[];
+   renderDirectConversations();
+ }catch(e){
+   box.innerHTML='<div class="dm-inbox-empty"><div>⚠️</div><b>Não foi possível carregar</b><small>'+messageEscape(e.message||"Tente novamente em alguns segundos.")+'</small><button type="button" class="secondary-btn small-btn" id="dmInboxRetry">↻ Tentar novamente</button></div>';
+   $("dmInboxRetry")?.addEventListener("click",loadDirectConversations);
+ }
+}
+function renderDirectConversations(){
+ const box=$("messagesConversations");if(!box)return;
+ const term=String($("messagesInboxSearch")?.value||"").trim().toLowerCase();
+ const rows=dmConversationsCache.filter(c=>!term||String(c.name||"").toLowerCase().includes(term)||String(c.code||"").toLowerCase().includes(term));
+ box.innerHTML="";
+ if(!rows.length){box.innerHTML='<div class="dm-inbox-empty"><div>💬</div><b>'+(term?"Nenhuma conversa encontrada":"Você ainda não tem conversas")+'</b><small>'+(term?"Tente outro nome ou código.":"Quando alguém falar com você, a conversa aparecerá aqui.")+'</small></div>';return;}
+ rows.forEach(c=>{
+   const item=document.createElement("div");item.className="dm-conversation"+(c.pinned?" is-pinned":"");
+   const last=c.lastMessage||{};let preview=last.body||"";if(!preview)preview=last.mediaType?.startsWith("video/")?"🎬 Vídeo":"🖼️ Foto";
+   
+   const when=last.created_at?dmInboxTime(last.created_at):"";
+   item.innerHTML='<div class="dm-conversation-avatar"></div><div class="dm-conversation-main"><div class="dm-conversation-top"><b></b><span class="dm-conversation-time"></span></div><div class="dm-conversation-bottom"><span class="dm-conversation-preview"></span><button type="button" class="dm-pin-btn" title="'+(c.pinned?"Desafixar conversa":"Fixar conversa")+'">'+(c.pinned?"📌":"📍")+'</button><span class="dm-unread-badge" hidden></span></div></div>';
+   window.applyAvatar?.(item.querySelector(".dm-conversation-avatar"),c.avatarUrl,c.name);
+   item.querySelector("b").textContent=c.name||c.code;
+   item.querySelector(".dm-conversation-time").textContent=when;
+   item.querySelector(".dm-conversation-preview").textContent=preview;
+   const ub=item.querySelector(".dm-unread-badge");if(Number(c.unread)>0){ub.textContent=Number(c.unread)>99?"99+":String(c.unread);ub.hidden=false}
+   item.querySelector(".dm-pin-btn").onclick=async ev=>{ev.stopPropagation();const btn=ev.currentTarget;btn.disabled=true;try{const d=await api("/api/messages/conversations/"+encodeURIComponent(c.code)+"/pin",{method:"POST"});c.pinned=!!d.pinned;dmConversationsCache.sort((a,b)=>(Number(b.pinned)-Number(a.pinned))||(new Date(b.lastMessage?.created_at||0)-new Date(a.lastMessage?.created_at||0)));renderDirectConversations();appToast(c.pinned?"Conversa fixada.":"Conversa desafixada.","success")}catch(e){appToast(e.message||"Não foi possível alterar a fixação.","error")}finally{btn.disabled=false}};
+   item.onclick=()=>openMessages(c);
+   box.appendChild(item);
+ });
+}
+function dmInboxTime(v){const d=new Date(v);if(Number.isNaN(d.getTime()))return "";const now=new Date();const same=d.toDateString()===now.toDateString();return same?d.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):d.toLocaleDateString([],{day:"2-digit",month:"2-digit"});}
+function openMessagesInbox(){
+ activeFriendCode=null;lastLoadedMessages=[];setSelectedMessageFile(null);
+ $("messagesInboxView")?.classList.remove("hidden");$("messagesChatView")?.classList.add("hidden");
+ const panel=$("messagesPanel");if(!panel)return;panel.classList.remove("hidden");document.body.classList.add("modal-open");
+ if($("messagesInboxSearch"))$("messagesInboxSearch").value="";loadDirectConversations();
+}
+window.openMessagesInbox=openMessagesInbox;
 window.openMessages=function(friend){
  if(!friend?.code)return;requestDesktopNotifications();window.clearUnread?.(friend.code);activeFriendCode=friend.code;lastLoadedMessages=[];setSelectedMessageFile(null);
+ $("messagesInboxView")?.classList.add("hidden");$("messagesChatView")?.classList.remove("hidden");
  $("messagesFriendName").textContent=friend.name||friend.code;window.applyAvatar?.($("messagesFriendAvatar"),friend.avatarUrl,friend.name);$("messagesFriendState").textContent=friend.online?"● Online":"Conversa privada";const panel=$("messagesPanel");if(!panel)return;panel.classList.remove("hidden");document.body.classList.add("modal-open");$("messageStatus").textContent="";if($("messagesSearch"))$("messagesSearch").value="";loadMessages(true);setTimeout(()=>$("messageInput")?.focus(),80);
 };
 $("messageAttach")?.addEventListener("click",()=>{$("messageFile")?.click()});
@@ -2413,10 +2475,13 @@ $("messageForm")?.addEventListener("submit",async e=>{
  finally{btn.disabled=false;input.focus()}
 });
 function closePrivateChat(){ document.activeElement?.blur?.();const panel=$("messagesPanel");if(panel)panel.classList.add("hidden");activeFriendCode=null;setSelectedMessageFile(null);document.body.classList.remove("modal-open");refreshUnreadCounts(); }
+function backToMessagesInbox(){activeFriendCode=null;setSelectedMessageFile(null);$("messagesChatView")?.classList.add("hidden");$("messagesInboxView")?.classList.remove("hidden");loadDirectConversations();}
 function initPrivateChatUI(){
-  $("messagesClose")?.addEventListener("click",closePrivateChat);
-  $("messagesBack")?.addEventListener("click",closePrivateChat);
+  $("messagesClose")?.addEventListener("click",closePrivateChat);$("messagesCloseInbox")?.addEventListener("click",closePrivateChat);
+  $("messagesBack")?.addEventListener("click",backToMessagesInbox);
+  $("directMessagesBtn")?.addEventListener("click",openMessagesInbox);
   $("messagesPanel")?.addEventListener("click",e=>{if(e.target.id==="messagesPanel")closePrivateChat();});
+  $("messagesInboxSearch")?.addEventListener("input",renderDirectConversations);
 }
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",initPrivateChatUI,{once:true});else initPrivateChatUI();
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("messagesPanel")?.classList.contains("hidden"))closePrivateChat();});

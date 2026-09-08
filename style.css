@@ -1115,14 +1115,14 @@ html[data-theme="light"] .message-bubble.theirs{background:var(--panel2);border-
 .feed-screen{background:var(--bg);display:flex;flex-direction:column;height:100dvh;min-height:0;overflow:hidden;padding:0!important;place-items:stretch}
 .feed-topbar{flex:none;height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 8px 0 4px;border-bottom:1px solid var(--line);background:color-mix(in srgb,var(--panel) 94%,transparent);backdrop-filter:blur(20px);position:sticky;top:0;z-index:5}
 .feed-topbar-title{font-size:17px;font-weight:900;background:linear-gradient(135deg,var(--accent-main),var(--accent-hot));-webkit-background-clip:text;background-clip:text;color:transparent}
-.feed-scroll{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;padding:14px 12px 100px;-webkit-overflow-scrolling:touch;overscroll-behavior-y:auto;touch-action:pan-y}
-.feed-ig-list{display:grid;gap:18px;max-width:470px;margin:0 auto;width:100%}
+.feed-scroll{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;padding:12px 12px 110px;-webkit-overflow-scrolling:touch;overscroll-behavior-y:auto;touch-action:pan-y;scroll-behavior:auto}
+.feed-ig-list{display:flex;flex-direction:column;gap:14px;max-width:430px;margin:0 auto;width:100%;padding-block:var(--feed-center-space,0px)}
 .post-card{background:var(--panel,#150e22);border:1px solid var(--line);border-radius:16px;overflow:hidden;padding:0}
 .post-card .post-head{display:flex;gap:10px;align-items:center;padding:11px 13px}
 .post-card .post-avatar{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,var(--accent-main),var(--accent-hot));font-weight:900;box-shadow:0 0 0 2px color-mix(in srgb,var(--accent-main) 25%,transparent)}
 .post-card .post-head small{color:var(--muted);font-size:11px}
 .post-media{position:relative;background:#000;line-height:0}
-.post-media img,.post-media video{width:100%;max-height:min(72vh,640px);object-fit:contain;background:#000;display:block}
+.post-media img,.post-media video{width:100%;max-height:min(54vh,520px);object-fit:contain;background:#000;display:block}
 .post-media small{position:absolute;left:9px;bottom:9px;padding:3px 8px;border-radius:8px;background:rgba(0,0,0,.55);color:#fff;font-size:10px}
 .post-body{padding:11px 13px 4px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px}
 .post-actions{padding:9px 13px 13px}
@@ -1144,9 +1144,9 @@ html[data-theme="light"] .message-bubble.theirs{background:var(--panel2);border-
 .post-composer textarea{width:100%;resize:vertical;min-height:90px;border:1px solid var(--line);border-radius:12px;background:var(--bg-soft);color:#fff;padding:11px;outline:none;font-size:14px}
 
 @media(max-width:700px){
-  .feed-ig-list{max-width:none}
-  .post-card{border-radius:0;border-left:0;border-right:0}
-  .feed-scroll{padding:0 0 100px}
+  .feed-ig-list{max-width:430px}
+  .post-card{border-radius:14px}
+  .feed-scroll{padding:8px 10px 100px}
 }
 @media(prefers-reduced-motion:reduce){
   .post-like.liked{animation:none}
@@ -2180,7 +2180,7 @@ nav button.active,.nav-item.active,.tab.active,.active{
 #feedScreen .feed-ig-list.tiktok-list{gap:0!important}
 @media(max-width:700px){#feedScreen .feed-scroll.tiktok-mode{scroll-padding-block:0!important}}
 
-/* FreeChat 1.6.10 — centralização real por publicação
+/* FreeChat 1.6.11 — centralização real por publicação
    O navegador faz o encaixe nativo; não usamos scrollIntoView durante a rolagem. */
 #feedScreen .feed-scroll.tiktok-mode{
   scroll-snap-type:y mandatory!important;
@@ -2211,7 +2211,7 @@ body.fc-dialog-open{overflow:hidden!important}
 @media(prefers-reduced-motion:reduce){.fc-dialog,.fc-dialog-card{animation:none!important}.fc-dialog-danger:hover{transform:none}}
 
 
-/* FreeChat 1.6.10 — snap TikTok real e centralização por inércia */
+/* FreeChat 1.6.11 — snap TikTok real e centralização por inércia */
 #feedScreen .feed-scroll.tiktok-mode{
   scroll-snap-type:none!important;
   scroll-behavior:auto!important;
@@ -2238,3 +2238,26 @@ body.fc-dialog-open{overflow:hidden!important}
 @media(max-width:700px){
   #feedScreen .feed-ig-list.tiktok-list{padding-bottom:var(--feed-tabs-h,50px)!important}
 }
+
+/* FreeChat 1.6.12 — central de mensagens diretas */
+.messages-card{min-height:0}
+.dm-inbox-view,.dm-chat-view{height:100%;min-height:0;display:flex;flex-direction:column}
+.dm-inbox-view.hidden,.dm-chat-view.hidden{display:none!important}
+.dm-inbox-logo{width:42px;height:42px;border-radius:14px;display:grid;place-items:center;background:linear-gradient(135deg,var(--accent-main),var(--accent-hot));box-shadow:0 10px 30px color-mix(in srgb,var(--accent-main) 25%,transparent);font-size:19px}
+.dm-conversations{flex:1;min-height:0;overflow:auto;padding:10px 12px 18px;display:flex;flex-direction:column;gap:7px;scroll-behavior:smooth}
+.dm-conversation{display:flex;align-items:center;gap:11px;padding:11px 12px;border:1px solid color-mix(in srgb,var(--accent-main) 9%,transparent);background:linear-gradient(135deg,rgba(255,255,255,.035),rgba(255,255,255,.018));border-radius:15px;cursor:pointer;transition:transform .18s ease,border-color .18s ease,background .18s ease,box-shadow .18s ease}
+.dm-conversation:hover{transform:translateY(-1px);border-color:color-mix(in srgb,var(--accent-main) 28%,transparent);background:linear-gradient(135deg,color-mix(in srgb,var(--accent-main) 9%,transparent),rgba(255,255,255,.025));box-shadow:0 10px 28px #0005}
+.dm-conversation.is-pinned{border-color:color-mix(in srgb,var(--accent-hot) 28%,transparent);background:linear-gradient(135deg,color-mix(in srgb,var(--accent-main) 11%,transparent),color-mix(in srgb,var(--accent-hot) 5%,transparent))}
+.dm-conversation-avatar{width:46px;height:46px;min-width:46px;border-radius:14px;overflow:hidden;background:linear-gradient(135deg,var(--accent-main),var(--accent-hot));display:grid;place-items:center;color:#fff;font-weight:900}
+.dm-conversation-avatar img{width:100%;height:100%;object-fit:cover}
+.dm-conversation-main{min-width:0;flex:1}
+.dm-conversation-top,.dm-conversation-bottom{display:flex;align-items:center;gap:7px;min-width:0}
+.dm-conversation-top b{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text)}
+.dm-conversation-time{margin-left:auto;font-size:9px;color:var(--muted);white-space:nowrap}
+.dm-conversation-preview{display:block;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:10px;color:var(--muted);margin-top:4px}
+.dm-pin-btn{border:0;background:transparent;color:var(--muted);font-size:14px;width:28px;height:28px;border-radius:9px;cursor:pointer;display:grid;place-items:center;flex:none}
+.dm-pin-btn:hover{background:rgba(255,255,255,.07);color:var(--text)}
+.dm-unread-badge{min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:linear-gradient(135deg,var(--accent-main),var(--accent-hot));color:#fff;font-size:9px;font-weight:900;display:grid;place-items:center;flex:none}
+.dm-inbox-empty,.dm-inbox-loading{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:7px;color:var(--muted);padding:40px}
+.dm-inbox-empty>div{font-size:34px;margin-bottom:4px}.dm-inbox-empty b{color:var(--text);font-size:14px}.dm-inbox-empty small{font-size:10px;max-width:300px;line-height:1.5}.dm-inbox-loading span{font-size:26px;color:var(--accent-main);animation:dmSpin 1s linear infinite}@keyframes dmSpin{to{transform:rotate(360deg)}}
+@media(max-width:760px){.side-action-row{grid-template-columns:repeat(3,minmax(0,1fr))!important}.dm-conversation{padding:10px}.dm-conversation-avatar{width:43px;height:43px;min-width:43px}.dm-conversation-top b{font-size:12px}}

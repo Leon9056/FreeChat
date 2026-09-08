@@ -131,6 +131,7 @@
 <button id="socialBtn" class="icon-header" type="button" title="Social">🌎<span>Social</span></button>
 <button id="serversBtn" class="icon-header" type="button" title="Servidores">🌐<span>Servidores</span></button>
 <button id="randomCallBtn" class="icon-header" type="button" title="Conhecer alguém">🎲<span>Conhecer</span></button>
+<button id="directMessagesBtn" class="icon-header" type="button" title="Mensagens">💬<span>Mensagens</span></button>
 <button id="settingsBtn" class="icon-header" type="button" title="Configurações" aria-label="Configurações">⚙️<span>Config.</span></button>
 </div></div>
   <button id="leaveChat" class="leave-chat-btn" type="button" title="Sair do chat e voltar ao menu">🚪 Sair do chat</button>
@@ -454,7 +455,13 @@
 
 <div id="messagesPanel" class="modal hidden" role="dialog" aria-modal="true">
 <div class="modal-card messages-card">
-<div class="messages-head"><button type="button" id="messagesBack" class="icon-btn" aria-label="Voltar">‹</button><div class="messages-person"><div id="messagesFriendAvatar" class="dm-avatar">?</div><div><strong id="messagesFriendName">Selecione um amigo</strong><small id="messagesFriendState">Conversa privada</small></div></div><button type="button" id="messagesClose" class="icon-btn" aria-label="Fechar">×</button></div>
+<div id="messagesInboxView" class="dm-inbox-view">
+  <div class="messages-head"><div class="messages-person"><div class="dm-inbox-logo">💬</div><div><strong>Mensagens</strong><small>Suas conversas diretas</small></div></div><button type="button" id="messagesCloseInbox" class="icon-btn" aria-label="Fechar">×</button></div>
+  <div class="messages-toolbar"><input id="messagesInboxSearch" class="friends-search" placeholder="🔎 Procurar conversa..." autocomplete="off"></div>
+  <div id="messagesConversations" class="dm-conversations"><div class="muted">Carregando conversas...</div></div>
+</div>
+<div id="messagesChatView" class="dm-chat-view hidden">
+<div class="messages-head"><button type="button" id="messagesBack" class="icon-btn" aria-label="Voltar para mensagens">‹</button><div class="messages-person"><div id="messagesFriendAvatar" class="dm-avatar">?</div><div><strong id="messagesFriendName">Selecione um amigo</strong><small id="messagesFriendState">Conversa privada</small></div></div><button type="button" id="messagesClose" class="icon-btn" aria-label="Fechar">×</button></div>
 <div class="messages-toolbar"><input id="messagesSearch" class="friends-search" placeholder="🔎 Buscar mensagens" autocomplete="off"></div><div id="messagesList" class="messages-list"><div class="muted">Escolha um amigo para começar.</div></div>
 <form id="messageForm" class="message-form">
   <button id="messageAttach" class="dm-tool" type="button" title="Foto ou vídeo">＋</button>
@@ -479,5 +486,5 @@
     <div class="fc-dialog-actions"><button id="fcDialogCancel" class="secondary-btn fc-dialog-btn" type="button">Cancelar</button><button id="fcDialogConfirm" class="primary-btn fc-dialog-btn fc-dialog-danger" type="button">Confirmar</button></div>
   </div>
 </div>
-<script src="config.js?v=1.6.10r1"></script><script src="app.js?v=1.6.10r1"></script>
+<script src="config.js?v=1.6.12r1"></script><script src="app.js?v=1.6.12r1"></script>
 </body></html>
