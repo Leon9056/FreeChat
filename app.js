@@ -1,4 +1,4 @@
-/* FreeChat v1.6.11 — conexão resiliente, WebRTC, feed, segurança e estabilidade */
+/* FreeChat v1.6.13 — conexão resiliente, WebRTC, feed, segurança e estabilidade */
 function serverUrl(){return window.SIGNALING_URL?window.SIGNALING_URL.replace(/\/$/,""):(location.protocol==="https:"?"https://"+location.host:"http://"+location.host)}
 (function(){
  const $=id=>document.getElementById(id),
@@ -1235,6 +1235,7 @@ document.addEventListener("click",(e)=>{
   }
   else if(action==="servers") window.openServers?.();
   else if(action==="random") window.openRandomCall?.();
+  else if(action==="messages") window.openMessagesInbox?.();
   else if(action==="settings"){e.preventDefault();e.stopPropagation();window.openSettings?.();}
 });
 function setMobileView(view){
@@ -1418,15 +1419,36 @@ if(!window[oldChatHandlerMarker]){
 let socialLoaded=false;
 function openSocial(tab="friends"){const panel=$("socialPanel");if(!panel)return;panel.classList.remove("hidden");switchSocialTab(tab);if(tab==="friends")window.renderFriends?.();if(tab==="notifications")loadNotifications();if(tab==="profile")loadProfile();}
 let feedReturnScreen="callMenu";
+let feedTopPostId=null,feedSyncTimer=null;
+function startFeedSyncPolling(){
+  stopFeedSyncPolling();
+  feedSyncTimer=setInterval(checkForNewFeedPosts,45000);
+}
+function stopFeedSyncPolling(){
+  if(feedSyncTimer){clearInterval(feedSyncTimer);feedSyncTimer=null}
+  $("feedNewPostsBanner")?.classList.add("hidden");
+}
+async function checkForNewFeedPosts(){
+  if(document.hidden||$("feedScreen")?.classList.contains("hidden"))return;
+  try{
+    const d=await api(`/api/feed?limit=1&offset=0&filter=${encodeURIComponent(feedFilter)}`);
+    const latest=d.posts?.[0]?.id;
+    if(latest&&feedTopPostId&&String(latest)!==String(feedTopPostId)){
+      $("feedNewPostsBanner")?.classList.remove("hidden");
+    }
+  }catch(e){/* checagem silenciosa — não interrompe quem está lendo o feed */}
+}
 function openFeed(){
   feedReturnScreen = ($("app") && !$("app").classList.contains("hidden")) ? "app" : "callMenu";
   $("login")?.classList.add("hidden");$("callMenu")?.classList.add("hidden");$("app")?.classList.add("hidden");
   $("feedScreen")?.classList.remove("hidden");
   loadFeed();
+  startFeedSyncPolling();
 }
 function closeFeed(){
   $("feedScreen")?.classList.add("hidden");
   $(feedReturnScreen)?.classList.remove("hidden");
+  stopFeedSyncPolling();
 }
 function closeSocialPanel(){$("socialPanel")?.classList.add("hidden");}
 function switchSocialTab(tab){document.querySelectorAll(".social-tab,.social-v3-nav").forEach(b=>b.classList.toggle("active",b.dataset.socialTab===tab));["friends","notifications","profile"].forEach(x=>$("social"+x.charAt(0).toUpperCase()+x.slice(1))?.classList.toggle("hidden",x!==tab));}
@@ -1476,7 +1498,8 @@ function renderFeedStories(friends=[]){const box=$("feedStories");if(!box)return
 async function loadFeedStories(){try{const d=await api("/api/friends");renderFeedStories(d.friends||[])}catch(e){renderFeedStories([])}}
 function setFeedLoading(on){$("feedLoadMore")?.classList.toggle("hidden",!on)}
 function renderFeedError(e){const list=$("feedList");if(!list)return;list.classList.add("tiktok-list");$("feedScreen")?.querySelector(".feed-scroll")?.classList.add("tiktok-mode");list.innerHTML=`<div class="social-empty feed-error-state"><span>📡</span><b>Não foi possível carregar o feed</b><small>${messageEscape(e.message||"Verifique sua conexão.")}</small><button id="feedRetryBtn" class="secondary-btn small-btn" type="button">↻ Tentar novamente</button></div>`;$("feedRetryBtn")?.addEventListener("click",()=>loadFeed(true,true))}
-async function loadFeed(reset=true,showSpinner=true){if(feedLoading)return;if(reset){feedOffset=0;feedHasMore=true;if($("feedList"))$("feedList").innerHTML="";$("feedEndState")?.classList.add("hidden")}if(!feedHasMore)return;feedLoading=true;setFeedLoading(true);try{const d=await api(`/api/feed?limit=12&offset=${feedOffset}&filter=${encodeURIComponent(feedFilter)}`);const list=$("feedList");if(!list)return;if(reset&&!d.posts?.length){list.innerHTML='<div class="social-empty"><span>✦</span><b>Seu feed está esperando por você</b><small>Publique algo e compartilhe com a comunidade do FreeChat.</small><button id="feedEmptyPost" class="primary-btn small-btn" type="button">＋ Criar publicação</button></div>';$("feedEmptyPost")?.addEventListener("click",openPostComposer)}else{list.insertAdjacentHTML("beforeend",(d.posts||[]).map(postHtml).join(""));bindFeedCards(list);feedOffset=d.offset||feedOffset+(d.posts||[]).length;feedHasMore=!!d.hasMore;initFeedAlgorithmObserver();if(!feedHasMore&&list.children.length)$("feedEndState")?.classList.remove("hidden")}}catch(e){if(reset)renderFeedError(e);else appToast(e.message,"error")}finally{feedLoading=false;setFeedLoading(false)}}
+async function loadFeed(reset=true,showSpinner=true){if(feedLoading)return;if(reset){feedOffset=0;feedHasMore=true;if($("feedList"))$("feedList").innerHTML="";$("feedEndState")?.classList.add("hidden");$("feedNewPostsBanner")?.classList.add("hidden")}if(!feedHasMore)return;feedLoading=true;setFeedLoading(true);try{const d=await api(`/api/feed?limit=12&offset=${feedOffset}&filter=${encodeURIComponent(feedFilter)}`);const list=$("feedList");if(!list)return;if(reset)feedTopPostId=d.posts?.[0]?.id??feedTopPostId;if(reset&&!d.posts?.length){list.innerHTML='<div class="social-empty"><span>✦</span><b>Seu feed está esperando por você</b><small>Publique algo e compartilhe com a comunidade do FreeChat.</small><button id="feedEmptyPost" class="primary-btn small-btn" type="button">＋ Criar publicação</button></div>';$("feedEmptyPost")?.addEventListener("click",openPostComposer)}else{list.insertAdjacentHTML("beforeend",(d.posts||[]).map(postHtml).join(""));bindFeedCards(list);feedOffset=d.offset||feedOffset+(d.posts||[]).length;feedHasMore=!!d.hasMore;initFeedAlgorithmObserver();if(!feedHasMore&&list.children.length)$("feedEndState")?.classList.remove("hidden")}}catch(e){if(reset)renderFeedError(e);else appToast(e.message,"error")}finally{feedLoading=false;setFeedLoading(false)}}
+$("feedNewPostsBanner")?.addEventListener("click",()=>{loadFeed(true,true);$("feedList")?.scrollIntoView?.({behavior:"smooth",block:"start"});});
 function bindFeedCards(root){root.querySelectorAll(".post-card:not([data-feed-bound])").forEach(card=>{card.dataset.feedBound="1";const id=card.dataset.postId;card.querySelector(`[data-like="${id}"]`)?.addEventListener("click",()=>toggleLike(id,card));card.querySelector(`[data-save="${id}"]`)?.addEventListener("click",()=>toggleSave(id));card.querySelector(`[data-comments="${id}"]`)?.addEventListener("click",()=>toggleComments(card,id));card.querySelector(`[data-share="${id}"]`)?.addEventListener("click",()=>{const p={id,body:card.querySelector(".post-body")?.innerText||card.querySelector(".post-caption")?.innerText||""};sharePost(p)});const more=card.querySelector(".post-more"),menu=card.querySelector(".post-menu");more?.addEventListener("click",e=>{e.stopPropagation();document.querySelectorAll(".post-menu:not(.hidden)").forEach(m=>{if(m!==menu)m.classList.add("hidden")});menu?.classList.toggle("hidden")});card.querySelector(`[data-follow-code]`)?.addEventListener("click",()=>toggleFollow(card.querySelector(`[data-follow-code]`)));
   card.querySelector(`[data-delete-post="${id}"]`)?.addEventListener("click",()=>deleteOwnPost(id,card));card.querySelector(`[data-close-post-menu="${id}"]`)?.addEventListener("click",()=>menu?.classList.add("hidden"));card.querySelector("[data-dbltap]")?.addEventListener("dblclick",()=>{const b=card.querySelector(`[data-like="${id}"]`);if(b&&!b.classList.contains("liked"))toggleLike(id,card);else burstHeart(card)});let last=0;card.querySelector("[data-dbltap]")?.addEventListener("touchend",()=>{const now=Date.now();if(now-last<320){const b=card.querySelector(`[data-like="${id}"]`);if(b&&!b.classList.contains("liked"))toggleLike(id,card);else burstHeart(card)}last=now},{passive:true})})}
 

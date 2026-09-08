@@ -89,6 +89,9 @@
       <button type="button" class="menu-quick-card" data-menu-action="feed">
         <span class="menu-quick-icon">📰</span><span><b>Ver o Feed</b><small>Veja novidades dos seus amigos</small></span><i>›</i>
       </button>
+      <button type="button" class="menu-quick-card" data-menu-action="messages">
+        <span class="menu-quick-icon">💬</span><span><b>Mensagens</b><small>Converse direto com seus amigos</small></span><i>›</i>
+      </button>
       <button type="button" class="menu-quick-card" data-menu-action="friend">
         <span class="menu-quick-icon">👥</span><span><b>Adicionar amigo</b><small>Use o código de alguém</small></span><i>›</i>
       </button>
@@ -320,6 +323,7 @@
   <nav class="feed-tabs feed-tiktok-tabs" aria-label="Filtro do feed"><button type="button" class="feed-tab" data-feed-filter="following">Seguindo</button><button type="button" class="feed-tab active" data-feed-filter="for_you">Para você</button><button id="feedRefreshBtnAlt" type="button" class="feed-tab-action" title="Atualizar">↻</button></nav>
   <section class="feed-stories" aria-label="Amigos recentes"><div class="stories-title"><b>Momentos</b><small>Amigos ativos e recentes</small></div><div id="feedStories" class="stories-row"></div></section>
   <section class="feed-composer-inline"><div id="feedComposerAvatar" class="composer-avatar">?</div><button id="feedInlineComposer" type="button">Compartilhe algo com seus amigos...</button><button id="feedInlineMedia" class="composer-media" type="button" aria-label="Adicionar mídia">＋</button></section>
+  <button id="feedNewPostsBanner" class="feed-new-posts-banner hidden" type="button">🆕 Novas publicações — toque para atualizar</button>
   <div id="feedList" class="feed-ig-list"></div>
   <div id="feedLoadMore" class="feed-load-more hidden"><span class="feed-spinner"></span><span>Carregando mais publicações...</span></div>
   <div id="feedEndState" class="feed-end-state hidden">Você chegou ao fim ✦</div>
@@ -486,5 +490,5 @@
     <div class="fc-dialog-actions"><button id="fcDialogCancel" class="secondary-btn fc-dialog-btn" type="button">Cancelar</button><button id="fcDialogConfirm" class="primary-btn fc-dialog-btn fc-dialog-danger" type="button">Confirmar</button></div>
   </div>
 </div>
-<script src="config.js?v=1.6.12r1"></script><script src="app.js?v=1.6.12r1"></script>
+<script src="config.js?v=1.6.13"></script><script src="app.js?v=1.6.13"></script>
 </body></html>
