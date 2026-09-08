@@ -1,4 +1,4 @@
-/* FreeChat v1.6.13 — conexão resiliente, WebRTC, feed, segurança e estabilidade */
+/* FreeChat v1.6.14 — conexão resiliente, WebRTC, feed, segurança e estabilidade */
 function serverUrl(){return window.SIGNALING_URL?window.SIGNALING_URL.replace(/\/$/,""):(location.protocol==="https:"?"https://"+location.host:"http://"+location.host)}
 (function(){
  const $=id=>document.getElementById(id),
@@ -1086,7 +1086,7 @@ function updateMusicUI(state){
 }
 
 function setPeersAudioProfile(profile){
-  const maxBitrate=profile==="music"?160000:64000;
+  const maxBitrate=profile==="music"?160000:96000;
   peers.forEach(pc=>{
     const sender=pc.getSenders().find(s=>s.track?.kind==="audio");
     if(!sender)return;
@@ -1788,6 +1788,11 @@ async function createPeer(id,initiator){
       });
     }
   }catch(e){}
+  // Garante prioridade alta de rede para o áudio desde o início da conexão —
+  // antes, isso só era aplicado depois de trocar o microfone ou parar música,
+  // deixando a primeira conexão de cada call sem essa proteção contra
+  // disputa de banda com o vídeo.
+  setPeersAudioProfile(musicTrack?"music":"voice");
 
   pc.onicecandidate=e=>{
     if(e.candidate)socket.emit("signal",{to:id,data:{type:"ice",candidate:e.candidate}});
@@ -1871,6 +1876,7 @@ async function createPeer(id,initiator){
           if(!peers.has(id)||pc.signalingState==="closed")return;
           try{
             const offer=await pc.createOffer({iceRestart:true});
+            offer.sdp=enhanceOpusSdp(offer.sdp);
             await pc.setLocalDescription(offer);
             socket.emit("signal",{to:id,data:{type:"offer",sdp:pc.localDescription}});
           }catch(e){console.warn("ICE restart",e)}
@@ -1890,19 +1896,43 @@ async function createPeer(id,initiator){
 
   if(initiator){
     const offer=await pc.createOffer();
+    offer.sdp=enhanceOpusSdp(offer.sdp);
     await pc.setLocalDescription(offer);
     socket.emit("signal",{to:id,data:{type:"offer",sdp:pc.localDescription}});
   }
   return pc;
 }
 
-// Renegocia manualmente uma conexão já ativa depois de adicionar uma trilha nova
-// a ela (ex.: começar a compartilhar tela quando a call foi iniciada sem câmera,
-// então nunca existiu um sender de vídeo para simplesmente "trocar").
+function enhanceOpusSdp(sdp){
+  if(!sdp)return sdp;
+  try{
+    const lines=sdp.split("\r\n");
+    const opusLine=lines.find(l=>/^a=rtpmap:\d+ opus\/48000/i.test(l));
+    if(!opusLine)return sdp;
+    const pt=opusLine.match(/^a=rtpmap:(\d+)/)[1];
+    let found=false;
+    const next=lines.map(l=>{
+      if(l.startsWith(`a=fmtp:${pt} `)){
+        found=true;
+        let fmtp=l;
+        fmtp=/useinbandfec=/.test(fmtp)?fmtp.replace(/useinbandfec=\d/,"useinbandfec=1"):fmtp+";useinbandfec=1";
+        fmtp=/usedtx=/.test(fmtp)?fmtp.replace(/usedtx=\d/,"usedtx=0"):fmtp+";usedtx=0";
+        return fmtp;
+      }
+      return l;
+    });
+    if(!found){
+      const idx=next.findIndex(l=>l===opusLine);
+      if(idx>=0)next.splice(idx+1,0,`a=fmtp:${pt} useinbandfec=1;usedtx=0`);
+    }
+    return next.join("\r\n");
+  }catch(e){return sdp}
+}
 async function renegotiatePeer(id,pc){
   try{
     if(pc.signalingState!=="stable")return;
     const offer=await pc.createOffer();
+    offer.sdp=enhanceOpusSdp(offer.sdp);
     await pc.setLocalDescription(offer);
     socket.emit("signal",{to:id,data:{type:"offer",sdp:pc.localDescription}});
   }catch(e){console.warn("renegotiatePeer",id,e);}
@@ -1929,6 +1959,7 @@ async function handleSignal(m){
       await pc.setRemoteDescription(new RTCSessionDescription(d.sdp));
       for(const c of pc.pendingIce.splice(0))await pc.addIceCandidate(c).catch(()=>{});
       const answer=await pc.createAnswer();
+      answer.sdp=enhanceOpusSdp(answer.sdp);
       await pc.setLocalDescription(answer);
       socket.emit("signal",{to:id,data:{type:"answer",sdp:pc.localDescription}});
     }else if(d.type==="answer"){
