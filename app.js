@@ -1,4 +1,4 @@
-/* FreeChat v1.6.2 — conexão resiliente, WebRTC, feed, segurança e estabilidade */
+/* FreeChat v1.6.7 — conexão resiliente, WebRTC, feed, segurança e estabilidade */
 function serverUrl(){return window.SIGNALING_URL?window.SIGNALING_URL.replace(/\/$/,""):(location.protocol==="https:"?"https://"+location.host:"http://"+location.host)}
 (function(){
  const $=id=>document.getElementById(id),
@@ -16,6 +16,61 @@ const setBusy=(el,busy,label)=>{if(!el)return;el.disabled=busy;if(busy){el.datas
 window.setBusy=setBusy;
 const messageEscape=s=>{const d=document.createElement("div");d.textContent=s??"";return d.innerHTML};
 window.messageEscape=messageEscape;
+/* FreeChat integrated dialogs — substitui confirm()/prompt() nativos do navegador. */
+let fcDialogState=null;
+function fcDialogClose(result){
+  const modal=$("fcDialog");
+  if(!modal||!fcDialogState)return;
+  const state=fcDialogState;fcDialogState=null;
+  modal.classList.add("hidden");
+  document.body.classList.remove("fc-dialog-open");
+  document.removeEventListener("keydown",fcDialogKeydown,true);
+  state.resolve(result);
+}
+function fcDialogKeydown(e){
+  if(e.key==="Escape"){e.preventDefault();fcDialogClose(fcDialogState?.type==="confirm"?false:null)}
+  if(e.key==="Enter"&&!e.shiftKey&&fcDialogState){
+    const tag=document.activeElement?.tagName?.toLowerCase();
+    if(fcDialogState.type==="confirm"||(fcDialogState.type==="prompt"&&tag!=="textarea")){e.preventDefault();fcDialogSubmit();}
+  }
+}
+function fcDialogSubmit(){
+  if(!fcDialogState)return;
+  if(fcDialogState.type==="prompt"){
+    const input=$("fcDialogInput");fcDialogClose(input?.value??"");
+  }else fcDialogClose(true);
+}
+function fcDialogOpen({type="confirm",title="Confirmar ação",message="",confirmText="Confirmar",cancelText="Cancelar",danger=false,kicker="Confirmação",value="",placeholder="",inputLabel="Valor"}={}){
+  return new Promise(resolve=>{
+    const modal=$("fcDialog"),card=modal?.querySelector(".fc-dialog-card"),inputWrap=$("fcDialogInputWrap"),input=$("fcDialogInput");
+    if(!modal){resolve(type==="confirm"?false:null);return;}
+    if(fcDialogState)fcDialogClose(type==="confirm"?false:null);
+    fcDialogState={type,resolve};
+    $("fcDialogKicker").textContent=kicker;
+    $("fcDialogTitle").textContent=title;
+    $("fcDialogMessage").textContent=message;
+    $("fcDialogConfirm").textContent=confirmText;
+    $("fcDialogCancel").textContent=cancelText;
+    $("fcDialogIcon").textContent=danger?"×":type==="prompt"?"✎":"?";
+    $("fcDialogIcon").classList.toggle("danger",!!danger);
+    $("fcDialogConfirm").classList.toggle("fc-dialog-danger",!!danger);
+    inputWrap.classList.toggle("hidden",type!=="prompt");
+    if(type==="prompt"){
+      $("fcDialogInputLabel").textContent=inputLabel;
+      input.value=value;input.placeholder=placeholder||"";
+    }
+    modal.classList.remove("hidden");document.body.classList.add("fc-dialog-open");
+    document.addEventListener("keydown",fcDialogKeydown,true);
+    requestAnimationFrame(()=>{(type==="prompt"?input:card)?.focus?.();});
+  });
+}
+window.fcConfirm=(message,options={})=>fcDialogOpen({type:"confirm",message,...options});
+window.fcPrompt=(message,options={})=>fcDialogOpen({type:"prompt",message,...options});
+$("fcDialogClose")?.addEventListener("click",()=>fcDialogClose(fcDialogState?.type==="confirm"?false:null));
+$("fcDialogCancel")?.addEventListener("click",()=>fcDialogClose(fcDialogState?.type==="confirm"?false:null));
+$("fcDialogConfirm")?.addEventListener("click",fcDialogSubmit);
+$("fcDialog")?.addEventListener("click",e=>{if(e.target===$("fcDialog"))fcDialogClose(fcDialogState?.type==="confirm"?false:null)});
+
 function modeSet(m){
  mode=m;
  $("loginTab").classList.toggle("active",m==="login");$("registerTab").classList.toggle("active",m==="register");
@@ -411,12 +466,12 @@ window.renderFriends=async()=>{
     if(!online){callBtn.disabled=true;callBtn.title="Amigo offline — não é possível chamar agora"}
     callBtn.onclick=()=>{const newRoom=makeCallCode();openApp(newRoom,true);inviteFriendToCall(u.code,newRoom,u.name)};
     x.querySelector(".friend-block-btn").onclick=async()=>{
-      if(!confirm("Bloquear "+(u.name||"este usuário")+"? Vocês não vão mais conseguir se contatar."))return;
+      if(!await fcConfirm("Você não vai mais conseguir se comunicar com esta pessoa. Ela também não poderá ver seu perfil.",{title:"Bloquear "+(u.name||"este usuário")+"?",confirmText:"Bloquear",danger:true,kicker:"Segurança"}))return;
       try{await api("/api/security/block",{method:"POST",body:JSON.stringify({code:u.code})});appToast("Usuário bloqueado.","success");renderFriends()}
       catch(e){appToast(e.message,"error")}
     };
     x.querySelector(".friend-report-btn").onclick=()=>openReportModal(u);
-    x.querySelector(".remove-friend-btn").onclick=async()=>{if(!confirm("Remover "+(u.name||"este amigo")+" da sua lista?"))return;try{await api("/api/friends/remove",{method:"POST",body:JSON.stringify({code:u.code})});delete unreadCounts[u.code];appToast("Amigo removido");renderFriends()}catch(e){appToast(e.message,"error")}};
+    x.querySelector(".remove-friend-btn").onclick=async()=>{if(!await fcConfirm("Esta pessoa será removida da sua lista de amigos.",{title:"Remover "+(u.name||"este amigo")+"?",confirmText:"Remover",danger:true,kicker:"Amizade"}))return;try{await api("/api/friends/remove",{method:"POST",body:JSON.stringify({code:u.code})});delete unreadCounts[u.code];appToast("Amigo removido");renderFriends()}catch(e){appToast(e.message,"error")}};
     list.appendChild(x);
   });
   if(!friends.length&&!(list.id==="friendsList"&&requests.length)){const q=document.createElement("div");q.className="friends-empty";q.innerHTML='<div class="friends-empty-icon">👥</div><b>'+(term?"Nenhum resultado":"Sua lista está vazia")+'</b><small>'+(term?"Tente outro nome ou código.":"Adicione amigos pelo código.")+'</small>';list.appendChild(q)}
@@ -809,8 +864,8 @@ function hostMute(id,n){
   socket.emit("host-mute",{to:id,name:n,room,muted});
   renderPeople();
 }
-function hostKick(id,n){
-  if(!isHost()||!confirm("Expulsar "+n+" da chamada?"))return;
+async function hostKick(id,n){
+  if(!isHost()||!await fcConfirm("A pessoa será removida desta chamada.",{title:"Expulsar "+n+" da chamada?",confirmText:"Expulsar",danger:true,kicker:"Chamada"}))return;
   socket.emit("host-kick",{to:id,name:n,room});
   closePeer(id);renderPeople();
 }
@@ -884,7 +939,7 @@ document.addEventListener("click",e=>{if(!e.target.closest(".post-more")&&!e.tar
 $("invite").onclick=async()=>{
   const u=location.href.split("?")[0]+"?room="+encodeURIComponent(room);
   try{await navigator.clipboard.writeText(u);$("invite").textContent="✓ Convite copiado";}
-  catch(e){prompt("Copie o convite:",u);}
+  catch(e){await fcPrompt("Compartilhe este convite manualmente.",{title:"Convite da chamada",confirmText:"Fechar",cancelText:"Cancelar",kicker:"Convite",value:u,inputLabel:"Link do convite",placeholder:"Link"});}
   setTimeout(()=>{$("invite").textContent="🔗 Copiar convite";},1600);
 };
 
@@ -1180,7 +1235,7 @@ document.addEventListener("click",(e)=>{
   }
   else if(action==="servers") window.openServers?.();
   else if(action==="random") window.openRandomCall?.();
-  else if(action==="settings") window.openSettings?.();
+  else if(action==="settings"){e.preventDefault();e.stopPropagation();window.openSettings?.();}
 });
 function setMobileView(view){
  view=Math.max(0,Math.min(2,Number(view)||0)); mobileView=view;
@@ -1397,7 +1452,7 @@ function postHtml(p){
 }
 async function deleteOwnPost(id,card){
  const postId=String(id||"");if(!postId||!card)return;
- if(!confirm("Excluir esta publicação? Esta ação não pode ser desfeita."))return;
+ if(!await fcConfirm("Esta ação não pode ser desfeita.",{title:"Excluir esta publicação?",confirmText:"Excluir",danger:true,kicker:"Publicação"}))return;
  const btn=card.querySelector('[data-delete-post]');if(btn)btn.disabled=true;
  try{
   await api("/api/feed/"+encodeURIComponent(postId),{method:"DELETE"});
@@ -1425,7 +1480,7 @@ async function loadFeed(reset=true,showSpinner=true){if(feedLoading)return;if(re
 function bindFeedCards(root){root.querySelectorAll(".post-card:not([data-feed-bound])").forEach(card=>{card.dataset.feedBound="1";const id=card.dataset.postId;card.querySelector(`[data-like="${id}"]`)?.addEventListener("click",()=>toggleLike(id,card));card.querySelector(`[data-save="${id}"]`)?.addEventListener("click",()=>toggleSave(id));card.querySelector(`[data-comments="${id}"]`)?.addEventListener("click",()=>toggleComments(card,id));card.querySelector(`[data-share="${id}"]`)?.addEventListener("click",()=>{const p={id,body:card.querySelector(".post-body")?.innerText||card.querySelector(".post-caption")?.innerText||""};sharePost(p)});const more=card.querySelector(".post-more"),menu=card.querySelector(".post-menu");more?.addEventListener("click",e=>{e.stopPropagation();document.querySelectorAll(".post-menu:not(.hidden)").forEach(m=>{if(m!==menu)m.classList.add("hidden")});menu?.classList.toggle("hidden")});card.querySelector(`[data-follow-code]`)?.addEventListener("click",()=>toggleFollow(card.querySelector(`[data-follow-code]`)));
   card.querySelector(`[data-delete-post="${id}"]`)?.addEventListener("click",()=>deleteOwnPost(id,card));card.querySelector(`[data-close-post-menu="${id}"]`)?.addEventListener("click",()=>menu?.classList.add("hidden"));card.querySelector("[data-dbltap]")?.addEventListener("dblclick",()=>{const b=card.querySelector(`[data-like="${id}"]`);if(b&&!b.classList.contains("liked"))toggleLike(id,card);else burstHeart(card)});let last=0;card.querySelector("[data-dbltap]")?.addEventListener("touchend",()=>{const now=Date.now();if(now-last<320){const b=card.querySelector(`[data-like="${id}"]`);if(b&&!b.classList.contains("liked"))toggleLike(id,card);else burstHeart(card)}last=now},{passive:true})})}
 
-function initFeedScroll(){const scroll=$("feedScreen")?.querySelector(".feed-scroll");if(!scroll||scroll.dataset.ready)return;scroll.dataset.ready="1";let snapTimer=0;const snapToNearest=()=>{const cards=[...scroll.querySelectorAll(".feed-tiktok-card")];if(!cards.length)return;const center=scroll.scrollTop+scroll.clientHeight/2;let best=null,bestDist=Infinity;for(const card of cards){const c=card.offsetTop+card.offsetHeight/2;const d=Math.abs(c-center);if(d<bestDist){best=card;bestDist=d}}if(best){best.scrollIntoView({behavior:"smooth",block:"center",inline:"nearest"})}};scroll.addEventListener("scroll",()=>{if(scroll.scrollHeight-scroll.scrollTop-scroll.clientHeight<700)loadFeed(false,false);clearTimeout(snapTimer);snapTimer=setTimeout(snapToNearest,110)},{passive:true});scroll.addEventListener("wheel",()=>{clearTimeout(snapTimer);snapTimer=setTimeout(snapToNearest,180)},{passive:true});scroll.addEventListener("touchend",()=>{clearTimeout(snapTimer);snapTimer=setTimeout(snapToNearest,140)},{passive:true})}
+function initFeedScroll(){const scroll=$("feedScreen")?.querySelector(".feed-scroll");if(!scroll||scroll.dataset.ready)return;scroll.dataset.ready="1";let loadTimer=0;scroll.addEventListener("scroll",()=>{if(scroll.scrollHeight-scroll.scrollTop-scroll.clientHeight<700){clearTimeout(loadTimer);loadTimer=setTimeout(()=>loadFeed(false,false),120)}},{passive:true});}
 function setFeedFilter(v){feedFilter=v;document.querySelectorAll(".feed-tab").forEach(b=>b.classList.toggle("active",b.dataset.feedFilter===v));loadFeed(true,true)}
 function sendFeedEvent(postId,eventType,dwellMs=0){if(!postId)return;api("/api/feed/event",{method:"POST",body:JSON.stringify({postId:Number(postId),eventType,dwellMs})}).catch(()=>{});}
 function initFeedAlgorithmObserver(){const root=$("feedList");if(!root||!window.IntersectionObserver)return;if(feedViewObserver)feedViewObserver.disconnect();feedViewObserver=new IntersectionObserver(entries=>{entries.forEach(e=>{const id=e.target.dataset.postId;if(!id)return;if(e.isIntersecting&&e.intersectionRatio>=.65){sendFeedEvent(id,"view");if(!feedEventTimers.has(id)){const started=Date.now();feedEventTimers.set(id,setTimeout(()=>{sendFeedEvent(id,"dwell",Date.now()-started);feedEventTimers.delete(id)},2200));}}else{const t=feedEventTimers.get(id);if(t){clearTimeout(t);feedEventTimers.delete(id);}}})},{root:$("feedScreen")?.querySelector(".feed-scroll")||null,threshold:[.2,.65,.9]});root.querySelectorAll(".post-card").forEach(c=>feedViewObserver.observe(c));}
@@ -2163,9 +2218,9 @@ $("screen").onclick=async()=>{
     setBusy(screenBtn,false); updateScreenButton();
   }
 };
-function leaveChatRoom(){
+async function leaveChatRoom(){
   if(!room)return;
-  if(inCall&&!confirm("Você está em uma call. Sair do chat também vai encerrar sua participação na call. Continuar?"))return;
+  if(inCall&&!await fcConfirm("Você está em uma call. Sair do chat também vai encerrar sua participação nela.",{title:"Sair do chat?",confirmText:"Sair e encerrar call",danger:true,kicker:"Chamada"}))return;
   if(inCall)leaveCall(true);
   if(socket?.connected)socket.emit("leave-room",{room});
   room="";
@@ -2371,7 +2426,7 @@ document.addEventListener("DOMContentLoaded",()=>{$("friendsSearch")?.addEventLi
 })();
 
 
-/* FreeChat 1.6.2 — modo tela cheia */
+/* FreeChat 1.6.6 — modo tela cheia */
 (function initFullscreen(){
   const btn=$("fullscreenBtn");
   if(!btn)return;
@@ -2388,7 +2443,7 @@ document.addEventListener("DOMContentLoaded",()=>{$("friendsSearch")?.addEventLi
   update();
 })();
 
-/* FreeChat 1.6.2 — apoio ao criador / PIX */
+/* FreeChat 1.6.6 — apoio ao criador / PIX */
 (function initCreatorSupport(){
   const modal=$("supportCreatorModal"), openBtn=$("supportCreatorBtn"), closeBtn=$("supportCreatorClose"), copyBtn=$("copyPixBtn"), keyEl=$("pixKey"), statusEl=$("pixCopyStatus");
   if(!modal||!openBtn)return;
@@ -2505,7 +2560,7 @@ if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.ser
     catch(e){communityToast(e.message||"Convite inválido.","error")}finally{if(btn)btn.disabled=false}
   }
   async function leaveServer(){
-    if(!selectedServerId)return;if(!confirm("Sair desta comunidade?"))return;
+    if(!selectedServerId)return;if(!await fcConfirm("Você deixará de participar desta comunidade.",{title:"Sair desta comunidade?",confirmText:"Sair",danger:true,kicker:"Comunidade"}))return;
     try{await api(`/api/servers/${encodeURIComponent(selectedServerId)}/leave`,{method:"POST"});communityToast("Você saiu da comunidade.","success");selectedServerId=null;await loadServers();switchServersTab("mine");}catch(e){communityToast(e.message||"Não foi possível sair.","error")}
   }
   async function openServer(id){
@@ -2514,7 +2569,7 @@ if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.ser
       const d=await api(`/api/servers/${encodeURIComponent(id)}`),s=d.server;if(!s)throw new Error("Servidor não encontrado.");selectedServerId=id;
       $("serverDetailIcon").textContent=(s.name||"S").trim().charAt(0).toUpperCase();$("serverDetailName").textContent=s.name;$("serverDetailDesc").textContent=s.description||"";$("serverDetailMeta").textContent=`👥 ${Number(s.member_count||0)} membro${Number(s.member_count||0)===1?"":"s"} · ${s.is_public?"Público":"Privado"}`;
       const inv=$("serverInviteCopyBtn"),view=$("serverInviteCodeView");if(s.invite_code){inv?.classList.remove("hidden");view?.classList.remove("hidden");view.textContent="Convite: "+s.invite_code;inv.onclick=async()=>{try{await navigator.clipboard.writeText(s.invite_code);communityToast("Código copiado.","success")}catch(_){communityToast("Código: "+s.invite_code,"success")}}}else{inv?.classList.add("hidden");view?.classList.add("hidden")}
-      const add=$("serverAddChannelBtn");if(add){add.classList.toggle("hidden",!["owner","admin"].includes(s.role));add.onclick=async()=>{const name=prompt("Nome do novo canal:");if(!name)return;const type=(prompt("Tipo: text ou voice","text")||"text").toLowerCase();try{await api(`/api/servers/${id}/channels`,{method:"POST",body:JSON.stringify({name,type})});communityToast("Canal criado.","success");openServer(id)}catch(e){communityToast(e.message||"Não foi possível criar o canal.","error")}}}
+      const add=$("serverAddChannelBtn");if(add){add.classList.toggle("hidden",!["owner","admin"].includes(s.role));add.onclick=async()=>{const name=await fcPrompt("Escolha o nome que aparecerá na lista de canais.",{title:"Novo canal",confirmText:"Continuar",kicker:"Servidor",inputLabel:"Nome do canal",placeholder:"ex.: geral"});if(!name?.trim())return;const typeRaw=await fcPrompt("Digite text para canal de texto ou voice para canal de voz.",{title:"Tipo do canal",confirmText:"Criar canal",kicker:"Servidor",value:"text",inputLabel:"Tipo",placeholder:"text ou voice"});const type=(typeRaw||"text").toLowerCase();try{await api(`/api/servers/${id}/channels`,{method:"POST",body:JSON.stringify({name,type})});communityToast("Canal criado.","success");openServer(id)}catch(e){communityToast(e.message||"Não foi possível criar o canal.","error")}}}
       const ch=$("serverChannelsList"),textCh=(s.channels||[]).filter(c=>c.type!=="voice"),voiceCh=(s.channels||[]).filter(c=>c.type==="voice");
       const channelBtn=c=>`<button class="server-channel" type="button" data-community-channel="${c.id}" data-room="${messageEscape(c.room_name)}"><span class="server-channel-icon">${c.type==="voice"?"🔊":"#"}</span><span>${messageEscape(c.name)}</span><small>${c.type==="voice"?"Voz":"Texto"}</small></button>`;
       if(ch)ch.innerHTML=(textCh.length?`<div class="server-channel-group"><small>CANAIS DE TEXTO</small>${textCh.map(channelBtn).join("")}</div>`:"")+(voiceCh.length?`<div class="server-channel-group"><small>CANAIS DE VOZ</small>${voiceCh.map(channelBtn).join("")}</div>`:"")||'<div class="servers-empty mini"><div>＋</div><b>Nenhum canal</b><small>Um administrador pode criar o primeiro.</small></div>';
@@ -2522,7 +2577,7 @@ if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.ser
       const members=$('serverMembersList');if(members){members.innerHTML=(s.members||[]).map(m=>`<div class="server-member"><div class="server-member-avatar">${messageEscape((m.name||"?").charAt(0).toUpperCase())}</div><div class="server-member-info"><b>${messageEscape(m.name||"Usuário")}</b><small>${messageEscape(m.code||"")}</small></div><span class="server-member-role">${m.role==='owner'?'👑 dono':m.role==='admin'?'🛡️ admin':'membro'}</span></div>`).join("")||'<span class="muted">Nenhum membro.</span>'}
       $("serverSidebarMemberCount").textContent=`${Number(s.member_count||0)} membro${Number(s.member_count||0)===1?"":"s"}`;
       $("serverMemberStat").textContent=String(s.member_count||0);$("serverChannelStat").textContent=String((s.channels||[]).length);$("serverTypeStat").textContent=s.is_public?"Público":"Privado";$("serverAboutText").textContent=s.description||"Esta comunidade ainda não adicionou uma descrição.";$("serverWelcomeTitle").textContent=`Bem-vindo a ${s.name}`;$("serverWelcomeDesc").textContent=s.description||"Escolha um canal para começar.";
-      const manage=$("serverManageBtn");if(manage){const canManage=['owner','admin'].includes(s.role);manage.classList.toggle('hidden',!canManage);manage.onclick=async()=>{const name=prompt("Nome do servidor:",s.name);if(name===null)return;const desc=prompt("Descrição:",s.description||"");if(desc===null)return;try{await api(`/api/servers/${id}`,{method:"PATCH",body:JSON.stringify({name,description:desc,isPublic:s.is_public})});communityToast("Servidor atualizado.","success");openServer(id);loadServers()}catch(e){communityToast(e.message||"Não foi possível atualizar.","error")}}}
+      const manage=$("serverManageBtn");if(manage){const canManage=['owner','admin'].includes(s.role);manage.classList.toggle('hidden',!canManage);manage.onclick=async()=>{const name=await fcPrompt("Escolha o nome público da comunidade.",{title:"Editar servidor",confirmText:"Próximo",kicker:"Servidor",value:s.name,inputLabel:"Nome"});if(name===null)return;const desc=await fcPrompt("Atualize a descrição que os membros verão.",{title:"Editar descrição",confirmText:"Salvar",kicker:"Servidor",value:s.description||"",inputLabel:"Descrição",placeholder:"Sobre esta comunidade"});if(desc===null)return;try{await api(`/api/servers/${id}`,{method:"PATCH",body:JSON.stringify({name,description:desc,isPublic:s.is_public})});communityToast("Servidor atualizado.","success");openServer(id);loadServers()}catch(e){communityToast(e.message||"Não foi possível atualizar.","error")}}}
 
     }catch(e){detail?.classList.add("hidden");communityToast(e.message||"Não foi possível abrir o servidor.","error")}
   }
@@ -2702,7 +2757,7 @@ if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.ser
   document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&$("serversPanel")&&!$("serversPanel").classList.contains("hidden"))loadServers()});
 })();
 
-/* FreeChat 1.6.2 — barra global, painel lateral e atalhos do novo layout */
+/* FreeChat 1.6.6 — barra global, painel lateral e atalhos do novo layout */
 (function initV150Shell(){
   const bind=(id,fn)=>{const el=$(id);if(el)el.addEventListener("click",fn)};
   const click=(id)=>$(id)?.click();
@@ -2710,7 +2765,6 @@ if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.ser
   bind("globalSettingsBtn",()=>click("settingsBtn"));
   bind("globalNotificationsBtn",()=>{if(typeof openSocial==="function")openSocial("notifications");});
   bind("menuSettingsBtn",()=>click("settingsBtn"));
-  document.querySelectorAll('[data-menu-action="settings"]').forEach(b=>b.addEventListener("click",()=>openSettings()));
   bind("profileSettingsBtn",()=>{ if(typeof openSocial==="function") openSocial("profile"); else click("settingsBtn"); });
   bind("profileEditBtn",()=>{ if(typeof openSocial==="function") openSocial("profile"); else click("settingsBtn"); });
   bind("profileFriendsBtn",()=>{if(typeof openSocial==="function")openSocial("friends");else click("friendsBtn")});

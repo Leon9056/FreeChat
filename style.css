@@ -2165,6 +2165,32 @@ nav button.active,.nav-item.active,.tab.active,.active{
 }
 
 /* FreeChat 1.6.5 — TikTok snap centralizado */
-#feedScreen .feed-scroll.tiktok-mode{scroll-snap-type:y mandatory;scroll-padding-block:calc((100dvh - 115px)/2);scroll-behavior:smooth}
-#feedScreen .feed-tiktok-card{scroll-snap-align:center!important;scroll-snap-stop:always!important}
-@media(max-width:700px){#feedScreen .feed-scroll.tiktok-mode{scroll-padding-block:calc((100dvh - 76px)/2)}}
+/* FreeChat 1.6.6 — snap nativo, lento e perfeitamente alinhado */
+#feedScreen .feed-scroll.tiktok-mode{
+  scroll-snap-type:y mandatory!important;
+  scroll-padding-block:0!important;
+  scroll-behavior:auto!important;
+  overscroll-behavior-y:contain;
+}
+#feedScreen .feed-tiktok-card{
+  scroll-snap-align:start!important;
+  scroll-snap-stop:always!important;
+  margin-bottom:0!important;
+}
+#feedScreen .feed-ig-list.tiktok-list{gap:0!important}
+@media(max-width:700px){#feedScreen .feed-scroll.tiktok-mode{scroll-padding-block:0!important}}
+
+
+/* ================= FreeChat 1.6.7 — diálogos integrados ================= */
+body.fc-dialog-open{overflow:hidden!important}
+.fc-dialog{position:fixed;inset:0;z-index:20000;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(2,5,16,.72);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);animation:fc-dialog-bg-in .18s ease}
+.fc-dialog.hidden{display:none!important}
+.fc-dialog-card{width:min(680px,calc(100vw - 28px));background:linear-gradient(145deg,color-mix(in srgb,var(--panel) 96%,#0b1224),color-mix(in srgb,var(--panel2) 94%,#070c18));border:1px solid color-mix(in srgb,var(--accent-main) 28%,var(--line));border-radius:22px;box-shadow:0 34px 110px rgba(0,0,0,.62),0 0 60px color-mix(in srgb,var(--accent-main) 10%,transparent);color:var(--text,#fff);overflow:hidden;animation:fc-dialog-card-in .22s cubic-bezier(.2,.8,.2,1)}
+.fc-dialog-head{display:flex;align-items:center;justify-content:space-between;padding:20px 22px;border-bottom:1px solid color-mix(in srgb,var(--accent-main) 12%,var(--line));background:linear-gradient(90deg,color-mix(in srgb,var(--accent-main) 8%,transparent),transparent)}
+.fc-dialog-brand{display:flex;align-items:center;gap:12px}.fc-dialog-brand>b{font-size:21px}.fc-dialog-brand small{display:block;margin-top:2px;color:var(--muted);font-size:11px}.fc-dialog-logo{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;font-weight:950;font-size:22px;color:#fff;background:linear-gradient(135deg,var(--accent-main),var(--accent-hot));box-shadow:0 8px 24px color-mix(in srgb,var(--accent-main) 30%,transparent)}
+.fc-dialog-close{font-size:25px!important;width:40px!important;height:40px!important}.fc-dialog-content{display:flex;gap:20px;padding:34px 30px 20px}.fc-dialog-icon{flex:0 0 70px;width:70px;height:70px;border-radius:50%;display:grid;place-items:center;font-size:32px;font-weight:900;color:#fff;background:color-mix(in srgb,var(--accent-main) 18%,transparent);border:1px solid color-mix(in srgb,var(--accent-main) 38%,var(--line));box-shadow:0 0 30px color-mix(in srgb,var(--accent-main) 12%,transparent)}.fc-dialog-icon.danger{background:color-mix(in srgb,#f05b78 17%,transparent);border-color:color-mix(in srgb,#f05b78 65%,var(--line));color:#ff8098;box-shadow:0 0 34px rgba(240,91,120,.12)}
+.fc-dialog-copy{min-width:0}.fc-dialog-copy h2{margin:3px 0 8px;font-size:clamp(21px,3vw,30px);line-height:1.15}.fc-dialog-copy p{margin:0;color:var(--muted);font-size:15px;line-height:1.6;white-space:pre-wrap}.fc-dialog-input-wrap{padding:0 30px 8px}.fc-dialog-input-wrap label{display:block;margin-bottom:7px;color:var(--muted);font-size:12px;font-weight:750}.fc-dialog-input-wrap input{width:100%;box-sizing:border-box;padding:13px 14px;border-radius:13px;border:1px solid var(--line);background:var(--bg-soft);color:var(--text,#fff);outline:none}.fc-dialog-input-wrap input:focus{border-color:var(--accent-main);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent-main) 13%,transparent)}
+.fc-dialog-actions{display:flex;justify-content:flex-end;gap:10px;padding:22px 30px 26px}.fc-dialog-btn{width:auto!important;min-width:132px!important;margin:0!important;padding:12px 20px!important}.fc-dialog-danger{background:linear-gradient(135deg,#d94d6d,#ef6683)!important;border-color:rgba(255,145,165,.7)!important;box-shadow:0 10px 28px rgba(224,76,111,.2)!important}.fc-dialog-danger:hover{filter:brightness(1.08);transform:translateY(-1px)}
+@keyframes fc-dialog-bg-in{from{opacity:0}to{opacity:1}}@keyframes fc-dialog-card-in{from{opacity:0;transform:translateY(10px) scale(.975)}to{opacity:1;transform:translateY(0) scale(1)}}
+@media(max-width:600px){.fc-dialog{padding:10px}.fc-dialog-card{width:calc(100vw - 12px);border-radius:18px}.fc-dialog-head{padding:16px}.fc-dialog-content{padding:26px 18px 16px;gap:14px}.fc-dialog-icon{flex-basis:54px;width:54px;height:54px;font-size:25px}.fc-dialog-copy h2{font-size:21px}.fc-dialog-copy p{font-size:14px}.fc-dialog-input-wrap{padding:0 18px 6px}.fc-dialog-actions{padding:16px 18px 20px}.fc-dialog-btn{min-width:0!important;flex:1}.fc-dialog-logo{width:34px;height:34px;font-size:19px}}
+@media(prefers-reduced-motion:reduce){.fc-dialog,.fc-dialog-card{animation:none!important}.fc-dialog-danger:hover{transform:none}}
