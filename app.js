@@ -1,4 +1,4 @@
-/* FreeChat v1.6.8 — conexão resiliente, WebRTC, feed, segurança e estabilidade */
+/* FreeChat v1.6.10 — conexão resiliente, WebRTC, feed, segurança e estabilidade */
 function serverUrl(){return window.SIGNALING_URL?window.SIGNALING_URL.replace(/\/$/,""):(location.protocol==="https:"?"https://"+location.host:"http://"+location.host)}
 (function(){
  const $=id=>document.getElementById(id),
@@ -1480,7 +1480,52 @@ async function loadFeed(reset=true,showSpinner=true){if(feedLoading)return;if(re
 function bindFeedCards(root){root.querySelectorAll(".post-card:not([data-feed-bound])").forEach(card=>{card.dataset.feedBound="1";const id=card.dataset.postId;card.querySelector(`[data-like="${id}"]`)?.addEventListener("click",()=>toggleLike(id,card));card.querySelector(`[data-save="${id}"]`)?.addEventListener("click",()=>toggleSave(id));card.querySelector(`[data-comments="${id}"]`)?.addEventListener("click",()=>toggleComments(card,id));card.querySelector(`[data-share="${id}"]`)?.addEventListener("click",()=>{const p={id,body:card.querySelector(".post-body")?.innerText||card.querySelector(".post-caption")?.innerText||""};sharePost(p)});const more=card.querySelector(".post-more"),menu=card.querySelector(".post-menu");more?.addEventListener("click",e=>{e.stopPropagation();document.querySelectorAll(".post-menu:not(.hidden)").forEach(m=>{if(m!==menu)m.classList.add("hidden")});menu?.classList.toggle("hidden")});card.querySelector(`[data-follow-code]`)?.addEventListener("click",()=>toggleFollow(card.querySelector(`[data-follow-code]`)));
   card.querySelector(`[data-delete-post="${id}"]`)?.addEventListener("click",()=>deleteOwnPost(id,card));card.querySelector(`[data-close-post-menu="${id}"]`)?.addEventListener("click",()=>menu?.classList.add("hidden"));card.querySelector("[data-dbltap]")?.addEventListener("dblclick",()=>{const b=card.querySelector(`[data-like="${id}"]`);if(b&&!b.classList.contains("liked"))toggleLike(id,card);else burstHeart(card)});let last=0;card.querySelector("[data-dbltap]")?.addEventListener("touchend",()=>{const now=Date.now();if(now-last<320){const b=card.querySelector(`[data-like="${id}"]`);if(b&&!b.classList.contains("liked"))toggleLike(id,card);else burstHeart(card)}last=now},{passive:true})})}
 
-function initFeedScroll(){const scroll=$("feedScreen")?.querySelector(".feed-scroll");if(!scroll||scroll.dataset.ready)return;scroll.dataset.ready="1";let loadTimer=0;scroll.addEventListener("scroll",()=>{if(scroll.scrollHeight-scroll.scrollTop-scroll.clientHeight<700){clearTimeout(loadTimer);loadTimer=setTimeout(()=>loadFeed(false,false),120)}},{passive:true});}
+function initFeedScroll(){
+  const scroll=$("feedScreen")?.querySelector(".feed-scroll");
+  if(!scroll||scroll.dataset.ready)return;
+  scroll.dataset.ready="1";
+  let loadTimer=0,snapTimer=0,snapping=false;
+  const updateSnapMetrics=()=>{
+    scroll.style.setProperty("--feed-scroll-h",`${scroll.clientHeight}px`);
+    const tabs=scroll.querySelector(".feed-tiktok-tabs");
+    if(tabs)scroll.style.setProperty("--feed-tabs-h",`${tabs.offsetHeight}px`);
+  };
+  const snapToNearest=()=>{
+    if(snapping||!scroll.classList.contains("tiktok-mode"))return;
+    const cards=[...scroll.querySelectorAll(".feed-tiktok-card")];
+    if(!cards.length)return;
+    const sr=scroll.getBoundingClientRect(),center=sr.top+scroll.clientHeight/2;
+    let best=null,bestDist=Infinity;
+    for(const card of cards){
+      const r=card.getBoundingClientRect(),d=Math.abs((r.top+r.height/2)-center);
+      if(d<bestDist){bestDist=d;best=card;}
+    }
+    if(!best)return;
+    const r=best.getBoundingClientRect();
+    const delta=(r.top+r.height/2)-center;
+    if(Math.abs(delta)<2)return;
+    const start=scroll.scrollTop,target=Math.max(0,start+delta),distance=target-start;
+    const duration=Math.min(620,Math.max(420,Math.abs(distance)*1.15));
+    const t0=performance.now();snapping=true;
+    const ease=t=>t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;
+    const step=now=>{
+      const p=Math.min(1,(now-t0)/duration);
+      scroll.scrollTop=start+distance*ease(p);
+      if(p<1)requestAnimationFrame(step);else{scroll.scrollTop=target;snapping=false;}
+    };
+    requestAnimationFrame(step);
+  };
+  updateSnapMetrics();
+  window.addEventListener("resize",updateSnapMetrics,{passive:true});
+  scroll.addEventListener("scroll",()=>{
+    if(scroll.scrollHeight-scroll.scrollTop-scroll.clientHeight<700){
+      clearTimeout(loadTimer);loadTimer=setTimeout(()=>loadFeed(false,false),120);
+    }
+    if(!snapping){clearTimeout(snapTimer);snapTimer=setTimeout(snapToNearest,260);}
+  },{passive:true});
+  scroll.addEventListener("touchend",()=>{clearTimeout(snapTimer);snapTimer=setTimeout(snapToNearest,280)},{passive:true});
+  scroll.addEventListener("wheel",()=>{clearTimeout(snapTimer);snapTimer=setTimeout(snapToNearest,300)},{passive:true});
+}
 function setFeedFilter(v){feedFilter=v;document.querySelectorAll(".feed-tab").forEach(b=>b.classList.toggle("active",b.dataset.feedFilter===v));loadFeed(true,true)}
 function sendFeedEvent(postId,eventType,dwellMs=0){if(!postId)return;api("/api/feed/event",{method:"POST",body:JSON.stringify({postId:Number(postId),eventType,dwellMs})}).catch(()=>{});}
 function initFeedAlgorithmObserver(){const root=$("feedList");if(!root||!window.IntersectionObserver)return;if(feedViewObserver)feedViewObserver.disconnect();feedViewObserver=new IntersectionObserver(entries=>{entries.forEach(e=>{const id=e.target.dataset.postId;if(!id)return;if(e.isIntersecting&&e.intersectionRatio>=.65){sendFeedEvent(id,"view");if(!feedEventTimers.has(id)){const started=Date.now();feedEventTimers.set(id,setTimeout(()=>{sendFeedEvent(id,"dwell",Date.now()-started);feedEventTimers.delete(id)},2200));}}else{const t=feedEventTimers.get(id);if(t){clearTimeout(t);feedEventTimers.delete(id);}}})},{root:$("feedScreen")?.querySelector(".feed-scroll")||null,threshold:[.2,.65,.9]});root.querySelectorAll(".post-card").forEach(c=>feedViewObserver.observe(c));}

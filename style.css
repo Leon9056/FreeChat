@@ -2180,7 +2180,7 @@ nav button.active,.nav-item.active,.tab.active,.active{
 #feedScreen .feed-ig-list.tiktok-list{gap:0!important}
 @media(max-width:700px){#feedScreen .feed-scroll.tiktok-mode{scroll-padding-block:0!important}}
 
-/* FreeChat 1.6.8 — centralização real por publicação
+/* FreeChat 1.6.10 — centralização real por publicação
    O navegador faz o encaixe nativo; não usamos scrollIntoView durante a rolagem. */
 #feedScreen .feed-scroll.tiktok-mode{
   scroll-snap-type:y mandatory!important;
@@ -2209,3 +2209,32 @@ body.fc-dialog-open{overflow:hidden!important}
 @keyframes fc-dialog-bg-in{from{opacity:0}to{opacity:1}}@keyframes fc-dialog-card-in{from{opacity:0;transform:translateY(10px) scale(.975)}to{opacity:1;transform:translateY(0) scale(1)}}
 @media(max-width:600px){.fc-dialog{padding:10px}.fc-dialog-card{width:calc(100vw - 12px);border-radius:18px}.fc-dialog-head{padding:16px}.fc-dialog-content{padding:26px 18px 16px;gap:14px}.fc-dialog-icon{flex-basis:54px;width:54px;height:54px;font-size:25px}.fc-dialog-copy h2{font-size:21px}.fc-dialog-copy p{font-size:14px}.fc-dialog-input-wrap{padding:0 18px 6px}.fc-dialog-actions{padding:16px 18px 20px}.fc-dialog-btn{min-width:0!important;flex:1}.fc-dialog-logo{width:34px;height:34px;font-size:19px}}
 @media(prefers-reduced-motion:reduce){.fc-dialog,.fc-dialog-card{animation:none!important}.fc-dialog-danger:hover{transform:none}}
+
+
+/* FreeChat 1.6.10 — snap TikTok real e centralização por inércia */
+#feedScreen .feed-scroll.tiktok-mode{
+  scroll-snap-type:none!important;
+  scroll-behavior:auto!important;
+  overscroll-behavior-y:contain;
+  scroll-padding:0!important;
+}
+#feedScreen .feed-tiktok-tabs{
+  position:sticky!important;top:0!important;
+  margin-bottom:calc(-1 * var(--feed-tabs-h,56px))!important;
+}
+#feedScreen .feed-ig-list.tiktok-list{
+  display:flex!important;flex-direction:column!important;gap:0!important;
+  padding-top:0!important;
+  padding-bottom:var(--feed-tabs-h,56px)!important;
+}
+#feedScreen .feed-tiktok-card{
+  flex:0 0 var(--feed-scroll-h,calc(100dvh - 62px))!important;
+  width:100%!important;
+  height:var(--feed-scroll-h,calc(100dvh - 62px))!important;
+  min-height:var(--feed-scroll-h,calc(100dvh - 62px))!important;
+  max-height:var(--feed-scroll-h,calc(100dvh - 62px))!important;
+  scroll-snap-align:none!important;
+}
+@media(max-width:700px){
+  #feedScreen .feed-ig-list.tiktok-list{padding-bottom:var(--feed-tabs-h,50px)!important}
+}
