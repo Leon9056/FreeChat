@@ -2163,3 +2163,8 @@ nav button.active,.nav-item.active,.tab.active,.active{
   #feedScreen .feed-tiktok-card .post-head{min-height:48px}
   #feedScreen .feed-tiktok-card .post-actions{min-height:43px}
 }
+
+/* FreeChat 1.6.5 — TikTok snap centralizado */
+#feedScreen .feed-scroll.tiktok-mode{scroll-snap-type:y mandatory;scroll-padding-block:calc((100dvh - 115px)/2);scroll-behavior:smooth}
+#feedScreen .feed-tiktok-card{scroll-snap-align:center!important;scroll-snap-stop:always!important}
+@media(max-width:700px){#feedScreen .feed-scroll.tiktok-mode{scroll-padding-block:calc((100dvh - 76px)/2)}}
