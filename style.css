@@ -2198,9 +2198,10 @@ nav button.active,.nav-item.active,.tab.active,.active{
 
 /* ================= FreeChat 1.6.7 — diálogos integrados ================= */
 body.fc-dialog-open{overflow:hidden!important}
-.fc-dialog{position:fixed;inset:0;z-index:20000;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(2,5,16,.72);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);animation:fc-dialog-bg-in .18s ease}
-.fc-dialog.hidden{display:none!important}
-.fc-dialog-card{width:min(680px,calc(100vw - 28px));background:linear-gradient(145deg,color-mix(in srgb,var(--panel) 96%,#0b1224),color-mix(in srgb,var(--panel2) 94%,#070c18));border:1px solid color-mix(in srgb,var(--accent-main) 28%,var(--line));border-radius:22px;box-shadow:0 34px 110px rgba(0,0,0,.62),0 0 60px color-mix(in srgb,var(--accent-main) 10%,transparent);color:var(--text,#fff);overflow:hidden;animation:fc-dialog-card-in .22s cubic-bezier(.2,.8,.2,1)}
+.fc-dialog{position:fixed;inset:0;z-index:20000;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(2,5,16,.72);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);opacity:1;transition:opacity .18s ease}
+.fc-dialog.hidden{display:none!important;opacity:0}
+.fc-dialog-card{width:min(680px,calc(100vw - 28px));background:linear-gradient(145deg,color-mix(in srgb,var(--panel) 96%,#0b1224),color-mix(in srgb,var(--panel2) 94%,#070c18));border:1px solid color-mix(in srgb,var(--accent-main) 28%,var(--line));border-radius:22px;box-shadow:0 34px 110px rgba(0,0,0,.62),0 0 60px color-mix(in srgb,var(--accent-main) 10%,transparent);color:var(--text,#fff);overflow:hidden;opacity:1;transform:translateY(0) scale(1);transition:opacity .2s ease,transform .2s cubic-bezier(.2,.8,.2,1)}
+.fc-dialog.hidden .fc-dialog-card{opacity:0;transform:translateY(10px) scale(.975)}
 .fc-dialog-head{display:flex;align-items:center;justify-content:space-between;padding:20px 22px;border-bottom:1px solid color-mix(in srgb,var(--accent-main) 12%,var(--line));background:linear-gradient(90deg,color-mix(in srgb,var(--accent-main) 8%,transparent),transparent)}
 .fc-dialog-brand{display:flex;align-items:center;gap:12px}.fc-dialog-brand>b{font-size:21px}.fc-dialog-brand small{display:block;margin-top:2px;color:var(--muted);font-size:11px}.fc-dialog-logo{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;font-weight:950;font-size:22px;color:#fff;background:linear-gradient(135deg,var(--accent-main),var(--accent-hot));box-shadow:0 8px 24px color-mix(in srgb,var(--accent-main) 30%,transparent)}
 .fc-dialog-close{font-size:25px!important;width:40px!important;height:40px!important}.fc-dialog-content{display:flex;gap:20px;padding:34px 30px 20px}.fc-dialog-icon{flex:0 0 70px;width:70px;height:70px;border-radius:50%;display:grid;place-items:center;font-size:32px;font-weight:900;color:#fff;background:color-mix(in srgb,var(--accent-main) 18%,transparent);border:1px solid color-mix(in srgb,var(--accent-main) 38%,var(--line));box-shadow:0 0 30px color-mix(in srgb,var(--accent-main) 12%,transparent)}.fc-dialog-icon.danger{background:color-mix(in srgb,#f05b78 17%,transparent);border-color:color-mix(in srgb,#f05b78 65%,var(--line));color:#ff8098;box-shadow:0 0 34px rgba(240,91,120,.12)}
@@ -2268,3 +2269,36 @@ body.fc-dialog-open{overflow:hidden!important}
   box-shadow:0 10px 28px color-mix(in srgb,var(--accent-main) 35%,transparent);animation:feed-banner-in .25s ease}
 .feed-new-posts-banner:hover{filter:brightness(1.08)}
 @keyframes feed-banner-in{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+
+/* ============ Painel de administração ============ */
+.admin-menu-card{border-color:color-mix(in srgb,#f59e0b 35%,var(--line))!important}
+.admin-menu-card .menu-quick-icon{background:linear-gradient(135deg,#f59e0b,#dc2626)}
+.admin-card{width:min(880px,96vw);max-height:88vh;overflow:hidden;display:flex;flex-direction:column}
+.admin-tabs{display:flex;gap:7px;padding:14px 20px 0;flex:0 0 auto;flex-wrap:wrap}
+.admin-tab{border:1px solid transparent;border-radius:12px;background:rgba(255,255,255,.025);color:var(--muted);font-weight:800;padding:9px 14px;cursor:pointer;transition:.18s ease;font-size:13px;display:flex;align-items:center;gap:6px}
+.admin-tab:hover{color:var(--text);background:color-mix(in srgb,var(--accent-main) 7%,transparent)}
+.admin-tab.active{color:#fff;background:linear-gradient(135deg,rgba(139,92,246,.22),rgba(217,70,239,.12));border-color:color-mix(in srgb,var(--accent-main) 28%,transparent)}
+.admin-section{flex:1;min-height:0;overflow-y:auto;padding:16px 20px 20px}
+.admin-stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
+.admin-stat-card{padding:16px;border:1px solid var(--line);border-radius:16px;background:color-mix(in srgb,var(--panel2) 70%,transparent);text-align:center}
+.admin-stat-icon{font-size:22px;display:block;margin-bottom:6px}
+.admin-stat-card b{display:block;font-size:22px;color:var(--text)}
+.admin-stat-card small{display:block;margin-top:4px;color:var(--muted);font-size:11px}
+.admin-search-row{display:flex;gap:8px;margin-bottom:14px}
+.admin-search-row input,.admin-search-row select{flex:1;min-width:0;padding:11px 12px;border:1px solid var(--line);border-radius:11px;background:var(--panel2);color:var(--text);outline:none}
+.admin-search-row input:focus,.admin-search-row select:focus{border-color:var(--accent-main);box-shadow:0 0 0 3px var(--accent-soft)}
+.admin-users-list,.admin-reports-list,.admin-servers-list{display:grid;gap:9px}
+.admin-user-row,.admin-report-row,.admin-server-row{display:flex;align-items:center;gap:12px;padding:12px 13px;border:1px solid var(--line);border-radius:14px;background:color-mix(in srgb,var(--panel2) 70%,transparent)}
+.admin-user-info,.admin-report-info{flex:1;min-width:0;display:grid;gap:2px}
+.admin-user-info b{font-size:14px;display:flex;align-items:center;gap:6px}
+.admin-user-info small,.admin-report-info small{color:var(--muted);font-size:11.5px}
+.admin-online-dot{width:7px;height:7px;border-radius:50%;background:#22c55e;box-shadow:0 0 8px rgba(34,197,94,.5);display:inline-block}
+.admin-banned-tag{color:#f87171!important;font-weight:700}
+.admin-unverified-tag{color:#f0b459!important}
+.admin-report-details{margin:4px 0 0;padding:8px 10px;background:rgba(0,0,0,.15);border-radius:9px;font-size:12px;color:var(--text);line-height:1.4}
+.admin-user-actions{display:flex;gap:7px;flex-wrap:wrap;flex:0 0 auto;align-items:center}
+@media(max-width:700px){
+  .admin-card{width:96vw}
+  .admin-user-row,.admin-report-row,.admin-server-row{flex-direction:column;align-items:stretch}
+  .admin-user-actions{justify-content:flex-start}
+}

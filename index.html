@@ -102,6 +102,9 @@
       <button type="button" class="menu-quick-card" data-menu-action="random">
         <span class="menu-quick-icon">🎲</span><span><b>Conhecer alguém</b><small>Converse com alguém novo</small></span><i>›</i>
       </button>
+      <button type="button" id="adminMenuCard" class="menu-quick-card admin-menu-card hidden" data-menu-action="admin">
+        <span class="menu-quick-icon">🛡️</span><span><b>Administração</b><small>Painel restrito</small></span><i>›</i>
+      </button>
     </div>
 
     <div class="menu-tip">
@@ -380,6 +383,40 @@
   </div>
 </div>
 
+<div id="adminPanel" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="adminTitle">
+  <div class="modal-card admin-card">
+    <div class="settings-head">
+      <div><b id="adminTitle">🛡️ Painel de administração</b><small>Acesso restrito.</small></div>
+      <button id="adminClose" class="icon-btn" type="button" aria-label="Fechar">×</button>
+    </div>
+    <nav class="admin-tabs" aria-label="Seções do painel">
+      <button type="button" class="admin-tab active" data-admin-tab="overview">Visão geral</button>
+      <button type="button" class="admin-tab" data-admin-tab="users">Usuários</button>
+      <button type="button" class="admin-tab" data-admin-tab="reports">Denúncias <span id="adminReportsBadge" class="servers-count hidden">0</span></button>
+      <button type="button" class="admin-tab" data-admin-tab="servers">Servidores</button>
+    </nav>
+
+    <section id="adminOverview" class="admin-section">
+      <div id="adminStatsGrid" class="admin-stats-grid"><div class="servers-empty mini"><div>…</div><b>Carregando…</b></div></div>
+    </section>
+
+    <section id="adminUsers" class="admin-section hidden">
+      <div class="admin-search-row"><input id="adminUserSearch" type="search" placeholder="Buscar por nome, e-mail ou código..." autocomplete="off"><button id="adminUserSearchBtn" class="secondary-btn small-btn" type="button">Buscar</button></div>
+      <div id="adminUsersList" class="admin-users-list"></div>
+    </section>
+
+    <section id="adminReports" class="admin-section hidden">
+      <div class="admin-search-row"><select id="adminReportsFilter"><option value="open">Abertas</option><option value="resolved">Resolvidas</option><option value="all">Todas</option></select></div>
+      <div id="adminReportsList" class="admin-reports-list"></div>
+    </section>
+
+    <section id="adminServers" class="admin-section hidden">
+      <div class="admin-search-row"><input id="adminServerSearch" type="search" placeholder="Buscar servidor por nome..." autocomplete="off"><button id="adminServerSearchBtn" class="secondary-btn small-btn" type="button">Buscar</button></div>
+      <div id="adminServersList" class="admin-servers-list"></div>
+    </section>
+  </div>
+</div>
+
 <div id="supportCreatorModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="supportCreatorTitle">
   <div class="modal-card support-card">
     <div class="support-head">
@@ -475,7 +512,7 @@
   <div id="messageFileInfo" class="dm-file-preview hidden"></div>
 </form>
 <div id="messageStatus" class="status"></div>
-</div></div>
+</div></div></div>
 <div id="fcDialog" class="fc-dialog hidden" role="dialog" aria-modal="true" aria-labelledby="fcDialogTitle" aria-describedby="fcDialogMessage">
   <div class="fc-dialog-card" tabindex="-1">
     <div class="fc-dialog-head">
@@ -490,5 +527,5 @@
     <div class="fc-dialog-actions"><button id="fcDialogCancel" class="secondary-btn fc-dialog-btn" type="button">Cancelar</button><button id="fcDialogConfirm" class="primary-btn fc-dialog-btn fc-dialog-danger" type="button">Confirmar</button></div>
   </div>
 </div>
-<script src="config.js?v=1.6.14"></script><script src="app.js?v=1.6.14"></script>
+<script src="config.js?v=1.6.15"></script><script src="app.js?v=1.6.15"></script>
 </body></html>

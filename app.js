@@ -1,4 +1,4 @@
-/* FreeChat v1.6.14 — conexão resiliente, WebRTC, feed, segurança e estabilidade */
+/* FreeChat v1.6.15 — conexão resiliente, WebRTC, feed, segurança e estabilidade */
 function serverUrl(){return window.SIGNALING_URL?window.SIGNALING_URL.replace(/\/$/,""):(location.protocol==="https:"?"https://"+location.host:"http://"+location.host)}
 (function(){
  const $=id=>document.getElementById(id),
@@ -305,6 +305,7 @@ function showApp(d){
  localStorage.setItem("conversaLiveToken",d.token);localStorage.setItem("conversaLiveUser",JSON.stringify(d.user));
  window.CONVERSA_TOKEN=d.token;window.CONVERSA_USER=d.user;login.classList.add("hidden");menu.classList.remove("hidden");animateMainMenu();
  $("welcomeName").textContent=d.user.name;$("sideWelcomeName").textContent=d.user.name;$("myCode").textContent=d.user.code;$("sideCode").textContent=d.user.code;window.applyAvatar?.($("avatar"),d.user.avatarUrl,d.user.name);window.renderFriends?.();startFriendRequestPolling();connectLobby();
+ window.checkAdminAccess?.();
 }
 function passwordScore(p){let n=0;if(p.length>=6)n++;if(p.length>=10)n++;if(/[a-z]/.test(p)&&/[A-Z]/.test(p))n++;if(/\d/.test(p))n++;if(/[^A-Za-z0-9]/.test(p))n++;return Math.min(n,4)}
 function updatePasswordStrength(){const p=password.value,score=passwordScore(p),bar=$("strengthBar"),text=$("strengthText");if(!bar||!text)return;bar.style.width=(p?score*25:0)+"%";text.textContent=p?["Muito fraca","Fraca","Razoável","Boa","Forte"][score]:"Digite uma senha";bar.dataset.score=score;text.dataset.score=score}
@@ -381,7 +382,7 @@ const t=localStorage.getItem("conversaLiveToken"),u=localStorage.getItem("conver
 if(!resetToken&&t&&u)try{
  window.CONVERSA_TOKEN=t;window.CONVERSA_USER=JSON.parse(u);login.classList.add("hidden");menu.classList.remove("hidden");animateMainMenu();
  $("welcomeName").textContent=window.CONVERSA_USER.name;$("sideWelcomeName").textContent=window.CONVERSA_USER.name;$("myCode").textContent=window.CONVERSA_USER.code;$("sideCode").textContent=window.CONVERSA_USER.code;
- window.applyAvatar?.($("avatar"),window.CONVERSA_USER.avatarUrl,window.CONVERSA_USER.name);window.renderFriends?.();startFriendRequestPolling();connectLobby()
+ window.applyAvatar?.($("avatar"),window.CONVERSA_USER.avatarUrl,window.CONVERSA_USER.name);window.renderFriends?.();startFriendRequestPolling();connectLobby();window.checkAdminAccess?.()
 }catch(e){localStorage.removeItem("conversaLiveToken");localStorage.removeItem("conversaLiveUser")}
 
 async function api(path,opts={}){const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),12000);let externalAbort;try{if(opts.signal){externalAbort=()=>controller.abort();if(opts.signal.aborted)controller.abort();else opts.signal.addEventListener("abort",externalAbort,{once:true})}const isForm=typeof FormData!=="undefined"&&opts.body instanceof FormData;const baseHeaders={Authorization:"Bearer "+(window.CONVERSA_TOKEN||localStorage.getItem("conversaLiveToken"))};if(!isForm)baseHeaders["Content-Type"]="application/json";const r=await fetch(serverUrl()+path,{...opts,signal:controller.signal,headers:{...baseHeaders,...(opts.headers||{})}});const d=await r.json().catch(()=>({}));if(r.status===401){
@@ -963,6 +964,7 @@ document.addEventListener("click",(e)=>{
     socialClose:()=>closeSocialPanel?.(),
     serversClose:()=>closeServers?.(),
     reportClose:()=>window.closeReportModal?.(),
+    adminClose:()=>window.closeAdminPanel?.(),
     reportCancelBtn:()=>window.closeReportModal?.(),
     randomCallClose:()=>closeRandomCall?.(),
     postComposerClose:()=>closePostComposer?.(),
@@ -1235,6 +1237,7 @@ document.addEventListener("click",(e)=>{
   }
   else if(action==="servers") window.openServers?.();
   else if(action==="random") window.openRandomCall?.();
+  else if(action==="admin") window.openAdminPanel?.();
   else if(action==="messages") window.openMessagesInbox?.();
   else if(action==="settings"){e.preventDefault();e.stopPropagation();window.openSettings?.();}
 });
@@ -2870,6 +2873,139 @@ if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.ser
       clearInterval(watchSocket);
     }catch(e){}
   },250);
+  /* ===== Painel de administração ===== */
+  let adminTab="overview";
+  async function checkAdminAccess(){
+    try{const d=await api("/api/admin/check");$("adminMenuCard")?.classList.toggle("hidden",!d.isAdmin);}
+    catch(e){$("adminMenuCard")?.classList.add("hidden");}
+  }
+  function openAdminPanel(){
+    $("adminPanel")?.classList.remove("hidden");
+    switchAdminTab("overview");
+  }
+  function closeAdminPanel(){$("adminPanel")?.classList.add("hidden");}
+  function switchAdminTab(tab){
+    adminTab=tab;
+    document.querySelectorAll(".admin-tab").forEach(b=>b.classList.toggle("active",b.dataset.adminTab===tab));
+    ["overview","users","reports","servers"].forEach(t=>$("admin"+t.charAt(0).toUpperCase()+t.slice(1))?.classList.toggle("hidden",t!==tab));
+    if(tab==="overview")loadAdminStats();
+    else if(tab==="users")loadAdminUsers();
+    else if(tab==="reports")loadAdminReports();
+    else if(tab==="servers")loadAdminServers();
+  }
+  async function loadAdminStats(){
+    const grid=$("adminStatsGrid");if(!grid)return;
+    try{
+      const d=await api("/api/admin/stats");
+      const card=(icon,label,value)=>`<div class="admin-stat-card"><span class="admin-stat-icon">${icon}</span><b>${value}</b><small>${label}</small></div>`;
+      grid.innerHTML=[
+        card("👤","Usuários totais",d.totalUsers),
+        card("✅","E-mails verificados",d.verifiedUsers),
+        card("🚫","Usuários suspensos",d.bannedUsers),
+        card("🆕","Novos usuários (7 dias)",d.newUsers7d),
+        card("📰","Publicações totais",d.totalPosts),
+        card("📅","Publicações (24h)",d.postsToday),
+        card("🌐","Servidores criados",d.totalServers),
+        card("⚑","Denúncias abertas",d.openReports),
+        card("💬","Mensagens (7 dias)",d.messages7d),
+        card("📞","Salas ativas agora",d.activeRooms),
+        card("🎥","Calls ativas agora",d.activeCalls),
+      ].join("");
+      const badge=$("adminReportsBadge");if(badge){badge.textContent=String(d.openReports||0);badge.classList.toggle("hidden",!d.openReports)}
+    }catch(e){grid.innerHTML=`<div class="servers-empty mini"><div>⚠️</div><b>${messageEscape(e.message||"Erro ao carregar.")}</b></div>`}
+  }
+  async function loadAdminUsers(){
+    const list=$("adminUsersList");if(!list)return;
+    list.innerHTML='<div class="servers-empty mini"><div>…</div><b>Carregando…</b></div>';
+    const q=$("adminUserSearch")?.value.trim()||"";
+    try{
+      const d=await api(`/api/admin/users?q=${encodeURIComponent(q)}&limit=40`);
+      const users=d.users||[];
+      list.innerHTML=users.map(u=>`
+        <div class="admin-user-row">
+          <div class="admin-user-info">
+            <b>${messageEscape(u.name)} ${u.online?'<span class="admin-online-dot" title="Online"></span>':""}</b>
+            <small>${messageEscape(u.email)} · ${messageEscape(u.code)} · ${u.postCount} post${u.postCount===1?"":"s"}</small>
+            ${u.banned?`<small class="admin-banned-tag">🚫 Suspenso${u.banReason?": "+messageEscape(u.banReason):""}</small>`:""}
+            ${!u.verified?'<small class="admin-unverified-tag">✉️ E-mail não verificado</small>':""}
+          </div>
+          <div class="admin-user-actions">
+            ${u.banned?`<button class="secondary-btn tiny-btn" data-unban="${u.id}">Reativar</button>`:`<button class="danger-btn tiny-btn" data-ban="${u.id}" data-name="${messageEscape(u.name)}">Suspender</button>`}
+          </div>
+        </div>`).join("")||'<div class="servers-empty mini"><div>👤</div><b>Nenhum usuário encontrado.</b></div>';
+      list.querySelectorAll("[data-ban]").forEach(b=>b.addEventListener("click",async()=>{
+        const reason=await fcPrompt("Motivo da suspensão (opcional, visível para o usuário):",{title:"Suspender "+b.dataset.name+"?",confirmText:"Suspender",placeholder:"Ex: violação das regras da comunidade"});
+        if(reason===null)return;
+        try{await api(`/api/admin/users/${b.dataset.ban}/ban`,{method:"POST",body:JSON.stringify({reason})});communityToast("Usuário suspenso.","success");loadAdminUsers()}
+        catch(e){communityToast(e.message||"Não foi possível suspender.","error")}
+      }));
+      list.querySelectorAll("[data-unban]").forEach(b=>b.addEventListener("click",async()=>{
+        try{await api(`/api/admin/users/${b.dataset.unban}/unban`,{method:"POST"});communityToast("Usuário reativado.","success");loadAdminUsers()}
+        catch(e){communityToast(e.message||"Não foi possível reativar.","error")}
+      }));
+    }catch(e){list.innerHTML=`<div class="servers-empty mini"><div>⚠️</div><b>${messageEscape(e.message||"Erro ao carregar.")}</b></div>`}
+  }
+  async function loadAdminReports(){
+    const list=$("adminReportsList");if(!list)return;
+    list.innerHTML='<div class="servers-empty mini"><div>…</div><b>Carregando…</b></div>';
+    const status=$("adminReportsFilter")?.value||"open";
+    try{
+      const d=await api(`/api/admin/reports?status=${encodeURIComponent(status)}`);
+      const reports=d.reports||[];
+      list.innerHTML=reports.map(rp=>`
+        <div class="admin-report-row">
+          <div class="admin-report-info">
+            <b>⚑ ${messageEscape(rp.reason)}</b>
+            <small>Denunciado: <b>${messageEscape(rp.target.name)}</b> (${messageEscape(rp.target.code)})${rp.target.banned?" · 🚫 já suspenso":""}</small>
+            <small>Por: ${messageEscape(rp.reporter.name)} · ${new Date(rp.createdAt).toLocaleString([],{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}</small>
+            ${rp.details?`<p class="admin-report-details">${messageEscape(rp.details)}</p>`:""}
+          </div>
+          <div class="admin-user-actions">
+            ${rp.status==="open"?`<button class="secondary-btn tiny-btn" data-resolve="${rp.id}">Marcar resolvida</button>`:'<span class="server-pill public">Resolvida</span>'}
+            ${!rp.target.banned?`<button class="danger-btn tiny-btn" data-ban="${rp.target.id}" data-name="${messageEscape(rp.target.name)}">Suspender</button>`:""}
+          </div>
+        </div>`).join("")||'<div class="servers-empty mini"><div>✦</div><b>Nenhuma denúncia por aqui.</b></div>';
+      list.querySelectorAll("[data-resolve]").forEach(b=>b.addEventListener("click",async()=>{
+        try{await api(`/api/admin/reports/${b.dataset.resolve}/resolve`,{method:"POST"});communityToast("Denúncia marcada como resolvida.","success");loadAdminReports();loadAdminStats()}
+        catch(e){communityToast(e.message||"Não foi possível atualizar.","error")}
+      }));
+      list.querySelectorAll("[data-ban]").forEach(b=>b.addEventListener("click",async()=>{
+        const reason=await fcPrompt("Motivo da suspensão:",{title:"Suspender "+b.dataset.name+"?",confirmText:"Suspender"});
+        if(reason===null)return;
+        try{await api(`/api/admin/users/${b.dataset.ban}/ban`,{method:"POST",body:JSON.stringify({reason})});communityToast("Usuário suspenso.","success");loadAdminReports()}
+        catch(e){communityToast(e.message||"Não foi possível suspender.","error")}
+      }));
+    }catch(e){list.innerHTML=`<div class="servers-empty mini"><div>⚠️</div><b>${messageEscape(e.message||"Erro ao carregar.")}</b></div>`}
+  }
+  async function loadAdminServers(){
+    const list=$("adminServersList");if(!list)return;
+    list.innerHTML='<div class="servers-empty mini"><div>…</div><b>Carregando…</b></div>';
+    const q=$("adminServerSearch")?.value.trim()||"";
+    try{
+      const d=await api(`/api/admin/servers?q=${encodeURIComponent(q)}`);
+      const servers=d.servers||[];
+      list.innerHTML=servers.map(s=>`
+        <div class="admin-server-row">
+          <div class="server-icon">${messageEscape(s.icon)}</div>
+          <div class="admin-user-info"><b>${messageEscape(s.name)}</b><small>${messageEscape(s.description||"Sem descrição")}</small><small>👤 ${messageEscape(s.owner.name)} · 👥 ${s.memberCount} membro${s.memberCount===1?"":"s"} · ${s.isPublic?"🌍 Público":"🔒 Privado"}</small></div>
+          <div class="admin-user-actions"><button class="danger-btn tiny-btn" data-del-server="${s.id}" data-name="${messageEscape(s.name)}">Excluir</button></div>
+        </div>`).join("")||'<div class="servers-empty mini"><div>🌐</div><b>Nenhum servidor encontrado.</b></div>';
+      list.querySelectorAll("[data-del-server]").forEach(b=>b.addEventListener("click",async()=>{
+        if(!await fcConfirm("Isso remove o servidor e todos os canais permanentemente.",{title:"Excluir "+b.dataset.name+"?",confirmText:"Excluir",danger:true}))return;
+        try{await api(`/api/admin/servers/${b.dataset.delServer}`,{method:"DELETE"});communityToast("Servidor excluído.","success");loadAdminServers();loadAdminStats()}
+        catch(e){communityToast(e.message||"Não foi possível excluir.","error")}
+      }));
+    }catch(e){list.innerHTML=`<div class="servers-empty mini"><div>⚠️</div><b>${messageEscape(e.message||"Erro ao carregar.")}</b></div>`}
+  }
+  $("adminClose")?.addEventListener("click",closeAdminPanel);
+  document.querySelectorAll(".admin-tab").forEach(b=>b.addEventListener("click",()=>switchAdminTab(b.dataset.adminTab)));
+  $("adminUserSearchBtn")?.addEventListener("click",loadAdminUsers);
+  $("adminUserSearch")?.addEventListener("keydown",e=>{if(e.key==="Enter")loadAdminUsers()});
+  $("adminReportsFilter")?.addEventListener("change",loadAdminReports);
+  $("adminServerSearchBtn")?.addEventListener("click",loadAdminServers);
+  $("adminServerSearch")?.addEventListener("keydown",e=>{if(e.key==="Enter")loadAdminServers()});
+  window.checkAdminAccess=checkAdminAccess;window.openAdminPanel=openAdminPanel;window.closeAdminPanel=closeAdminPanel;
+
   window.openServers=openServers;window.openRandomCall=openRandomCall;window.closeServers=closeServers;window.leaveRandomQueue=leaveRandomQueue;window.closeRandomCall=closeRandomCall;
 
   $("serverSearchInput")?.addEventListener("input",queueServerSearch);
