@@ -68,16 +68,31 @@
         </div>
         <div id="menuStatus" class="status"></div>
 
-        <div class="menu-section-title menu-section-title-spaced">➕ Adicionar amigo</div>
-        <div class="friend-add-row"><input id="friendCodeInput" maxlength="20" placeholder="Código do amigo (ex.: CL-A1B2C3)"><button id="addFriendBtn" class="secondary-btn" type="button">📨 Convidar</button></div>
-        <div id="friendStatus" class="status"></div><small class="friend-help">Digite o código de alguém para enviar um convite de amizade.</small>
       </div>
 
       <div class="menu-col menu-col-friends">
-        <div class="friends-box">
-          <div class="friends-title"><b>👥 Amigos</b><button id="refreshFriends" type="button" title="Atualizar">↻</button></div>
-          <div class="friends-toolbar"><input id="friendsSearch" class="friends-search" placeholder="🔎 Procurar amigo por nome ou código" autocomplete="off"></div>
-          <div id="friendsList" class="friends-list"></div>
+        <div class="friends-box friends-home-box">
+          <div class="friends-home-head"><div><span class="friends-kicker">SOCIAL</span><h2>Seus amigos</h2><small>Converse, convide para calls e gerencie seus contatos.</small></div><button id="refreshFriends" class="friends-refresh-btn" type="button" title="Atualizar amigos">↻</button></div>
+          <div class="friends-tabs" role="tablist" aria-label="Área de amigos">
+            <button class="friends-tab active" data-friend-tab="list" type="button">👥 Amigos <span id="friendsTabCount">0</span></button>
+            <button class="friends-tab" data-friend-tab="requests" type="button">🔔 Convites <span id="friendsRequestCount">0</span></button>
+            <button class="friends-tab" data-friend-tab="add" type="button">➕ Adicionar</button>
+          </div>
+          <div class="friends-pane" data-friend-pane="list">
+            <div class="friends-toolbar"><input id="friendsSearch" class="friends-search" placeholder="🔎 Procurar por nome ou código" autocomplete="off"></div>
+            <div id="friendsList" class="friends-list"></div>
+          </div>
+          <div class="friends-pane hidden" data-friend-pane="requests">
+            <div class="friends-pane-intro"><b>Pedidos de amizade</b><small>Aceite ou recuse novos convites.</small></div>
+            <div id="friendsRequestsList" class="friends-list"></div>
+          </div>
+          <div class="friends-pane hidden" data-friend-pane="add">
+            <div class="friends-add-hero"><span>🔗</span><div><b>Adicionar alguém</b><small>Use o código único do usuário.</small></div></div>
+            <div class="friend-add-row"><input id="friendCodeInput" maxlength="20" placeholder="CL-XXXXXX" autocomplete="off"><button id="addFriendBtn" class="primary-btn" type="button">Enviar convite</button></div>
+            <div id="friendStatus" class="status"></div>
+            <small class="friend-help">Compartilhe seu código pelo botão de convite ou peça o código do seu amigo.</small>
+            <div class="my-code-card"><span>Seu código</span><b id="friendsHomeMyCode">CL-000000</b><button id="friendsHomeCopyCode" type="button">Copiar</button></div>
+          </div>
         </div>
       </div>
     </div>
@@ -204,7 +219,11 @@
    <div id="callEmptyState" class="call-empty-state"><div class="call-empty-icon">🎥</div><b>Aguardando participantes</b><span>Quando alguém entrar, o vídeo aparecerá aqui.</span></div>
  </div>
  <div id="callSidePanel" class="call-side-panel hidden">
-   <div class="call-panel-head"><b id="callPanelTitle">Amigos na call</b><button id="callPanelClose" class="icon-btn panel-close-x" type="button" aria-label="Fechar amigos na call" title="Fechar">×</button></div>
+   <div class="call-panel-head"><div><b id="callPanelTitle">Na call</b><small id="callPanelSubtitle">Participantes conectados</small></div><button id="callPanelClose" class="icon-btn panel-close-x" type="button" aria-label="Fechar painel" title="Fechar">×</button></div>
+   <div class="call-panel-tabs" role="tablist" aria-label="Painel da call">
+     <button class="call-panel-tab active" data-call-panel-tab="participants" type="button">👥 Na call</button>
+     <button class="call-panel-tab" data-call-panel-tab="friends" type="button">🤝 Amigos</button>
+   </div>
    <div id="callPanelContent" class="call-panel-content"></div>
  </div>
  <div id="musicBot" class="music-bot idle"><div class="music-icon">🎵</div><div class="music-info"><b class="music-title">Nenhuma música tocando</b><small class="music-meta">Abra 🎵 Música para buscar e controlar</small><div class="music-progress"><div class="music-progress-fill"></div></div></div><span class="music-queue-count"></span><button id="musicSkip" class="music-skip" type="button" disabled title="Próxima">⏭</button><button id="musicStop" class="music-stop" type="button" disabled title="Parar e limpar fila">⏹</button></div>
@@ -497,13 +516,13 @@
 <div id="messagesPanel" class="modal hidden" role="dialog" aria-modal="true">
 <div class="modal-card messages-card">
 <div id="messagesInboxView" class="dm-inbox-view">
-  <div class="messages-head"><div class="messages-person"><div class="dm-inbox-logo">💬</div><div><strong>Mensagens</strong><small>Suas conversas diretas</small></div></div><button type="button" id="messagesCloseInbox" class="icon-btn" aria-label="Fechar">×</button></div>
-  <div class="messages-toolbar"><input id="messagesInboxSearch" class="friends-search" placeholder="🔎 Procurar conversa..." autocomplete="off"></div>
+  <div class="messages-head dm-inbox-header"><div class="messages-person"><div class="dm-inbox-logo">💬</div><div><strong>Mensagens</strong><small>Converse em particular, compartilhe mídia e fixe chats.</small></div></div><div class="dm-inbox-head-actions"><button type="button" id="messagesNewBtn" class="secondary-btn small-btn">＋ Nova conversa</button><button type="button" id="messagesCloseInbox" class="icon-btn" aria-label="Fechar">×</button></div></div>
+  <div class="dm-inbox-summary"><span><b id="dmConversationCount">0</b> conversas</span><span>🔒 privadas</span><span>📌 fixadas ficam no topo</span></div><div class="messages-toolbar"><input id="messagesInboxSearch" class="friends-search" placeholder="🔎 Procurar por nome ou código..." autocomplete="off"></div>
   <div id="messagesConversations" class="dm-conversations"><div class="muted">Carregando conversas...</div></div>
 </div>
 <div id="messagesChatView" class="dm-chat-view hidden">
-<div class="messages-head"><button type="button" id="messagesBack" class="icon-btn" aria-label="Voltar para mensagens">‹</button><div class="messages-person"><div id="messagesFriendAvatar" class="dm-avatar">?</div><div><strong id="messagesFriendName">Selecione um amigo</strong><small id="messagesFriendState">Conversa privada</small></div></div><button type="button" id="messagesClose" class="icon-btn" aria-label="Fechar">×</button></div>
-<div class="messages-toolbar"><input id="messagesSearch" class="friends-search" placeholder="🔎 Buscar mensagens" autocomplete="off"></div><div id="messagesList" class="messages-list"><div class="muted">Escolha um amigo para começar.</div></div>
+<div class="messages-head dm-chat-header"><button type="button" id="messagesBack" class="icon-btn" aria-label="Voltar para mensagens">‹</button><div class="messages-person"><div id="messagesFriendAvatar" class="dm-avatar">?</div><div><strong id="messagesFriendName">Selecione um amigo</strong><small id="messagesFriendState">Conversa privada</small></div></div><button type="button" id="messagesClose" class="icon-btn" aria-label="Fechar">×</button></div>
+<div class="messages-toolbar"><input id="messagesSearch" class="friends-search" placeholder="🔎 Buscar mensagens" autocomplete="off"></div><div id="messagesList" class="messages-list"><div class="dm-chat-empty"><div>💬</div><b>Selecione uma conversa</b><small>Suas mensagens aparecerão aqui.</small></div></div>
 <form id="messageForm" class="message-form">
   <button id="messageAttach" class="dm-tool" type="button" title="Foto ou vídeo">＋</button>
   <input id="messageFile" type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime" hidden>

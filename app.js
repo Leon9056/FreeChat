@@ -447,39 +447,58 @@ $("reportClose")?.addEventListener("click",closeReportModal);
 $("reportCancelBtn")?.addEventListener("click",closeReportModal);
 $("reportSubmitBtn")?.addEventListener("click",submitReport);
 window.renderFriends=async()=>{
- let d;try{d=await api("/api/friends")}catch(e){d=window.friendDirectory||{friends:[],requests:[]}};window.friendDirectory=d;
- [$("friendsList"),$("friendsAppList")].filter(Boolean).forEach(list=>{
-  list.innerHTML="";const term=String(window.friendSearchTerm||"").trim().toLowerCase(),requests=d.requests||[],friends=(d.friends||[]).filter(u=>!term||String(u.name||"").toLowerCase().includes(term)||String(u.code||"").toLowerCase().includes(term));
-  if(list.id==="friendsList"&&requests.length){const t=document.createElement("div");t.className="friends-section-title";t.innerHTML="<span>Solicitações</span><small>"+requests.length+"</small>";list.appendChild(t);
-   requests.forEach(u=>{const x=document.createElement("div");x.className="friend-item friend-request";x.innerHTML='<div class="friend-avatar"></div><div class="friend-info"><b></b><small></small></div><button class="accept-friend-btn">Aceitar</button><button class="reject-friend-btn">×</button>';window.applyAvatar?.(x.querySelector(".friend-avatar"),u.avatarUrl,u.name);x.querySelector("b").textContent=u.name||"Usuário";x.querySelector("small").textContent=u.code+" • enviou um convite";x.querySelector(".accept-friend-btn").onclick=async()=>{try{await api("/api/friends/accept",{method:"POST",body:JSON.stringify({code:u.code})});appToast("Convite aceito!","success");renderFriends()}catch(e){appToast(e.message,"error")}};x.querySelector(".reject-friend-btn").onclick=async()=>{try{await api("/api/friends/reject",{method:"POST",body:JSON.stringify({code:u.code})})}catch(e){}renderFriends()};list.appendChild(x)})}
-  if(friends.length){const t=document.createElement("div");t.className="friends-section-title";t.innerHTML="<span>Amigos</span><small>"+friends.length+"</small>";list.appendChild(t)}
-  friends.forEach(u=>{
-    const online=!!u.online||[...people.values()].some(p=>p.code===u.code),unread=Number(unreadCounts[u.code]||0);
-    const x=document.createElement("div");x.className="friend-item";
-    x.innerHTML='<div class="friend-avatar"></div><span class="friend-dot"></span><div class="friend-info"><b></b><small></small></div><span class="friend-unread" hidden></span><button class="message-friend-btn" title="Mensagem">💬</button><button class="friend-call-btn" title="Chamar para call">📞</button><button class="friend-block-btn" title="Bloquear">🚫</button><button class="friend-report-btn" title="Denunciar">⚑</button><button class="remove-friend-btn" title="Remover">×</button>';
-    window.applyAvatar?.(x.querySelector(".friend-avatar"),u.avatarUrl,u.name);
-    x.querySelector(".friend-dot").classList.toggle("online",online);
-    x.querySelector("b").textContent=u.name||"Usuário";
-    x.querySelector("small").textContent=online?"● Online":"○ Offline";
-    const b=x.querySelector(".friend-unread");if(unread){b.textContent=unread>99?"99+":String(unread);b.hidden=false}
-    x.querySelector(".message-friend-btn").onclick=()=>openMessages(u);
-    const callBtn=x.querySelector(".friend-call-btn");
-    if(!online){callBtn.disabled=true;callBtn.title="Amigo offline — não é possível chamar agora"}
-    callBtn.onclick=()=>{const newRoom=makeCallCode();openApp(newRoom,true);inviteFriendToCall(u.code,newRoom,u.name)};
-    x.querySelector(".friend-block-btn").onclick=async()=>{
-      if(!await fcConfirm("Você não vai mais conseguir se comunicar com esta pessoa. Ela também não poderá ver seu perfil.",{title:"Bloquear "+(u.name||"este usuário")+"?",confirmText:"Bloquear",danger:true,kicker:"Segurança"}))return;
-      try{await api("/api/security/block",{method:"POST",body:JSON.stringify({code:u.code})});appToast("Usuário bloqueado.","success");renderFriends()}
-      catch(e){appToast(e.message,"error")}
-    };
-    x.querySelector(".friend-report-btn").onclick=()=>openReportModal(u);
-    x.querySelector(".remove-friend-btn").onclick=async()=>{if(!await fcConfirm("Esta pessoa será removida da sua lista de amigos.",{title:"Remover "+(u.name||"este amigo")+"?",confirmText:"Remover",danger:true,kicker:"Amizade"}))return;try{await api("/api/friends/remove",{method:"POST",body:JSON.stringify({code:u.code})});delete unreadCounts[u.code];appToast("Amigo removido");renderFriends()}catch(e){appToast(e.message,"error")}};
-    list.appendChild(x);
-  });
-  if(!friends.length&&!(list.id==="friendsList"&&requests.length)){const q=document.createElement("div");q.className="friends-empty";q.innerHTML='<div class="friends-empty-icon">👥</div><b>'+(term?"Nenhum resultado":"Sua lista está vazia")+'</b><small>'+(term?"Tente outro nome ou código.":"Adicione amigos pelo código.")+'</small>';list.appendChild(q)}
- });
+ let d;try{d=await api("/api/friends")}catch(e){d=window.friendDirectory||{friends:[],requests:[]}};
+ window.friendDirectory=d;
+ const requests=d.requests||[], allFriends=d.friends||[];
+ const count=$("friendsTabCount"),reqCount=$("friendsRequestCount");
+ if(count)count.textContent=String(allFriends.length);
+ if(reqCount)reqCount.textContent=String(requests.length);
+ if($("friendsHomeMyCode")&&window.CONVERSA_USER?.code)$('friendsHomeMyCode').textContent=window.CONVERSA_USER.code;
+ const term=String(window.friendSearchTerm||"").trim().toLowerCase();
+ const friends=allFriends.filter(u=>!term||String(u.name||"").toLowerCase().includes(term)||String(u.code||"").toLowerCase().includes(term));
+ const renderRequests=(list)=>{
+   list.innerHTML="";
+   if(!requests.length){list.innerHTML='<div class="friends-empty"><div class="friends-empty-icon">🔔</div><b>Nenhum convite novo</b><small>Quando alguém enviar um pedido, ele aparecerá aqui.</small></div>';return}
+   requests.forEach(u=>{
+     const x=document.createElement("div");x.className="friend-item friend-request";
+     x.innerHTML='<div class="friend-avatar"></div><div class="friend-info"><b></b><small></small></div><button class="accept-friend-btn">Aceitar</button><button class="reject-friend-btn" title="Recusar">×</button>';
+     window.applyAvatar?.(x.querySelector(".friend-avatar"),u.avatarUrl,u.name);
+     x.querySelector("b").textContent=u.name||"Usuário";x.querySelector("small").textContent=u.code+" • quer ser seu amigo";
+     x.querySelector(".accept-friend-btn").onclick=async()=>{try{await api("/api/friends/accept",{method:"POST",body:JSON.stringify({code:u.code})});appToast("Convite aceito!","success");renderFriends()}catch(e){appToast(e.message,"error")}};
+     x.querySelector(".reject-friend-btn").onclick=async()=>{try{await api("/api/friends/reject",{method:"POST",body:JSON.stringify({code:u.code})});appToast("Convite recusado")}catch(e){appToast(e.message,"error")}renderFriends()};
+     list.appendChild(x);
+   });
+ };
+ const renderFriendList=(list)=>{
+   list.innerHTML="";
+   if(friends.length){const t=document.createElement("div");t.className="friends-section-title";t.innerHTML="<span>Seus amigos</span><small>"+friends.length+"</small>";list.appendChild(t)}
+   friends.forEach(u=>{
+     const online=!!u.online||[...people.values()].some(p=>p.code===u.code),unread=Number(unreadCounts[u.code]||0);
+     const x=document.createElement("div");x.className="friend-item friend-item-main";
+     x.innerHTML='<div class="friend-avatar"></div><span class="friend-dot"></span><div class="friend-info"><b></b><small></small></div><span class="friend-unread" hidden></span><button class="message-friend-btn" title="Abrir mensagem">💬</button><button class="friend-call-btn" title="Convidar para call">📞</button><button class="friend-block-btn" title="Bloquear">🚫</button><button class="friend-report-btn" title="Denunciar">⚑</button><button class="remove-friend-btn" title="Remover amizade">×</button>';
+     window.applyAvatar?.(x.querySelector(".friend-avatar"),u.avatarUrl,u.name);
+     x.querySelector(".friend-dot").classList.toggle("online",online);x.querySelector("b").textContent=u.name||"Usuário";x.querySelector("small").textContent=online?"● Online":"○ Offline";
+     const b=x.querySelector(".friend-unread");if(unread){b.textContent=unread>99?"99+":String(unread);b.hidden=false}
+     x.querySelector(".message-friend-btn").onclick=()=>openMessages(u);
+     const callBtn=x.querySelector(".friend-call-btn");
+     if(!online){callBtn.disabled=true;callBtn.title="Amigo offline — indisponível para call"}
+     callBtn.onclick=()=>{const newRoom=makeCallCode();openApp(newRoom,true);inviteFriendToCall(u.code,newRoom,u.name)};
+     x.querySelector(".friend-block-btn").onclick=async()=>{if(!await fcConfirm("Você não vai mais conseguir se comunicar com esta pessoa. Ela também não poderá ver seu perfil.",{title:"Bloquear "+(u.name||"este usuário")+"?",confirmText:"Bloquear",danger:true,kicker:"Segurança"}))return;try{await api("/api/security/block",{method:"POST",body:JSON.stringify({code:u.code})});appToast("Usuário bloqueado.","success");renderFriends()}catch(e){appToast(e.message,"error")}};
+     x.querySelector(".friend-report-btn").onclick=()=>openReportModal(u);
+     x.querySelector(".remove-friend-btn").onclick=async()=>{if(!await fcConfirm("Esta pessoa será removida da sua lista de amigos.",{title:"Remover "+(u.name||"este amigo")+"?",confirmText:"Remover",danger:true,kicker:"Amizade"}))return;try{await api("/api/friends/remove",{method:"POST",body:JSON.stringify({code:u.code})});delete unreadCounts[u.code];appToast("Amigo removido");renderFriends()}catch(e){appToast(e.message,"error")}};
+     list.appendChild(x);
+   });
+   if(!friends.length){const q=document.createElement("div");q.className="friends-empty";q.innerHTML='<div class="friends-empty-icon">👥</div><b>'+(term?"Nenhum resultado":"Você ainda não tem amigos")+'</b><small>'+(term?"Tente outro nome ou código.":"Adicione alguém pelo código para começar.")+'</small>';list.appendChild(q)}
+ };
+ if($("friendsList"))renderFriendList($("friendsList"));
+ if($("friendsAppList"))renderFriendList($("friendsAppList"));
+ if($("friendsRequestsList"))renderRequests($("friendsRequestsList"));
 };async function addFriend(input,status){const code=input.value.trim().toUpperCase();if(!/^CL-[A-Z0-9]{6}$/.test(code)){status.textContent="Código inválido. Use CL-XXXXXX.";return}try{const d=await api("/api/friends/request",{method:"POST",body:JSON.stringify({code})});status.textContent=d.message||"Convite enviado!";input.value="";renderFriends()}catch(e){status.textContent=e.message}}
- $("addFriendBtn").onclick=()=>addFriend($("friendCodeInput"),$("friendStatus"));$("addFriendApp").onclick=()=>addFriend($("friendCodeApp"),$("friendAppStatus"));$("refreshFriends").onclick=window.renderFriends;$("friendsBtn").onclick=()=>{$("friendsPanel").classList.remove("hidden");renderFriends()};$("friendsClose").onclick=()=>$('friendsPanel').classList.add("hidden");$("copyUserCode").onclick=()=>navigator.clipboard?.writeText($("myCode").textContent);refreshUnreadCounts();
+ $("addFriendBtn").onclick=()=>addFriend($("friendCodeInput"),$("friendStatus"));$("addFriendApp").onclick=()=>addFriend($("friendCodeApp"),$("friendAppStatus"));$("refreshFriends").onclick=window.renderFriends;$('friendsBtn').onclick=()=>{$("friendsPanel").classList.remove("hidden");renderFriends()};$("friendsClose").onclick=()=>$('friendsPanel').classList.add("hidden");$("copyUserCode").onclick=()=>navigator.clipboard?.writeText($("myCode").textContent);$("friendsHomeCopyCode")?.addEventListener("click",()=>{navigator.clipboard?.writeText(window.CONVERSA_USER?.code||$("friendsHomeMyCode")?.textContent||"");appToast("Seu código foi copiado!","success")});refreshUnreadCounts();
  $("logoutBtn").onclick=async()=>{clearInterval(friendPollTimer);try{await api("/api/logout",{method:"POST"})}catch(e){}try{socket?.disconnect?.();}catch(e){}localStorage.removeItem("conversaLiveToken");localStorage.removeItem("conversaLiveUser");window.CONVERSA_TOKEN="";location.href=location.pathname}; 
+
+function setFriendsHomeTab(tab){document.querySelectorAll("#callMenu [data-friend-tab]").forEach(b=>b.classList.toggle("active",b.dataset.friendTab===tab));document.querySelectorAll("#callMenu [data-friend-pane]").forEach(p=>p.classList.toggle("hidden",p.dataset.friendPane!==tab));if(tab!=="list")renderFriends();if(tab==="add")setTimeout(()=>$('friendCodeInput')?.focus(),60)}
+document.querySelectorAll("#callMenu [data-friend-tab]").forEach(b=>b.addEventListener("click",()=>setFriendsHomeTab(b.dataset.friendTab)));
  function makeCallCode(){const chars="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";let c="";for(let i=0;i<6;i++)c+=chars[Math.floor(Math.random()*chars.length)];return c;}
  function openApp(targetRoom,autoCall=true){
    const c=String(targetRoom||"").trim().toUpperCase().replace(/[^A-Z0-9_-]/g,"").slice(0,32);if(!c)return;
@@ -1236,6 +1255,7 @@ document.addEventListener("click",(e)=>{
   if(action==="call") $("createCallBtn")?.click();
   else if(action==="feed") $("feedBtnMenu")?.click();
   else if(action==="friend"){
+    setFriendsHomeTab?.("add");
     const input=$("friendCodeInput");
     input?.focus();
     input?.scrollIntoView({behavior:"smooth",block:"center"});
@@ -1300,27 +1320,35 @@ function updateCallParticipantCount(){
  $("callParticipantCount")?.replaceChildren(document.createTextNode(String(n)));
  $("callEmptyState")?.classList.toggle("hidden",n>0);
 }
+function renderCallFriends(content){
+ const friends=window.friendDirectory?.friends||[];
+ content.innerHTML=`<div class="call-friends-intro"><b>Convide alguém para a call</b><small>Somente amigos disponíveis podem receber o convite.</small></div>`;
+ const search=document.createElement("input");search.className="friends-search call-friends-search";search.placeholder="🔎 Procurar amigo...";search.autocomplete="off";content.appendChild(search);
+ const list=document.createElement("div");list.className="call-friends-list";content.appendChild(list);
+ const paint=()=>{const q=search.value.trim().toLowerCase();list.innerHTML="";const filtered=friends.filter(u=>!q||String(u.name||"").toLowerCase().includes(q)||String(u.code||"").toLowerCase().includes(q));if(!filtered.length){list.innerHTML='<div class="friends-empty"><div class="friends-empty-icon">🤝</div><b>Nenhum amigo encontrado</b><small>Adicione amigos pelo menu principal.</small></div>';return}filtered.forEach(u=>{const online=!!u.online||[...people.values()].some(p=>p.code===u.code);const row=document.createElement("div");row.className="call-friend-row";row.innerHTML='<div class="friend-avatar"></div><span class="friend-dot"></span><div class="friend-info"><b></b><small></small></div><button class="call-invite-friend" type="button">📞 Convidar</button>';applyAvatar(row.querySelector(".friend-avatar"),u.avatarUrl,u.name);row.querySelector(".friend-dot").classList.toggle("online",online);row.querySelector("b").textContent=u.name||"Usuário";row.querySelector("small").textContent=online?"● Online":"○ Offline";const btn=row.querySelector(".call-invite-friend");btn.disabled=!online||!room||!socket?.connected;btn.textContent=online?"📞 Convidar":"Offline";btn.onclick=()=>inviteFriendToCall(u.code,room,u.name);list.appendChild(row)})};search.addEventListener("input",paint);paint();
+}
 function openCallPanel(kind="participants"){
- const panel=$("callSidePanel");if(!panel)return;
- panel.classList.remove("hidden");
- const title=$("callPanelTitle"),content=$("callPanelContent");if(!title||!content)return;
+ const panel=$("callSidePanel");if(!panel)return;panel.classList.remove("hidden");
+ const title=$("callPanelTitle"),subtitle=$("callPanelSubtitle"),content=$("callPanelContent");if(!title||!content)return;
+ document.querySelectorAll("#callSidePanel [data-call-panel-tab]").forEach(b=>b.classList.toggle("active",b.dataset.callPanelTab===kind));
  if(kind==="chat"){
-   title.textContent="Chat da call";
+   title.textContent="Chat da call";if(subtitle)subtitle.textContent="Mensagens desta chamada";
    content.innerHTML=`<div class="call-chat-list" id="callChatList">${callChatHistory.map(m=>`<div><b>${messageEscape(m.name)}</b><span>${messageEscape(m.text)}</span><small>${messageEscape(m.time||"")}</small></div>`).join("")}</div><form id="callChatForm" class="call-chat-form"><input id="callChatInput" maxlength="1000" placeholder="Mensagem para a call..."><button>➤</button></form>`;
-   const list=$("callChatList");if(list)list.scrollTop=list.scrollHeight;
-   $("callChatForm")?.addEventListener("submit",e=>{e.preventDefault();const v=$("callChatInput").value.trim();if(v&&socket?.connected){socket.emit("chat",{room,text:v});$("callChatInput").value="";$("callChatInput").focus()}});
+   const list=$("callChatList");if(list)list.scrollTop=list.scrollHeight;$("callChatForm")?.addEventListener("submit",e=>{e.preventDefault();const v=$("callChatInput").value.trim();if(v&&socket?.connected){socket.emit("chat",{room,text:v});$("callChatInput").value="";$("callChatInput").focus()}});
+ }else if(kind==="friends"){
+   title.textContent="Amigos";if(subtitle)subtitle.textContent="Convide um amigo para esta call";renderCallFriends(content);
  }else{
-   title.textContent="Amigos na call • "+(people?.size||0);
+   title.textContent="Na call • "+(people?.size||0);if(subtitle)subtitle.textContent="Participantes conectados agora";
    content.innerHTML=[...people.values()].map(u=>`<div class="call-person-row"><span class="call-person-avatar">${messageEscape((u.name||"?").charAt(0).toUpperCase())}</span><div><b>${messageEscape(u.name||"Participante")}</b><small>${u.id===socket?.id?"Você":(u.id===callHostId?"Criador da call":"Participante")}</small></div><span class="call-person-state">${u.id===callHostId?"👑":"🎙️"}</span></div>`).join("")||'<div class="muted">Nenhum participante.</div>';
  }
 }
-function closeCallPanel(){$("callSidePanel")?.classList.add("hidden")}
+function closeCallPanel(){const p=$("callSidePanel");if(p)p.classList.add("hidden");}
 function setCallPanelFromChat(){openCallPanel("chat")}
 $("callParticipantsBtn")?.addEventListener("click",()=>openCallPanel("participants"));
 $("callParticipantsBtnBottom")?.addEventListener("click",()=>openCallPanel("participants"));
 
 
-$("callPanelClose")?.addEventListener("click",closeCallPanel);
+$("callPanelClose")?.addEventListener("click",closeCallPanel);document.querySelectorAll("#callSidePanel [data-call-panel-tab]").forEach(b=>b.addEventListener("click",()=>openCallPanel(b.dataset.callPanelTab)));
 $("callSettingsBtn")?.addEventListener("click",()=>{$("callSettingsPanel")?.classList.toggle("hidden");closeCallPanel()});
 $("callSettingsClose")?.addEventListener("click",()=>$("callSettingsPanel")?.classList.add("hidden"));
 $("callVolumeBtn")?.addEventListener("click",toggleCallVolume);
@@ -1405,7 +1433,7 @@ addVideo=function(n,s,id){
 const originalRemoveVideo=removeVideo;
 removeVideo=function(id){originalRemoveVideo(id);updateCallParticipantCount();};
 const originalRenderPeople=renderPeople;
-renderPeople=function(){originalRenderPeople();updateCallParticipantCount();if(!$("callSidePanel")?.classList.contains("hidden"))openCallPanel("participants")};
+renderPeople=function(){originalRenderPeople();updateCallParticipantCount();if(!$("callSidePanel")?.classList.contains("hidden")){const active=$("callSidePanel")?.querySelector(".call-panel-tab.active")?.dataset.callPanelTab||"participants";openCallPanel(active)}};
 
 const originalOpenCall=openCall;
 openCall=async function(){
@@ -2508,6 +2536,7 @@ function renderDirectConversations(){
  const box=$("messagesConversations");if(!box)return;
  const term=String($("messagesInboxSearch")?.value||"").trim().toLowerCase();
  const rows=dmConversationsCache.filter(c=>!term||String(c.name||"").toLowerCase().includes(term)||String(c.code||"").toLowerCase().includes(term));
+ if($("dmConversationCount"))$("dmConversationCount").textContent=String(dmConversationsCache.length);
  box.innerHTML="";
  if(!rows.length){box.innerHTML='<div class="dm-inbox-empty"><div>💬</div><b>'+(term?"Nenhuma conversa encontrada":"Você ainda não tem conversas")+'</b><small>'+(term?"Tente outro nome ou código.":"Quando alguém falar com você, a conversa aparecerá aqui.")+'</small></div>';return;}
  rows.forEach(c=>{
@@ -2530,6 +2559,8 @@ function dmInboxTime(v){const d=new Date(v);if(Number.isNaN(d.getTime()))return 
 function openMessagesInbox(){
  activeFriendCode=null;lastLoadedMessages=[];setSelectedMessageFile(null);
  $("messagesInboxView")?.classList.remove("hidden");$("messagesChatView")?.classList.add("hidden");
+ $("messagesFriendName") && ($("messagesFriendName").textContent="Selecione uma conversa");
+ $("messagesFriendState") && ($("messagesFriendState").textContent="Mensagens privadas");
  const panel=$("messagesPanel");if(!panel)return;panel.classList.remove("hidden");document.body.classList.add("modal-open");
  if($("messagesInboxSearch"))$("messagesInboxSearch").value="";loadDirectConversations();
 }
