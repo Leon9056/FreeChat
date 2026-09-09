@@ -2606,6 +2606,7 @@ function initPrivateChatUI(){
   $("messagesClose")?.addEventListener("click",closePrivateChat);$("messagesCloseInbox")?.addEventListener("click",closePrivateChat);
   $("messagesBack")?.addEventListener("click",backToMessagesInbox);
   $("directMessagesBtn")?.addEventListener("click",openMessagesInbox);
+  $("messagesNewBtn")?.addEventListener("click",()=>{ closePrivateChat(); openSocial("friends"); setFriendsHomeTab?.("add"); });
   $("messagesPanel")?.addEventListener("click",e=>{if(e.target.id==="messagesPanel")closePrivateChat();});
   $("messagesInboxSearch")?.addEventListener("input",renderDirectConversations);
 }

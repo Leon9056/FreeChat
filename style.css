@@ -2904,3 +2904,73 @@ html,body{background:var(--fc25-bg)!important}
  #feedScreen .feed-tiktok-card .post-media img,#feedScreen .feed-tiktok-card .post-media video{max-height:72vh!important}
  #app.call-open #callSidePanel{position:fixed!important;inset:8px 8px 74px 8px!important;width:auto!important;bottom:74px!important;border-radius:18px!important}
 }
+
+/* ================================================================
+   FreeChat 1.6.26 — FINAL DESKTOP LAYOUT
+   Aproveita a viewport inteira sem criar espaços mortos.
+   ================================================================ */
+#callMenu.screen{
+  min-height:100dvh!important;height:100dvh!important;box-sizing:border-box!important;
+  padding:20px 28px!important;overflow:hidden!important;
+  display:flex!important;align-items:center!important;justify-content:center!important;
+}
+#callMenu .call-menu-card.menu-main-card{
+  width:min(1320px,calc(100vw - 56px))!important;
+  height:min(900px,calc(100dvh - 40px))!important;
+  max-height:calc(100dvh - 40px)!important;
+  box-sizing:border-box!important;padding:28px 32px!important;
+  overflow:hidden!important;display:flex!important;flex-direction:column!important;
+}
+#callMenu .menu-header{flex:0 0 auto!important;display:grid!important;grid-template-columns:auto minmax(0,1fr) auto auto!important;align-items:center!important;gap:16px!important;padding-bottom:18px!important;margin-bottom:18px!important}
+#callMenu .menu-header .brand-icon{width:52px!important;height:52px!important}
+#callMenu .menu-greeting h1{font-size:clamp(26px,2.3vw,36px)!important}
+#callMenu .menu-greeting p{font-size:12px!important}
+#callMenu .menu-grid{flex:1 1 auto!important;min-height:0!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;gap:18px!important;margin:0!important;align-items:stretch!important}
+#callMenu .menu-col{min-height:0!important;padding:18px!important;box-sizing:border-box!important}
+#callMenu .menu-col-actions{display:flex!important;flex-direction:column!important}
+#callMenu .menu-col-friends{overflow:hidden!important}
+#callMenu .friends-home-box{height:100%!important;min-height:0!important;overflow:hidden!important}
+#callMenu .friends-pane{min-height:0!important;display:flex!important;flex-direction:column!important;overflow:hidden!important}
+#callMenu .friends-pane.hidden{display:none!important}
+#callMenu .friends-list{flex:1 1 auto!important;min-height:0!important;max-height:none!important;overflow-y:auto!important;overflow-x:hidden!important;padding-right:5px!important}
+#callMenu .friend-item{flex:0 0 auto!important}
+#callMenu .menu-quick-strip{flex:0 0 auto!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:10px!important;margin-top:14px!important}
+#callMenu .menu-quick-card{min-height:62px!important;padding:11px 12px!important}
+#callMenu .menu-tip{flex:0 0 auto!important;margin-top:10px!important}
+#callMenu .support-creator-btn{flex:0 0 auto!important;margin-top:10px!important}
+#callMenu .logout-btn{flex:0 0 auto!important;margin-top:6px!important}
+
+/* Mensagens: modal ocupa uma área confortável e nunca fica atrás de outro painel. */
+#messagesPanel{z-index:5000!important;display:flex!important;align-items:center!important;justify-content:center!important;padding:24px!important;box-sizing:border-box!important}
+#messagesPanel.hidden{display:none!important}
+#messagesPanel .messages-card{width:min(1040px,calc(100vw - 48px))!important;height:min(760px,calc(100dvh - 48px))!important;max-height:calc(100dvh - 48px)!important}
+#messagesPanel .dm-inbox-view,#messagesPanel .dm-chat-view{height:100%!important;min-height:0!important;display:flex!important;flex-direction:column!important}
+#messagesPanel .dm-inbox-view.hidden,#messagesPanel .dm-chat-view.hidden{display:none!important}
+#messagesPanel .dm-conversations{flex:1 1 auto!important;min-height:0!important;overflow-y:auto!important;padding:12px!important}
+#messagesPanel .dm-conversation{cursor:pointer;transition:.15s ease!important}
+#messagesPanel .dm-conversation:hover{transform:translateY(-1px);border-color:color-mix(in srgb,var(--accent-main) 45%,var(--line))!important}
+#messagesPanel .dm-inbox-empty,#messagesPanel .dm-inbox-loading{min-height:260px;display:grid;place-items:center;align-content:center;text-align:center;gap:7px;color:var(--muted)}
+#messagesPanel .dm-inbox-empty div{font-size:42px}
+#messagesPanel .dm-inbox-empty b{color:var(--text)}
+#messagesPanel .messages-list{flex:1 1 auto!important;min-height:0!important}
+
+@media(max-width:900px){
+  #callMenu.screen{padding:8px!important;align-items:stretch!important}
+  #callMenu .call-menu-card.menu-main-card{width:100%!important;height:100%!important;max-height:100%!important;padding:14px!important}
+  #callMenu .menu-header{grid-template-columns:auto minmax(0,1fr) auto!important;gap:9px!important}
+  #callMenu .profile-code{display:none!important}
+  #callMenu .menu-grid{grid-template-columns:1fr!important;overflow:auto!important}
+  #callMenu .menu-col-actions{display:none!important}
+  #callMenu .menu-col-friends{min-height:300px!important}
+  #callMenu .menu-quick-strip{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+}
+@media(max-height:700px) and (min-width:901px){
+  #callMenu.screen{padding:8px 16px!important}
+  #callMenu .call-menu-card.menu-main-card{height:calc(100dvh - 16px)!important;max-height:calc(100dvh - 16px)!important;padding:16px 20px!important}
+  #callMenu .menu-header{padding-bottom:10px!important;margin-bottom:10px!important}
+  #callMenu .menu-header .brand-icon{width:42px!important;height:42px!important}
+  #callMenu .menu-greeting h1{font-size:24px!important}
+  #callMenu .menu-greeting p{display:none!important}
+  #callMenu .menu-col{padding:12px!important}
+  #callMenu .menu-quick-card{min-height:48px!important}
+}
