@@ -2664,3 +2664,243 @@ body{color:var(--fc-ui-text)!important}
   #feedScreen .feed-stories{padding-top:12px!important}
   #feedScreen .post-media img,#feedScreen .post-media video{max-height:72vh!important;object-fit:cover!important}
 }
+
+/* ============================================================
+   FreeChat 1.6.24 — menu principal sem rolagem da página
+   O menu inteiro deve caber na viewport; somente listas longas
+   (como amigos) ganham rolagem interna.
+   ============================================================ */
+#callMenu.screen{
+  height:100dvh!important;
+  min-height:100dvh!important;
+  max-height:100dvh!important;
+  box-sizing:border-box!important;
+  overflow:hidden!important;
+  padding:10px 14px!important;
+  align-items:center!important;
+  justify-content:center!important;
+}
+#callMenu .menu-main-card{
+  width:min(1080px,calc(100vw - 20px))!important;
+  max-width:1080px!important;
+  max-height:calc(100dvh - 20px)!important;
+  height:auto!important;
+  overflow:hidden!important;
+  padding:14px 18px!important;
+  margin:0 auto!important;
+  display:flex!important;
+  flex-direction:column!important;
+  justify-content:center!important;
+}
+#callMenu .menu-header{
+  flex:0 0 auto!important;
+  padding:2px 0 10px!important;
+  margin-bottom:10px!important;
+  gap:10px!important;
+}
+#callMenu .menu-header .brand-icon{width:44px!important;height:44px!important}
+#callMenu .menu-greeting h1{font-size:clamp(19px,2.4vw,27px)!important;margin:0 0 2px!important}
+#callMenu .menu-greeting p{font-size:11px!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#callMenu .profile-code{padding:8px 10px!important;font-size:10px!important}
+#callMenu .profile-code button{padding:6px 8px!important;font-size:10px!important}
+#callMenu .feed-main-btn-menu{min-height:36px!important;padding:7px 10px!important;font-size:11px!important}
+#callMenu .menu-grid{
+  flex:0 0 auto!important;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;
+  gap:12px!important;
+  margin-top:0!important;
+  align-items:stretch!important;
+}
+#callMenu .menu-col{
+  padding:12px!important;
+  min-height:0!important;
+}
+#callMenu .menu-section-title{margin-bottom:8px!important;font-size:10px!important}
+#callMenu .big-btn{min-height:42px!important;padding:9px 12px!important;font-size:12px!important;margin-top:8px!important}
+#callMenu .call-actions-divider{margin:4px 0!important;font-size:10px!important}
+#callMenu .join-box{padding:9px!important;margin-top:8px!important}
+#callMenu .join-box label{margin:4px 0!important;font-size:10px!important}
+#callMenu .join-box input{padding:8px 10px!important;font-size:11px!important}
+#callMenu .join-box button{min-height:36px!important;margin-top:7px!important;padding:7px 10px!important;font-size:11px!important}
+#callMenu .friends-home-box{min-height:0!important;height:auto!important}
+#callMenu .friends-home-head{gap:8px!important;margin-bottom:8px!important}
+#callMenu .friends-home-head h2{font-size:17px!important;margin:2px 0!important}
+#callMenu .friends-home-head small{font-size:9px!important;line-height:1.25!important;max-width:360px!important}
+#callMenu .friends-refresh-btn{width:32px!important;height:32px!important;font-size:17px!important}
+#callMenu .friends-tabs{padding:3px!important}
+#callMenu .friends-tab{padding:7px 6px!important;font-size:10px!important}
+#callMenu .friends-pane{min-height:0!important}
+#callMenu .friends-home-box .friends-toolbar{margin-bottom:6px!important}
+#callMenu .friends-home-box .friends-search{padding:8px 10px!important;font-size:11px!important}
+#callMenu .friends-home-box .friends-list{
+  max-height:126px!important;
+  min-height:0!important;
+  overflow-y:auto!important;
+  scrollbar-width:thin;
+  padding-right:3px!important;
+}
+#callMenu .friends-home-box .friend-item{padding:7px!important;min-height:0!important;border-radius:10px!important}
+#callMenu .friends-home-box .friend-item button{padding:4px 6px!important;font-size:10px!important}
+#callMenu .friends-home-box .friend-info b{font-size:11px!important}
+#callMenu .friends-home-box .friend-info small{font-size:9px!important}
+#callMenu .friends-add-hero{padding:9px!important;margin-bottom:7px!important}
+#callMenu .friends-add-hero>span{width:32px!important;height:32px!important;font-size:16px!important}
+#callMenu .friends-add-hero b{font-size:11px!important}.friends-add-hero small{font-size:9px!important}
+#callMenu .friends-home-box .friend-add-row input{min-height:36px!important;padding:8px!important;font-size:11px!important}
+#callMenu .friends-home-box .friend-add-row button{min-height:36px!important;padding:7px 9px!important;font-size:10px!important}
+#callMenu .my-code-card{margin-top:8px!important;padding:8px 9px!important}
+#callMenu .friend-help{font-size:9px!important}
+#callMenu .menu-quick-strip{
+  flex:0 0 auto!important;
+  grid-template-columns:repeat(4,minmax(0,1fr))!important;
+  gap:7px!important;
+  margin-top:10px!important;
+}
+#callMenu .menu-quick-card{padding:8px!important;min-height:48px!important;border-radius:11px!important}
+#callMenu .menu-quick-card b{font-size:10px!important}
+#callMenu .menu-quick-card small{font-size:8px!important}
+#callMenu .menu-quick-icon{width:28px!important;height:28px!important;border-radius:9px!important;font-size:14px!important}
+#callMenu .menu-quick-card i{font-size:16px!important}
+#callMenu .menu-tip{flex:0 0 auto!important;margin-top:8px!important;padding:7px 9px!important;font-size:9px!important}
+#callMenu .support-creator-btn{margin-top:8px!important;min-height:34px!important;padding:7px 10px!important;font-size:10px!important}
+
+/* Em telas baixas, comprimimos o menu em vez de criar rolagem na página. */
+@media (max-height:820px) and (min-width:701px){
+  #callMenu .menu-main-card{padding:10px 14px!important}
+  #callMenu .menu-header{padding-bottom:7px!important;margin-bottom:7px!important}
+  #callMenu .menu-header .brand-icon{width:38px!important;height:38px!important}
+  #callMenu .menu-greeting h1{font-size:19px!important}
+  #callMenu .menu-greeting p{display:none!important}
+  #callMenu .menu-grid{gap:9px!important}
+  #callMenu .menu-col{padding:9px!important}
+  #callMenu .friends-home-box .friends-list{max-height:94px!important}
+  #callMenu .menu-quick-strip{margin-top:7px!important;gap:5px!important}
+  #callMenu .menu-quick-card{min-height:42px!important;padding:6px!important}
+  #callMenu .menu-quick-card small{display:none!important}
+  #callMenu .menu-tip{display:none!important}
+  #callMenu .support-creator-btn{margin-top:5px!important;min-height:30px!important;padding:5px 8px!important}
+}
+
+/* Celular: o menu continua preso à viewport; listas são as únicas áreas roláveis. */
+@media(max-width:700px){
+  #callMenu.screen{
+    height:100dvh!important;min-height:100dvh!important;max-height:100dvh!important;
+    overflow:hidden!important;padding:6px!important;align-items:center!important;
+  }
+  #callMenu .menu-main-card{
+    width:100%!important;max-height:calc(100dvh - 12px)!important;
+    padding:12px 10px!important;border-radius:18px!important;
+    overflow:hidden!important;justify-content:flex-start!important;
+  }
+  #callMenu .menu-header{grid-template-columns:auto minmax(0,1fr) auto!important;gap:7px!important;padding-bottom:8px!important;margin-bottom:8px!important}
+  #callMenu .menu-header .profile-code{display:none!important}
+  #callMenu .menu-header .brand-icon{width:38px!important;height:38px!important}
+  #callMenu .menu-greeting h1{font-size:18px!important}
+  #callMenu .menu-greeting p{display:none!important}
+  #callMenu .feed-main-btn-menu{font-size:0!important;min-width:34px!important;width:34px!important;padding:0!important}
+  #callMenu .feed-main-btn-menu span{display:none!important}
+  #callMenu .menu-grid{grid-template-columns:1fr!important;gap:7px!important}
+  #callMenu .menu-col-actions{display:none!important}
+  #callMenu .menu-col-friends{padding:9px!important}
+  #callMenu .friends-home-head small{display:none!important}
+  #callMenu .friends-home-box .friends-list{max-height:28vh!important}
+  #callMenu .menu-quick-strip{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:5px!important;margin-top:7px!important}
+  #callMenu .menu-quick-card{min-height:40px!important;padding:6px!important}
+  #callMenu .menu-quick-card small,#callMenu .menu-quick-card i{display:none!important}
+  #callMenu .menu-tip,#callMenu .support-creator-btn{display:none!important}
+}
+
+/* ================================================================
+   FreeChat 1.6.25 — SOCIAL UI REBUILD
+   Visual direction: dark Instagram-like social feed + neon purple.
+   Remove the old TikTok full-screen geometry and reclaim dead space.
+   ================================================================ */
+:root{--fc25-bg:#060711;--fc25-panel:#0b0d17;--fc25-panel2:#101321;--fc25-border:rgba(255,255,255,.075);--fc25-purple:#9b5cff;--fc25-pink:#d946ef;--fc25-cyan:#6ee7ff}
+html,body{background:var(--fc25-bg)!important}
+
+/* Feed behaves like a normal social feed: centered, compact and continuous. */
+#feedScreen{background:var(--fc25-bg)!important;overflow:hidden!important}
+#feedScreen .feed-topbar{height:58px!important;padding:0 20px!important;background:rgba(6,7,17,.94)!important;border-bottom:1px solid var(--fc25-border)!important;backdrop-filter:blur(18px)!important}
+#feedScreen .feed-scroll{width:min(760px,100%)!important;max-width:760px!important;margin:0 auto!important;padding:0 16px 90px!important;overflow-y:auto!important;overflow-x:hidden!important;box-sizing:border-box!important}
+#feedScreen .feed-tiktok-tabs{position:sticky!important;top:0!important;margin:0!important;padding:9px 0 7px!important;height:48px!important;box-sizing:border-box!important;background:linear-gradient(180deg,rgba(6,7,17,.98),rgba(6,7,17,.9))!important;border-bottom:1px solid var(--fc25-border)!important;backdrop-filter:blur(18px)!important;z-index:20!important}
+#feedScreen .feed-tiktok-tabs .feed-tab{min-width:110px!important;padding:7px 16px!important;border-radius:9px!important;color:#8d93a6!important;font-weight:800!important}
+#feedScreen .feed-tiktok-tabs .feed-tab.active{color:#fff!important;background:rgba(155,92,255,.1)!important}
+#feedScreen .feed-tiktok-tabs .feed-tab.active:after{left:25%!important;right:25%!important;bottom:0!important;height:3px!important;background:linear-gradient(90deg,var(--fc25-purple),var(--fc25-cyan))!important}
+
+/* Followed accounts are the first visual element after the filter bar. */
+#feedScreen .feed-stories{display:block!important;padding:12px 0 10px!important;margin:0!important;background:transparent!important}
+#feedScreen .stories-title{display:flex!important;align-items:center!important;justify-content:space-between!important;margin:0 2px 8px!important;color:#fff!important}
+#feedScreen .stories-title b{font-size:13px!important}
+#feedScreen .stories-title small{font-size:10px!important;color:#7f879b!important}
+#feedScreen .stories-row{display:flex!important;gap:12px!important;overflow-x:auto!important;overflow-y:hidden!important;padding:2px 2px 5px!important;scrollbar-width:none!important}
+#feedScreen .stories-row::-webkit-scrollbar{display:none!important}
+#feedScreen .story-bubble{position:relative!important;flex:0 0 68px!important;width:68px!important;display:flex!important;flex-direction:column!important;align-items:center!important;gap:5px!important;border:0!important;background:transparent!important;color:#dce1ef!important;padding:0!important}
+#feedScreen .story-avatar{width:60px!important;height:60px!important;border-radius:50%!important;border:2px solid var(--fc25-purple)!important;padding:2px!important;background-clip:padding-box!important;box-shadow:0 0 0 2px #0a0b13,0 0 16px rgba(155,92,255,.22)!important}
+#feedScreen .story-bubble.own .story-avatar{border-color:#fff!important}
+#feedScreen .story-bubble b{max-width:68px!important;font-size:10px!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;font-weight:700!important}
+#feedScreen .story-plus{right:4px!important;top:40px!important;width:19px!important;height:19px!important;border-radius:50%!important;background:linear-gradient(135deg,var(--fc25-purple),var(--fc25-pink))!important;border:2px solid #0a0b13!important;display:grid!important;place-items:center!important;font-size:13px!important;line-height:1!important}
+#feedScreen .story-dot{position:absolute!important;right:7px!important;top:45px!important;width:10px!important;height:10px!important;border-radius:50%!important;background:#5d6578!important;border:2px solid #0a0b13!important}
+#feedScreen .story-dot.online{background:#22d38a!important}
+
+/* Instagram-like composer. */
+#feedScreen .feed-composer-inline{display:grid!important;grid-template-columns:40px minmax(0,1fr) 40px!important;align-items:center!important;gap:9px!important;margin:4px 0 14px!important;padding:9px!important;border:1px solid var(--fc25-border)!important;border-radius:16px!important;background:linear-gradient(135deg,rgba(17,19,32,.96),rgba(10,12,22,.96))!important;box-shadow:0 8px 30px rgba(0,0,0,.15)!important}
+#feedScreen .feed-composer-inline button:not(.composer-media){height:38px!important;text-align:left!important;border:1px solid rgba(255,255,255,.05)!important;background:#0d101b!important;color:#9299ad!important;border-radius:11px!important;padding:0 12px!important}
+#feedScreen .composer-avatar{width:40px!important;height:40px!important;border-radius:50%!important;display:grid!important;place-items:center!important;background:linear-gradient(135deg,var(--fc25-purple),var(--fc25-pink))!important;color:#fff!important;font-weight:900!important}
+
+/* Normal post cards: no viewport-sized cards and no artificial vertical gaps. */
+#feedScreen .feed-ig-list.tiktok-list{display:flex!important;flex-direction:column!important;gap:14px!important;padding:0!important;margin:0!important}
+#feedScreen .feed-tiktok-card,
+#feedScreen .feed-tiktok-card.text-only-post{
+  flex:0 0 auto!important;width:100%!important;height:auto!important;min-height:0!important;max-height:none!important;margin:0!important;display:block!important;overflow:visible!important;justify-content:initial!important;scroll-snap-align:none!important;scroll-snap-stop:normal!important;
+  background:#0a0d16!important;border:1px solid var(--fc25-border)!important;border-radius:17px!important;padding:0!important;box-shadow:0 12px 38px rgba(0,0,0,.18)!important;
+}
+#feedScreen .feed-tiktok-card .post-head{display:flex!important;align-items:center!important;min-height:58px!important;padding:10px 13px!important;box-sizing:border-box!important}
+#feedScreen .feed-tiktok-card .post-avatar{width:40px!important;height:40px!important;flex:0 0 40px!important}
+#feedScreen .feed-tiktok-card .post-media{width:100%!important;height:auto!important;max-height:none!important;min-height:0!important;display:block!important;margin:0!important;border-radius:0!important;overflow:hidden!important;background:#05060a!important}
+#feedScreen .feed-tiktok-card .post-media img,
+#feedScreen .feed-tiktok-card .post-media video{display:block!important;width:100%!important;height:auto!important;max-height:650px!important;aspect-ratio:auto!important;object-fit:cover!important;background:#05060a!important}
+#feedScreen .feed-tiktok-card .post-body{padding:11px 14px 4px!important;max-height:none!important;overflow:visible!important;font-size:15px!important;line-height:1.45!important}
+#feedScreen .feed-tiktok-card .post-actions{display:flex!important;align-items:center!important;justify-content:space-between!important;min-height:42px!important;padding:4px 10px!important}
+#feedScreen .feed-tiktok-card .post-caption{display:block!important;max-height:none!important;overflow:visible!important;padding:0 14px 13px!important;line-height:1.4!important;font-size:13px!important;color:#d9deeb!important}
+#feedScreen .feed-tiktok-card.text-only-post .post-body{font-size:16px!important;min-height:0!important;padding:14px!important}
+#feedScreen .feed-tiktok-card.text-only-post .post-caption{display:none!important}
+#feedScreen .feed-tiktok-card .post-follow-btn{margin-left:auto!important}
+
+/* Remove the huge dead area that existed between text-only posts. */
+#feedScreen .feed-scroll.tiktok-mode{scroll-snap-type:none!important;scroll-padding:0!important;scroll-behavior:auto!important}
+#feedScreen .feed-new-posts-banner{position:sticky!important;top:49px!important;z-index:18!important}
+#feedScreen .feed-end-state{padding:22px 0!important}
+#feedScreen .feed-load-more{padding:16px 0!important}
+#feedScreen .feed-fab{right:22px!important;bottom:22px!important;width:50px!important;height:50px!important;border-radius:16px!important}
+
+/* The call's friends panel gets a truly clickable close button above every layer. */
+#app.call-open #callSidePanel{z-index:120!important;pointer-events:auto!important;position:absolute!important;right:14px!important;top:14px!important;bottom:92px!important;width:min(390px,calc(100% - 28px))!important;max-height:none!important;overflow:hidden!important;border:1px solid rgba(155,92,255,.34)!important;border-radius:20px!important;background:rgba(9,11,19,.985)!important;box-shadow:-20px 20px 70px rgba(0,0,0,.55),0 0 40px rgba(155,92,255,.08)!important}
+#app.call-open #callSidePanel.hidden{display:none!important;visibility:hidden!important;opacity:0!important;pointer-events:none!important}
+#app.call-open #callSidePanel .call-panel-head{position:relative!important;display:flex!important;align-items:center!important;justify-content:space-between!important;min-height:58px!important;padding:10px 12px 10px 16px!important;z-index:5!important;background:#0d0f18!important}
+#app.call-open #callSidePanel .panel-close-x,
+#app.call-open #callPanelClose{position:relative!important;z-index:999!important;pointer-events:auto!important;width:42px!important;height:42px!important;min-width:42px!important;border-radius:12px!important;display:grid!important;place-items:center!important;font-size:28px!important;font-weight:900!important;line-height:1!important;color:#fff!important;background:rgba(255,255,255,.08)!important;border:1px solid rgba(255,255,255,.12)!important;cursor:pointer!important}
+#app.call-open #callSidePanel .panel-close-x:hover{background:rgba(239,68,68,.22)!important;border-color:rgba(239,68,68,.45)!important;color:#fff!important}
+#app.call-open #callSidePanel .call-panel-tabs{margin:0 12px 8px!important}
+#app.call-open #callSidePanel .call-panel-content{overflow-y:auto!important;max-height:none!important;height:calc(100% - 118px)!important;box-sizing:border-box!important}
+#app.call-open #callSidePanel .call-friends-list{max-height:none!important;overflow-y:auto!important}
+#app.call-open #callSidePanel .call-friend-row{min-height:52px!important}
+
+/* Four or more friends: scroll inside the call panel, never expand the whole UI. */
+#app.call-open #callSidePanel .call-friends-list,
+#app.call-open #callSidePanel .call-panel-content{scrollbar-width:thin;scrollbar-color:var(--fc25-purple) transparent}
+
+@media(max-width:900px){
+ #feedScreen .feed-scroll{max-width:680px!important}
+ #feedScreen .feed-tiktok-card .post-media img,#feedScreen .feed-tiktok-card .post-media video{max-height:600px!important}
+}
+@media(max-width:700px){
+ #feedScreen .feed-topbar{height:54px!important;padding:0 12px!important}
+ #feedScreen .feed-scroll{width:100%!important;max-width:none!important;padding:0 8px 90px!important}
+ #feedScreen .feed-tiktok-tabs{height:46px!important}
+ #feedScreen .feed-stories{padding-top:9px!important}
+ #feedScreen .feed-composer-inline{margin-bottom:10px!important}
+ #feedScreen .feed-ig-list.tiktok-list{gap:10px!important}
+ #feedScreen .feed-tiktok-card{border-radius:14px!important}
+ #feedScreen .feed-tiktok-card .post-media img,#feedScreen .feed-tiktok-card .post-media video{max-height:72vh!important}
+ #app.call-open #callSidePanel{position:fixed!important;inset:8px 8px 74px 8px!important;width:auto!important;bottom:74px!important;border-radius:18px!important}
+}
