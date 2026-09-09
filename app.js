@@ -1,4 +1,4 @@
-/* FreeChat v1.6.15 — conexão resiliente, WebRTC, feed, segurança e estabilidade */
+/* FreeChat v1.6.16 — conexão resiliente, WebRTC, feed, segurança e estabilidade */
 function serverUrl(){return window.SIGNALING_URL?window.SIGNALING_URL.replace(/\/$/,""):(location.protocol==="https:"?"https://"+location.host:"http://"+location.host)}
 (function(){
  const $=id=>document.getElementById(id),
@@ -1447,6 +1447,11 @@ function openFeed(){
   $("feedScreen")?.classList.remove("hidden");
   loadFeed();
   startFeedSyncPolling();
+  // A tela do feed acabou de sair de "hidden" — só depois disso o navegador
+  // sabe a altura real dela. Recalcular aqui evita que os cards do feed
+  // fiquem "achatados" (a métrica só era calculada uma vez, no carregamento
+  // da página, quando a tela ainda estava escondida e media 0px).
+  requestAnimationFrame(()=>requestAnimationFrame(()=>window.updateFeedSnapMetrics?.()));
 }
 function closeFeed(){
   $("feedScreen")?.classList.add("hidden");
@@ -1556,6 +1561,7 @@ function initFeedScroll(){
     snapTimer=setTimeout(snapToNearest,delay);
   };
   updateSnapMetrics();
+  window.updateFeedSnapMetrics=updateSnapMetrics;
   window.addEventListener("resize",()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(updateSnapMetrics,100)},{passive:true});
   scroll.addEventListener("scroll",()=>{
     if(scroll.scrollHeight-scroll.scrollTop-scroll.clientHeight<700){

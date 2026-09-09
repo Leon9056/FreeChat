@@ -2302,3 +2302,13 @@ body.fc-dialog-open{overflow:hidden!important}
   .admin-user-row,.admin-report-row,.admin-server-row{flex-direction:column;align-items:stretch}
   .admin-user-actions{justify-content:flex-start}
 }
+
+/* Blindagem contra conflito de especificidade com .hidden (mesma classe de bug
+   já encontrada antes no projeto): garante que estes elementos realmente
+   escondam se algum dia ganharem a classe .hidden. */
+.feed-tiktok-tabs.hidden,.side-tools.hidden,.videos.hidden,.password-toggle.hidden{display:none!important}
+
+/* "Tela cheia" não é útil no mobile (iOS Safari não suporta bem a API de
+   fullscreen, e no celular o app já ocupa a tela toda) — esconder evita um
+   botão que não faz nada de útil em boa parte dos aparelhos. */
+@media(max-width:760px){.fullscreen-btn{display:none!important}}
