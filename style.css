@@ -2974,3 +2974,111 @@ html,body{background:var(--fc25-bg)!important}
   #callMenu .menu-col{padding:12px!important}
   #callMenu .menu-quick-card{min-height:48px!important}
 }
+
+/* ================================================================
+   FreeChat 1.6.27 — layout estrutural definitivo do menu principal
+   Evita que a lista de amigos ocupe a área dos controles.
+   ================================================================ */
+#callMenu.screen{
+  height:100dvh!important; min-height:100dvh!important; max-height:100dvh!important;
+  overflow:hidden!important; padding:20px!important; box-sizing:border-box!important;
+  display:flex!important; align-items:center!important; justify-content:center!important;
+}
+#callMenu .call-menu-card.menu-main-card{
+  width:min(1560px,96vw)!important;
+  height:min(940px,94dvh)!important;
+  max-width:none!important; max-height:none!important;
+  margin:0!important; padding:24px 28px!important; box-sizing:border-box!important;
+  overflow:hidden!important;
+  display:grid!important;
+  grid-template-rows:auto minmax(0,1fr) auto auto auto!important;
+  gap:12px!important;
+}
+#callMenu .menu-header{
+  width:100%!important; min-width:0!important; margin:0!important; padding:0 0 14px!important;
+  display:grid!important;
+  grid-template-columns:58px minmax(0,1fr) auto auto auto!important;
+  align-items:center!important; gap:14px!important;
+  border-bottom:1px solid color-mix(in srgb,var(--line) 80%,transparent)!important;
+}
+#callMenu .menu-header-code{min-width:205px!important}
+#callMenu .feed-main-btn-menu{display:flex!important;visibility:visible!important;opacity:1!important;white-space:nowrap!important}
+#callMenu .menu-grid{
+  width:100%!important; min-height:0!important; margin:0!important;
+  display:grid!important; grid-template-columns:minmax(0,1.05fr) minmax(0,1.25fr)!important;
+  gap:14px!important; align-items:stretch!important; overflow:hidden!important;
+}
+#callMenu .menu-col{
+  min-width:0!important; min-height:0!important; height:100%!important;
+  box-sizing:border-box!important; overflow:hidden!important;
+}
+#callMenu .menu-col-actions{display:flex!important; flex-direction:column!important; overflow:auto!important}
+#callMenu .menu-col-friends{display:flex!important; flex-direction:column!important; overflow:hidden!important}
+#callMenu .friends-home-box{
+  flex:1 1 auto!important; min-height:0!important; height:100%!important;
+  display:flex!important; flex-direction:column!important; overflow:hidden!important;
+}
+#callMenu .friends-home-head{flex:0 0 auto!important}
+#callMenu .friends-tabs{flex:0 0 auto!important}
+#callMenu .friends-pane{min-height:0!important; flex:1 1 auto!important; display:flex!important; flex-direction:column!important; overflow:hidden!important}
+#callMenu .friends-toolbar{flex:0 0 auto!important}
+#callMenu .friends-list{
+  flex:1 1 auto!important; min-height:0!important; max-height:none!important;
+  overflow-y:auto!important; overflow-x:hidden!important; padding-right:6px!important;
+}
+/* Mantém aproximadamente quatro amigos visíveis; do quinto em diante rola dentro da lista. */
+#callMenu [data-friend-pane="list"] #friendsList,
+#callMenu [data-friend-pane="requests"] #friendsRequestsList{
+  max-height:250px!important; flex:0 1 250px!important;
+}
+#callMenu .friend-item{flex:0 0 auto!important; min-height:54px!important}
+#callMenu .menu-quick-strip{
+  width:100%!important; margin:0!important; padding:0!important;
+  display:grid!important; grid-template-columns:repeat(4,minmax(0,1fr))!important;
+  gap:10px!important; min-height:0!important;
+}
+#callMenu .menu-quick-card{min-height:66px!important}
+#callMenu .menu-tip{width:100%!important; margin:0!important; min-height:38px!important; box-sizing:border-box!important}
+#callMenu .support-creator-btn{margin:0!important; min-height:44px!important}
+#callMenu .logout-btn{margin:0!important; min-height:22px!important}
+
+/* O X da aba de amigos da call fica sempre acima do conteúdo e recebe o clique. */
+#app.call-open #callSidePanel .call-panel-head{position:relative!important; z-index:100!important}
+#app.call-open #callSidePanel #callPanelClose,
+#app.call-open #callSidePanel .panel-close-x{
+  position:relative!important; z-index:1001!important; pointer-events:auto!important;
+  display:grid!important; place-items:center!important; flex:0 0 42px!important;
+  width:42px!important; height:42px!important; min-width:42px!important;
+  border-radius:12px!important; cursor:pointer!important; font-size:28px!important;
+  color:#fff!important; background:rgba(255,255,255,.08)!important;
+}
+#app.call-open #callSidePanel .call-panel-content{min-height:0!important; overflow-y:auto!important}
+#app.call-open #callSidePanel .call-friends-list{max-height:none!important; min-height:0!important; overflow-y:auto!important}
+
+/* Garante que os atalhos nunca fiquem cobertos por a lista. */
+#callMenu .menu-quick-strip,
+#callMenu .menu-tip,
+#callMenu .support-creator-btn,
+#callMenu .logout-btn{position:relative!important; z-index:20!important}
+
+@media(max-width:1000px){
+  #callMenu.screen{padding:8px!important; overflow:hidden!important}
+  #callMenu .call-menu-card.menu-main-card{
+    width:100%!important; height:100%!important; padding:16px!important;
+    grid-template-rows:auto minmax(0,1fr) auto auto auto!important;
+  }
+  #callMenu .menu-header{grid-template-columns:48px minmax(0,1fr) auto auto auto!important;gap:8px!important}
+  #callMenu .menu-header-code{display:none!important}
+  #callMenu .menu-grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important}
+  #callMenu .menu-quick-strip{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+}
+@media(max-width:700px){
+  #callMenu .call-menu-card.menu-main-card{overflow-y:auto!important;display:flex!important;flex-direction:column!important}
+  #callMenu .menu-grid{display:flex!important;flex-direction:column!important;overflow:visible!important;flex:0 0 auto!important}
+  #callMenu .menu-col-actions{min-height:220px!important;display:flex!important}
+  #callMenu .menu-col-friends{min-height:360px!important;height:360px!important}
+  #callMenu [data-friend-pane="list"] #friendsList,
+  #callMenu [data-friend-pane="requests"] #friendsRequestsList{max-height:210px!important;flex-basis:210px!important}
+  #callMenu .menu-header{grid-template-columns:44px minmax(0,1fr) auto!important}
+  #callMenu .fullscreen-btn{display:none!important}
+}

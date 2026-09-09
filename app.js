@@ -3174,3 +3174,17 @@ if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.ser
   const me=$("me");
   if(me)new MutationObserver(syncShell).observe(me,{subtree:true,childList:true,characterData:true});
 })();
+
+/* FreeChat 1.6.27 — ações críticas do menu sempre clicáveis */
+(function(){
+  function bindCriticalMenuActions(){
+    const feed=document.getElementById("feedBtnMenu");
+    const create=document.getElementById("createCallBtn");
+    if(feed){ feed.onclick=function(e){ e.preventDefault(); e.stopPropagation(); try{openFeed();}catch(err){console.error("openFeed",err);} }; }
+    if(create){ create.onclick=function(e){ e.preventDefault(); e.stopPropagation(); try{const c=makeCallCode();const input=document.getElementById("roomCodeInput");if(input)input.value=c;openApp(c,true);}catch(err){console.error("createCall",err);} }; }
+    const close=document.getElementById("callPanelClose");
+    if(close){ close.onclick=function(e){e.preventDefault();e.stopImmediatePropagation();const p=document.getElementById("callSidePanel");if(p){p.classList.add("hidden");p.setAttribute("aria-hidden","true");}}; }
+  }
+  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",bindCriticalMenuActions,{once:true});
+  else bindCriticalMenuActions();
+})();
