@@ -168,7 +168,7 @@
   </section>
   <button id="profileSupportBtn" class="profile-support" type="button"><span>♥</span><span><b>Apoie o criador</b><small>Ajude a manter o FreeChat online!</small></span><i>›</i></button>
 </aside>
-<div id="friendsPanel" class="friends-panel hidden"><div class="friends-panel-head"><b>👥 Amigos</b><button id="friendsClose" type="button">×</button></div><div class="friend-add-row"><input id="friendCodeApp" maxlength="20" placeholder="Código CL-XXXXXX"><button id="addFriendApp" class="secondary-btn" type="button" title="Enviar convite">📨</button></div><div id="friendAppStatus" class="status"></div><div class="friends-toolbar"><input id="friendsSearchApp" class="friends-search" placeholder="🔎 Procurar amigo..." autocomplete="off"></div><div id="friendsAppList" class="friends-list"></div></div>
+<div id="friendsPanel" class="friends-panel hidden"><div class="friends-panel-head"><b>👥 Amigos</b><button id="friendsClose" class="panel-close-x" type="button" aria-label="Fechar amigos" title="Fechar">×</button></div><div class="friend-add-row"><input id="friendCodeApp" maxlength="20" placeholder="Código CL-XXXXXX"><button id="addFriendApp" class="secondary-btn" type="button" title="Enviar convite">📨</button></div><div id="friendAppStatus" class="status"></div><div class="friends-toolbar"><input id="friendsSearchApp" class="friends-search" placeholder="🔎 Procurar amigo..." autocomplete="off"></div><div id="friendsAppList" class="friends-list"></div></div>
 <main class="main">
 <header><div><b># <span id="headRoom">geral</span></b><small>Conversa em tempo real</small></div>
 <div class="header-actions"><div id="connectionMeter" class="connection-meter"><div class="connection-bars"><i></i><i></i><i></i><i></i><i></i></div><span id="connectionText">Conectando...</span></div><button type="button" id="callOpen">🎥 Call</button></div></header>
@@ -204,7 +204,7 @@
    <div id="callEmptyState" class="call-empty-state"><div class="call-empty-icon">🎥</div><b>Aguardando participantes</b><span>Quando alguém entrar, o vídeo aparecerá aqui.</span></div>
  </div>
  <div id="callSidePanel" class="call-side-panel hidden">
-   <div class="call-panel-head"><b id="callPanelTitle">Participantes</b><button id="callPanelClose" class="icon-btn" type="button">×</button></div>
+   <div class="call-panel-head"><b id="callPanelTitle">Amigos na call</b><button id="callPanelClose" class="icon-btn panel-close-x" type="button" aria-label="Fechar amigos na call" title="Fechar">×</button></div>
    <div id="callPanelContent" class="call-panel-content"></div>
  </div>
  <div id="musicBot" class="music-bot idle"><div class="music-icon">🎵</div><div class="music-info"><b class="music-title">Nenhuma música tocando</b><small class="music-meta">Abra 🎵 Música para buscar e controlar</small><div class="music-progress"><div class="music-progress-fill"></div></div></div><span class="music-queue-count"></span><button id="musicSkip" class="music-skip" type="button" disabled title="Próxima">⏭</button><button id="musicStop" class="music-stop" type="button" disabled title="Parar e limpar fila">⏹</button></div>

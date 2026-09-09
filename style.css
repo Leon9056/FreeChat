@@ -2362,3 +2362,9 @@ body.fc-dialog-open{overflow:hidden!important}
    fullscreen, e no celular o app já ocupa a tela toda) — esconder evita um
    botão que não faz nada de útil em boa parte dos aparelhos. */
 @media(max-width:760px){.fullscreen-btn{display:none!important}}
+
+/* v1.6.18 — fechamento claro dos painéis da call */
+.panel-close-x{width:38px!important;height:38px!important;min-width:38px!important;border-radius:12px!important;display:grid!important;place-items:center!important;background:rgba(255,255,255,.07)!important;border:1px solid color-mix(in srgb,var(--accent-main) 20%,transparent)!important;color:#fff!important;font-size:25px!important;line-height:1!important;cursor:pointer!important;transition:transform .16s ease,background .16s ease!important}
+.panel-close-x:hover{background:color-mix(in srgb,var(--accent-main) 20%,rgba(255,255,255,.07))!important;transform:scale(1.04)}
+.panel-close-x:active{transform:scale(.96)}
+.call-panel-head{display:flex;align-items:center;justify-content:space-between;gap:10px}

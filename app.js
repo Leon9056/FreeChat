@@ -558,7 +558,7 @@ let peers=new Map(),pendingRemoteIce=new Map(),remoteAudioEls=new Map(),remoteMe
 let micOn=true,camOn=true,callHostId=null,remoteMuted=new Set(),kicked=false,forcedMuted=false;
 let callVolumeMuted=localStorage.getItem("freechatCallVolumeMuted")==="1",callVolumeLevel=Math.max(0,Math.min(1,Number(localStorage.getItem("freechatCallVolumeLevel")??100)/100));
 let callReady=false;
-let joiningCall=false,pingTimer=null,pingStarted=0,lastRtt=null,callAttempt=0;
+let joiningCall=false,pingTimer=null,pingStarted=0,lastRtt=null,callAttempt=0,peerRepairTimer=null;
 let audioContext=null, micAnalyser=null, micSource=null, micMeterTimer=null;
 
 function enterRoomAfterConnect(){
@@ -686,6 +686,11 @@ function startSocket(){
   socket.on("user-joined",u=>{
     people.set(u.id,u);renderPeople();
     addSystem(u.name+" entrou na sala.");
+    // Se a pessoa entrou depois de a call já estar ativa, marque novamente
+    // este socket como pronto para que a negociação WebRTC seja iniciada.
+    if(inCall&&callReady&&socket?.connected){
+      setTimeout(()=>{if(inCall&&callReady&&socket?.connected)socket.emit("call-ready",{room})},120);
+    }
   });
   socket.on("user-profile-updated",u=>{
     if(!u?.id)return;
@@ -1305,7 +1310,7 @@ function openCallPanel(kind="participants"){
    const list=$("callChatList");if(list)list.scrollTop=list.scrollHeight;
    $("callChatForm")?.addEventListener("submit",e=>{e.preventDefault();const v=$("callChatInput").value.trim();if(v&&socket?.connected){socket.emit("chat",{room,text:v});$("callChatInput").value="";$("callChatInput").focus()}});
  }else{
-   title.textContent="Participantes • "+(people?.size||0);
+   title.textContent="Amigos na call • "+(people?.size||0);
    content.innerHTML=[...people.values()].map(u=>`<div class="call-person-row"><span class="call-person-avatar">${messageEscape((u.name||"?").charAt(0).toUpperCase())}</span><div><b>${messageEscape(u.name||"Participante")}</b><small>${u.id===socket?.id?"Você":(u.id===callHostId?"Criador da call":"Participante")}</small></div><span class="call-person-state">${u.id===callHostId?"👑":"🎙️"}</span></div>`).join("")||'<div class="muted">Nenhum participante.</div>';
  }
 }
@@ -1400,13 +1405,7 @@ addVideo=function(n,s,id){
 const originalRemoveVideo=removeVideo;
 removeVideo=function(id){originalRemoveVideo(id);updateCallParticipantCount();};
 const originalRenderPeople=renderPeople;
-renderPeople=function(){
-  const panelOpen=!$("callSidePanel")?.classList.contains("hidden");
-  originalRenderPeople();
-  updateCallParticipantCount();
-  // Atualiza o conteúdo sem reabrir o painel depois que o usuário apertou X.
-  if(panelOpen)openCallPanel("participants");
-};
+renderPeople=function(){originalRenderPeople();updateCallParticipantCount();if(!$("callSidePanel")?.classList.contains("hidden"))openCallPanel("participants")};
 
 const originalOpenCall=openCall;
 openCall=async function(){
@@ -1658,44 +1657,38 @@ $("markNotificationsRead")?.addEventListener("click",async()=>{try{await api("/a
   if(isMobileLayout())setMobileView(0);
   setCallStatus("Entrando na call... 🎧");
 
-  if(!window.isSecureContext || !navigator.mediaDevices?.getUserMedia){
+  if(!navigator.mediaDevices?.getUserMedia){
     joiningCall=false;
-    $("callStatus").textContent="Câmera e microfone precisam de HTTPS e permissão do navegador.";
+    $("callStatus").textContent="Câmera/microfone indisponíveis. Use o site em HTTPS.";
     $("call").classList.add("hidden");
     $("app").classList.remove("call-open");
     return;
   }
 
-  // Microfone e câmera são solicitados separadamente. Assim, se a câmera for
-  // bloqueada/ocupada, o microfone continua funcionando normalmente — antes,
-  // uma falha no pedido combinado podia deixar a pessoa sem áudio.
-  let stream=new MediaStream();
+  let stream=null;
   let mediaWarning="";
   try{
     try{
-      const a=await withTimeout(navigator.mediaDevices.getUserMedia({
-        audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true,channelCount:1},video:false
-      }),8000);
-      a.getAudioTracks().forEach(t=>stream.addTrack(t));
-    }catch(e){
-      mediaWarning=e?.name==="NotAllowedError"
-        ? "Permissão do microfone negada. Clique no cadeado da barra de endereço e permita o microfone."
-        : "Não foi possível acessar o microfone. Você pode tentar novamente nas configurações da call.";
-    }
-    try{
-      const v=await withTimeout(navigator.mediaDevices.getUserMedia({
-        audio:false,
+      stream=await withTimeout(navigator.mediaDevices.getUserMedia({
+        audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true,channelCount:1},
         video:{width:{ideal:640,max:1280},height:{ideal:360,max:720},frameRate:{ideal:24,max:30}}
       }),8000);
-      v.getVideoTracks().forEach(t=>stream.addTrack(t));
     }catch(e){
-      if(!mediaWarning)mediaWarning=e?.name==="NotAllowedError"
-        ? "Permissão da câmera negada. O áudio continua disponível."
-        : "Câmera indisponível. O áudio continua disponível.";
+      try{
+        stream=await withTimeout(navigator.mediaDevices.getUserMedia({audio:true}),6000);
+        mediaWarning="Câmera indisponível; entrando somente com áudio.";
+      }catch(e2){
+        // Não deixa a entrada da call travada se o navegador não liberar mídia.
+        // Entramos sem mídia e permitimos tentar novamente pelos botões.
+        stream=new MediaStream();
+        mediaWarning=(e2?.name==="NotAllowedError")
+          ? "Permissão de microfone/câmera negada. Você entrou sem mídia."
+          : "Não foi possível acessar microfone/câmera. Você entrou sem mídia.";
+      }
     }
-    if(!stream.getTracks().length && !mediaWarning)mediaWarning="Não foi possível acessar câmera ou microfone.";
   }catch(e){
-    mediaWarning="Não foi possível acessar câmera ou microfone. Verifique as permissões do navegador.";
+    stream=new MediaStream();
+    mediaWarning="Você entrou sem câmera/microfone. Tente ativá-los pelos controles da call.";
   }
 
   if(attempt!==callAttempt||!joiningCall){
@@ -1749,6 +1742,7 @@ $("markNotificationsRead")?.addEventListener("click",async()=>{try{await api("/a
       setCallStatus(isHost()?"Você é o criador da call. 🎙️📷":"Conectado à call. Aguardando os outros participantes...", "ok");
       socket.emit("call-ready",{room});broadcastCameraState();
       if(isHost())requestReadyPeers();
+      startPeerRepair();
     }else{
       setCallStatus("Não foi possível entrar na call. Tente novamente.","error");
     }
@@ -1761,14 +1755,31 @@ $("markNotificationsRead")?.addEventListener("click",async()=>{try{await api("/a
       setCallStatus(isHost()?"Você é o criador da call. 🎙️📷":"Conectado à call. Aguardando os outros participantes...", "ok");
       if(isHost())requestReadyPeers();
     }else if(socket?.connected){
-      setCallStatus("Call ativa. Aguardando participantes...", "ok");
+      setCallStatus("Call ativa • aguardando participantes...", "ok");
       socket.emit("call-ready",{room});broadcastCameraState();
+      startPeerRepair();
     }
   },1500);
 }
 function requestReadyPeers(){
   if(socket?.connected)socket.emit("call-ready-request",{room});
 }
+function startPeerRepair(){
+  clearInterval(peerRepairTimer);
+  peerRepairTimer=setInterval(()=>{
+    if(!inCall||!callReady||!socket?.connected)return;
+    // Reenvia o estado de pronto e tenta recuperar pares que ficaram sem
+    // negociação após uma reconexão/entrada rápida. Só um lado por par cria
+    // a oferta para evitar glare.
+    socket.emit("call-ready",{room});
+    for(const [id] of people){
+      if(id===socket.id||peers.has(id))continue;
+      if(socket.id>id)createPeer(id,true).catch(()=>{});
+    }
+    if(isHost())requestReadyPeers();
+  },2500);
+}
+function stopPeerRepair(){clearInterval(peerRepairTimer);peerRepairTimer=null;}
 
 async function createPeer(id,initiator){
   if(peers.has(id)||!localStream||!socket?.connected)return peers.get(id);
@@ -2160,7 +2171,7 @@ document.addEventListener("fullscreenchange",()=>{
 });
 
 function leaveCall(ending){
-  clearInterval(callStatsTimer);callStatsTimer=null;
+  clearInterval(callStatsTimer);callStatsTimer=null;stopPeerRepair();
   ++callAttempt;
   const wasHost=isHost();
   if(ending&&wasHost&&socket)socket.emit("call-end",{room});
@@ -2171,13 +2182,6 @@ function leaveCall(ending){
   inCall=false;callReady=false;joiningCall=false;
   peers.forEach(pc=>{try{pc.close();}catch(e){}});
   peers.clear();
-  pendingRemoteIce.clear();
-  remoteMediaStreams.clear();
-  remoteAudioEls.forEach(a=>{try{a.pause()}catch(e){}try{a.srcObject=null}catch(e){}a.remove()});
-  remoteAudioEls.clear();
-  $("callSidePanel")?.classList.add("hidden");
-  $("callMusicPanel")?.classList.add("hidden");
-  $("callSettingsPanel")?.classList.add("hidden");
   $("videos").innerHTML="";
   if(screenTrack){try{screenTrack.stop();}catch(e){}screenTrack=null;}
   updateScreenButton();
@@ -2268,13 +2272,12 @@ function restoreCameraAfterScreenShare(){
     const localVideo=document.querySelector('[data-id="local"] video');
     if(localVideo){localVideo.srcObject=localStream;localVideo.play().catch(()=>{});}
   }else{
-    // O createPeer() já cria um transceiver de vídeo mesmo sem câmera.
-    // Portanto, não removemos nem renegociamos o transceiver ao parar a tela:
-    // basta devolver null ao sender. Isso evita colisões de offer/answer e deixa
-    // o compartilhamento funcionar mesmo quando a pessoa entrou só com áudio.
-    peers.forEach(pc=>{
-      const tx=pc.getTransceivers().find(t=>t.kind==="video"&&t.sender);
-      if(tx)tx.sender.replaceTrack(null).catch(()=>{});
+    // Não havia câmera antes de compartilhar a tela (call entrou só com áudio),
+    // então o sender de vídeo foi criado na hora para a tela — precisa ser
+    // removido, ou os outros ficam vendo o último quadro da tela congelado.
+    peers.forEach((pc,id)=>{
+      const sender=pc.getSenders().find(x=>x.track?.kind==="video");
+      if(sender){try{pc.removeTrack(sender);renegotiatePeer(id,pc);}catch(e){}}
     });
     const localVideo=document.querySelector('[data-id="local"] video');
     if(localVideo)localVideo.srcObject=null;
@@ -2342,12 +2345,12 @@ $("screen").onclick=async()=>{
         let tx=pc.getTransceivers().find(t=>t.sender?.track?.kind==="video"||t.receiver?.track?.kind==="video");
         if(!tx)tx=pc.getTransceivers().find(t=>t.kind==="video"&&t.direction!=="inactive");
         if(!tx)tx=pc.addTransceiver("video",{direction:"sendrecv"});
-        // O transceiver de vídeo já existe desde createPeer(), inclusive quando
-        // a pessoa entrou sem câmera. replaceTrack() troca a mídia sem nova
-        // negociação, evitando o clássico conflito de duas offers simultâneas.
-        negotiations.push(tx.sender.replaceTrack(track).catch(err=>{
+        const hadTrack=!!tx.sender.track;
+        negotiations.push(tx.sender.replaceTrack(track).then(async()=>{
+          if(!hadTrack&&pc.signalingState==="stable")await renegotiatePeer(id,pc);
+        }).catch(async err=>{
           console.warn("screen replaceTrack",id,err);
-          throw err;
+          try{if(pc.signalingState==="stable")await renegotiatePeer(id,pc)}catch(e){console.warn("screen renegotiate",id,e);}
         }));
       }catch(e){console.warn("screen setup",id,e);}
     });
