@@ -1271,7 +1271,7 @@ function getVideoDuration(file){
  });
 }
 
-let selectedPostMedia=null,callStatsTimer=null,callChatHistory=[],callFocusedTile=null,postPreviewObjectUrl=null;
+let selectedPostMedia=null,callStatsTimer=null,callChatHistory=[],callFocusedTile=null,postPreviewObjectUrl=null,connectWatchdogTimer=null;
 function clearPostMedia(){selectedPostMedia=null;const i=$("postMedia");if(i)i.value="";const p=$("postMediaPreview");if(p){p.innerHTML="";p.classList.add("hidden")}if(postPreviewObjectUrl){URL.revokeObjectURL(postPreviewObjectUrl);postPreviewObjectUrl=null}}
 function renderPostMediaPreview(file){
  const p=$("postMediaPreview");if(!p)return;
@@ -1316,8 +1316,14 @@ function openCallPanel(kind="participants"){
 }
 function closeCallPanel(){$("callSidePanel")?.classList.add("hidden")}
 function setCallPanelFromChat(){openCallPanel("chat")}
-$("callParticipantsBtn")?.addEventListener("click",()=>openCallPanel("participants"));
-$("callParticipantsBtnBottom")?.addEventListener("click",()=>openCallPanel("participants"));
+function toggleCallPeoplePanel(){
+  const panel=$("callSidePanel");
+  const alreadyShowingPeople=panel&&!panel.classList.contains("hidden")&&$("callPanelTitle")?.textContent?.startsWith("Amigos na call");
+  if(alreadyShowingPeople)closeCallPanel();
+  else openCallPanel("participants");
+}
+$("callParticipantsBtn")?.addEventListener("click",toggleCallPeoplePanel);
+$("callParticipantsBtnBottom")?.addEventListener("click",toggleCallPeoplePanel);
 
 
 $("callPanelClose")?.addEventListener("click",closeCallPanel);
@@ -1379,19 +1385,42 @@ async function collectCallStats(){
  let best=null;
  for(const pc of peers.values()){
    try{
-     const stats=await pc.getStats();let rtt=null,loss=null,width=null,height=null,fps=null;
+     const stats=await pc.getStats();let rtt=null,loss=null,width=null,height=null,fps=null,relay=false;
+     const candidateTypes={};
+     stats.forEach(s=>{if(s.type==="candidate"){candidateTypes[s.id]=s.candidateType;}});
      stats.forEach(s=>{
-       if(s.type==="candidate-pair"&&s.state==="succeeded"&&s.currentRoundTripTime!=null)rtt=Math.min(rtt==null?999:rtt,Number(s.currentRoundTripTime)*1000);
+       if(s.type==="candidate-pair"&&s.state==="succeeded"&&s.currentRoundTripTime!=null){
+         rtt=Math.min(rtt==null?999:rtt,Number(s.currentRoundTripTime)*1000);
+         const localType=candidateTypes[s.localCandidateId],remoteType=candidateTypes[s.remoteCandidateId];
+         if(localType==="relay"||remoteType==="relay")relay=true;
+       }
        if(s.type==="inbound-rtp"&&s.kind==="video"){width=Number(s.frameWidth||width||0);height=Number(s.frameHeight||height||0);fps=Number(s.framesPerSecond||fps||0);const total=Number(s.packetsReceived||0)+Number(s.packetsLost||0);if(total)loss=(Number(s.packetsLost||0)/total)*100;}
      });
-     const cur={rtt,loss,width,height,fps};if(!best||((rtt??999)+(loss??99)*20)<((best.rtt??999)+(best.loss??99)*20))best=cur;
+     const cur={rtt,loss,width,height,fps,relay};if(!best||((rtt??999)+(loss??99)*20)<((best.rtt??999)+(best.loss??99)*20))best=cur;
    }catch(e){}
  }
  updateCallQualityUI(best||{});
  maybeAutoQuality(best||{});
+ // Só avisa uma vez por call — saber que a conexão precisou de TURN ajuda a
+ // diagnosticar "dá pra entrar mas não ouço/vejo ninguém" (NAT simétrico),
+ // sem assustar quem está numa rede em que isso é normal e funciona bem.
+ if(best?.relay&&!window.__relayNoticeShown){
+   window.__relayNoticeShown=true;
+   console.info("[Conversa Live] Conexão de call estabelecida via retransmissão TURN (rede com NAT restritivo).");
+ }
 }
-function startCallStats(){clearInterval(callStatsTimer);callStatsTimer=setInterval(collectCallStats,2200);collectCallStats()}
-function stopCallStats(){clearInterval(callStatsTimer);callStatsTimer=null;updateCallQualityUI({})}
+function startCallStats(){clearInterval(callStatsTimer);callStatsTimer=setInterval(collectCallStats,2200);collectCallStats();startConnectWatchdog()}
+function stopCallStats(){clearInterval(callStatsTimer);callStatsTimer=null;updateCallQualityUI({});clearTimeout(connectWatchdogTimer);connectWatchdogTimer=null;window.__relayNoticeShown=false;}
+function startConnectWatchdog(){
+  clearTimeout(connectWatchdogTimer);
+  connectWatchdogTimer=setTimeout(()=>{
+    if(!inCall||!peers?.size)return;
+    const stuck=[...peers.values()].every(pc=>!["connected","completed"].includes(pc.iceConnectionState));
+    if(stuck){
+      setCallStatus("Não foi possível conectar com os outros participantes. Isso costuma acontecer quando a rede (Wi-Fi/4G, roteador ou firewall) bloqueia a conexão direta. Tente trocar de rede (ex.: Wi-Fi ↔ dados móveis) ou pedir para o outro participante tentar.","error");
+    }
+  },12000);
+}
 
 const originalAddVideo=addVideo;
 addVideo=function(n,s,id){
@@ -1656,6 +1685,7 @@ $("markNotificationsRead")?.addEventListener("click",async()=>{try{await api("/a
   $("app").classList.add("call-open");
   if(isMobileLayout())setMobileView(0);
   setCallStatus("Entrando na call... 🎧");
+  const turnPromise=loadTurnCredentials(); // roda em paralelo com a captura de mídia, sem atrasar a entrada na call
 
   if(!navigator.mediaDevices?.getUserMedia){
     joiningCall=false;
@@ -1703,15 +1733,15 @@ $("markNotificationsRead")?.addEventListener("click",async()=>{try{await api("/a
   const localAudio=localStream.getAudioTracks()[0];
   if(localAudio){await applyMicTrackSettings(localAudio);}
   micOn=localStream.getAudioTracks().length>0;
-  // A câmera começa ligada quando o dispositivo a disponibiliza. Isso evita
-  // que participantes, especialmente em celulares, entrem na call com o
-  // vídeo silenciosamente desativado e pareçam "invisíveis" para os outros.
-  // O usuário continua podendo desligá-la imediatamente pelo controle.
-  camOn=localStream.getVideoTracks().length>0;
+  // A câmera agora começa DESLIGADA por padrão ao entrar na call — o usuário
+  // ativa manualmente pelo controle quando quiser aparecer. Evita ligar a
+  // câmera sem querer (e o LED indicador acender) só por ter entrado na call.
+  camOn=false;
   localStream.getVideoTracks().forEach(t=>{t.enabled=camOn});
   forcedMuted=false;
   updateMicButton();
-  const b=$("cam");if(b){b.innerHTML=`<span class="control-icon">${camOn?"📷":"🚫"}</span><span>${camOn?"Câmera":"Câmera off"}</span>`;b.classList.toggle("muted",!camOn);}
+  const hasVideoTrack=localStream.getVideoTracks().length>0;
+  const b=$("cam");if(b){b.innerHTML=`<span class="control-icon">${camOn?"📷":"🚫"}</span><span>${camOn?"Câmera":"Câmera off"}</span>`;b.classList.toggle("muted",!camOn);b.disabled=!hasVideoTrack;}
   addVideo("Você",localStream,"local");
   setTileCamOff("local",true);
   if(localAudio)startSpeakingMeter("local",localStream,()=>micOn&&!forcedMuted);
@@ -1735,6 +1765,7 @@ $("markNotificationsRead")?.addEventListener("click",async()=>{try{await api("/a
   // Isso evita ficar preso no estado "Entrando na call..." quando o evento
   // call-host chega depois ou há uma reconexão do Socket.IO.
   if(attempt!==callAttempt||!inCall||!socket?.connected)return;
+  try{await withTimeout(turnPromise,4000);}catch(e){} // não deixa a Cloudflare travar a entrada na call
   socket.emit("call-start",{room},(ack)=>{
     if(!inCall)return;
     if(ack?.ok){
@@ -1781,6 +1812,21 @@ function startPeerRepair(){
 }
 function stopPeerRepair(){clearInterval(peerRepairTimer);peerRepairTimer=null;}
 
+let cfTurnRequested=false;
+async function loadTurnCredentials(){
+  if(cfTurnRequested||!window.CONVERSA_TOKEN)return;
+  cfTurnRequested=true;
+  try{
+    const d=await window.api?.("/api/turn-credentials");
+    if(d?.ok&&Array.isArray(d.iceServers)&&d.iceServers.length){
+      ICE.iceServers.push(...d.iceServers);
+      console.info("[Conversa Live] TURN da Cloudflare carregado como opção extra de conexão.");
+    }
+  }catch(e){
+    // Sem problema: o TURN público de fallback (já presente em ICE.iceServers)
+    // continua disponível mesmo se a Cloudflare não estiver configurada.
+  }
+}
 async function createPeer(id,initiator){
   if(peers.has(id)||!localStream||!socket?.connected)return peers.get(id);
 
