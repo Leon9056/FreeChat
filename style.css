@@ -2387,3 +2387,18 @@ body.fc-dialog-open{overflow:hidden!important}
 .messages-toolbar input,.friends-search{border-radius:12px}
 .dm-tool:hover,.dm-send:hover{filter:brightness(1.08);transform:translateY(-1px)}
 .dm-empty div{filter:drop-shadow(0 4px 14px color-mix(in srgb,var(--accent-main) 30%,transparent))}
+
+/* Botão de fechar do painel de Amigos sempre acessível no mobile — antes
+   dependia só do cabeçalho "sticky", que podia ficar fora de vista conforme
+   o scroll/estado da tela. Agora fica fixo no canto, sempre clicável. */
+@media (max-width: 900px){
+  #app .friends-panel #friendsClose{
+    position:fixed;
+    top:calc(14px + env(safe-area-inset-top));
+    right:14px;
+    z-index:50;
+    background:rgba(20,14,32,.92);
+    backdrop-filter:blur(10px);
+    box-shadow:0 8px 22px rgba(0,0,0,.4);
+  }
+}

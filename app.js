@@ -478,7 +478,7 @@ window.renderFriends=async()=>{
   if(!friends.length&&!(list.id==="friendsList"&&requests.length)){const q=document.createElement("div");q.className="friends-empty";q.innerHTML='<div class="friends-empty-icon">👥</div><b>'+(term?"Nenhum resultado":"Sua lista está vazia")+'</b><small>'+(term?"Tente outro nome ou código.":"Adicione amigos pelo código.")+'</small>';list.appendChild(q)}
  });
 };async function addFriend(input,status){const code=input.value.trim().toUpperCase();if(!/^CL-[A-Z0-9]{6}$/.test(code)){status.textContent="Código inválido. Use CL-XXXXXX.";return}try{const d=await api("/api/friends/request",{method:"POST",body:JSON.stringify({code})});status.textContent=d.message||"Convite enviado!";input.value="";renderFriends()}catch(e){status.textContent=e.message}}
- $("addFriendBtn").onclick=()=>addFriend($("friendCodeInput"),$("friendStatus"));$("addFriendApp").onclick=()=>addFriend($("friendCodeApp"),$("friendAppStatus"));$("refreshFriends").onclick=window.renderFriends;$("friendsBtn").onclick=()=>{$("friendsPanel").classList.remove("hidden");renderFriends()};$("friendsClose").onclick=()=>$('friendsPanel').classList.add("hidden");$("copyUserCode").onclick=()=>navigator.clipboard?.writeText($("myCode").textContent);refreshUnreadCounts();
+ $("addFriendBtn").onclick=()=>addFriend($("friendCodeInput"),$("friendStatus"));$("addFriendApp").onclick=()=>addFriend($("friendCodeApp"),$("friendAppStatus"));$("refreshFriends").onclick=window.renderFriends;$("friendsBtn").onclick=()=>{$("friendsPanel").classList.remove("hidden");renderFriends()};$("friendsClose").onclick=()=>window.closeFriendsPanelRobust?.();$("copyUserCode").onclick=()=>navigator.clipboard?.writeText($("myCode").textContent);refreshUnreadCounts();
  $("logoutBtn").onclick=async()=>{clearInterval(friendPollTimer);try{await api("/api/logout",{method:"POST"})}catch(e){}try{socket?.disconnect?.();}catch(e){}localStorage.removeItem("conversaLiveToken");localStorage.removeItem("conversaLiveUser");window.CONVERSA_TOKEN="";location.href=location.pathname}; 
  function makeCallCode(){const chars="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";let c="";for(let i=0;i<6;i++)c+=chars[Math.floor(Math.random()*chars.length)];return c;}
  function openApp(targetRoom,autoCall=true){
@@ -654,6 +654,18 @@ function startSocket(){
     const msg=String(err?.message||"");
     const desc=String(err?.description||"");
     const detail=[msg,desc].filter(Boolean).join(" — ");
+    if(/conta suspensa/i.test(msg)){
+      socket?.disconnect();
+      localStorage.removeItem("conversaLiveToken");
+      window.CONVERSA_TOKEN="";
+      $("status").textContent="Conta suspensa.";
+      setConnectionLevel(0,"Conta suspensa");
+      document.getElementById("login")?.classList.remove("hidden");
+      document.getElementById("callMenu")?.classList.add("hidden");
+      document.getElementById("app")?.classList.add("hidden");
+      appToast?.("Sua conta foi suspensa por um administrador. Se acha que isso é um engano, entre em contato com o suporte.","error");
+      return;
+    }
     if(/sessão|sessao|expirada|inválida|invalida/i.test(msg)){
       localStorage.removeItem("conversaLiveToken");
       window.CONVERSA_TOKEN="";
@@ -669,6 +681,9 @@ function startSocket(){
     $("status").textContent="Servidor offline — tentando reconectar...";
     setConnectionLevel(0,"Offline");
     if(window.appToast) appToast(hint,"error");
+  });
+  socket.on("account-banned",({reason})=>{
+    appToast?.("Sua conta foi suspensa por um administrador"+(reason?": "+reason:".")+" ","error");
   });
   socket.on("disconnect",()=>{setConnectionLevel(0,"Offline");$("status").textContent="Reconectando...";});
   socket.on("client-pong",sent=>{const r=performance.now()-Number(sent);lastRtt=r;let l=r<90?4:r<160?3:r<250?2:r<500?1:0;setConnectionLevel(l,(l===4?"Excelente":l===3?"Boa":l===2?"Média":l===1?"Fraca":"Muito fraca")+" • "+Math.round(r)+" ms")});
@@ -959,7 +974,7 @@ document.addEventListener("click",(e)=>{
   if(!btn)return;
   e.preventDefault(); e.stopPropagation();
   const actions={
-    friendsClose:()=>$("friendsPanel")?.classList.add("hidden"),
+    friendsClose:()=>window.closeFriendsPanelRobust?.(),
     emojiClose:()=>$("emojiPicker")?.classList.add("hidden"),
     callClose:()=>inCall?leaveCall(true):$("call")?.classList.add("hidden"),
     callPanelClose:()=>closeCallPanel?.(),
@@ -1256,6 +1271,21 @@ function setMobileView(view){
  if(view===2){$("friendsPanel")?.classList.add("hidden");openSocial("feed");} else {$("socialPanel")?.classList.add("hidden");}
 }
 function syncMobileLayout(){if(!isMobileLayout()){$("mobileNav")?.classList.add("hidden");$("app")?.classList.remove("mobile-view-call","mobile-view-chat","mobile-view-social");return;} if(inCall)setMobileView(mobileView);else $("mobileNav")?.classList.add("hidden");}
+function closeFriendsPanelRobust(){
+  const fp=$("friendsPanel");if(!fp)return;
+  fp.classList.add("hidden");
+  // No layout mobile a visibilidade desse painel é controlada por um
+  // transform (parte do carrossel call/chat/social), então só trocar a
+  // classe .hidden podia não fechar nada visualmente. Força o fechamento
+  // direto via estilo inline, que sempre vence, e depois libera o inline
+  // pra não atrapalhar o carrossel da próxima vez que o painel for usado.
+  if(isMobileLayout()){
+    fp.style.transition="transform .22s ease";
+    fp.style.transform="translateX(200%)";
+    setTimeout(()=>{fp.style.transform="";fp.style.transition="";},260);
+  }
+}
+window.closeFriendsPanelRobust=closeFriendsPanelRobust;
 function handleMobileSwipeStart(e){if(!isMobileLayout()||!inCall)return;if(e.pointerType==="mouse"&&e.button!==0)return;mobileSwipe={active:true,startX:e.clientX,startY:e.clientY,pointerId:e.pointerId};try{e.currentTarget.setPointerCapture?.(e.pointerId)}catch(_){} }
 function handleMobileSwipeEnd(e){if(!mobileSwipe.active||e.pointerId!==mobileSwipe.pointerId)return;const dx=e.clientX-mobileSwipe.startX,dy=e.clientY-mobileSwipe.startY;mobileSwipe.active=false;if(Math.abs(dx)<58||Math.abs(dx)<Math.abs(dy)*1.15)return;if(dx<0)setMobileView(mobileView+1);else setMobileView(mobileView-1);}
 function initMobileNavigation(){const call=$("call");if(call&&!call.dataset.swipeReady){call.dataset.swipeReady="1";call.addEventListener("pointerdown",handleMobileSwipeStart,{passive:true});call.addEventListener("pointerup",handleMobileSwipeEnd,{passive:true});call.addEventListener("pointercancel",handleMobileSwipeEnd,{passive:true});} document.querySelectorAll("#mobileNav [data-mobile-view]").forEach(b=>b.addEventListener("click",()=>setMobileView(Number(b.dataset.mobileView))));window.addEventListener("resize",syncMobileLayout,{passive:true});window.addEventListener("orientationchange",()=>setTimeout(syncMobileLayout,120),{passive:true});syncMobileLayout();}
