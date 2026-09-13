@@ -1571,7 +1571,11 @@ function renderFeedStories(friends=[]){const box=$("feedStories");if(!box)return
 async function loadFeedStories(){try{const d=await api("/api/friends");renderFeedStories(d.friends||[])}catch(e){renderFeedStories([])}}
 function setFeedLoading(on){$("feedLoadMore")?.classList.toggle("hidden",!on)}
 function renderFeedError(e){const list=$("feedList");if(!list)return;list.classList.add("tiktok-list");$("feedScreen")?.querySelector(".feed-scroll")?.classList.add("tiktok-mode");list.innerHTML=`<div class="social-empty feed-error-state"><span>📡</span><b>Não foi possível carregar o feed</b><small>${messageEscape(e.message||"Verifique sua conexão.")}</small><button id="feedRetryBtn" class="secondary-btn small-btn" type="button">↻ Tentar novamente</button></div>`;$("feedRetryBtn")?.addEventListener("click",()=>loadFeed(true,true))}
-async function loadFeed(reset=true,showSpinner=true){if(feedLoading)return;if(reset){feedOffset=0;feedHasMore=true;if($("feedList"))$("feedList").innerHTML="";$("feedEndState")?.classList.add("hidden");$("feedNewPostsBanner")?.classList.add("hidden")}if(!feedHasMore)return;feedLoading=true;setFeedLoading(true);try{const d=await api(`/api/feed?limit=12&offset=${feedOffset}&filter=${encodeURIComponent(feedFilter)}`);const list=$("feedList");if(!list)return;if(reset)feedTopPostId=d.posts?.[0]?.id??feedTopPostId;if(reset&&!d.posts?.length){list.innerHTML='<div class="social-empty"><span>✦</span><b>Seu feed está esperando por você</b><small>Publique algo e compartilhe com a comunidade do FreeChat.</small><button id="feedEmptyPost" class="primary-btn small-btn" type="button">＋ Criar publicação</button></div>';$("feedEmptyPost")?.addEventListener("click",openPostComposer)}else{list.insertAdjacentHTML("beforeend",(d.posts||[]).map(postHtml).join(""));bindFeedCards(list);feedOffset=d.offset||feedOffset+(d.posts||[]).length;feedHasMore=!!d.hasMore;initFeedAlgorithmObserver();if(!feedHasMore&&list.children.length)$("feedEndState")?.classList.remove("hidden")}}catch(e){if(reset)renderFeedError(e);else appToast(e.message,"error")}finally{feedLoading=false;setFeedLoading(false)}}
+async function loadFeed(reset=true,showSpinner=true){if(feedLoading)return;if(reset){feedOffset=0;feedHasMore=true;if($("feedList"))$("feedList").innerHTML=feedSkeletonHtml();$("feedEndState")?.classList.add("hidden");$("feedNewPostsBanner")?.classList.add("hidden")}if(!feedHasMore)return;feedLoading=true;setFeedLoading(true);try{const d=await api(`/api/feed?limit=12&offset=${feedOffset}&filter=${encodeURIComponent(feedFilter)}`);const list=$("feedList");if(!list)return;if(reset)feedTopPostId=d.posts?.[0]?.id??feedTopPostId;if(reset&&!d.posts?.length){list.innerHTML='<div class="social-empty"><span>✦</span><b>Seu feed está esperando por você</b><small>Publique algo e compartilhe com a comunidade do FreeChat.</small><button id="feedEmptyPost" class="primary-btn small-btn" type="button">＋ Criar publicação</button></div>';$("feedEmptyPost")?.addEventListener("click",openPostComposer)}else{if(reset)list.innerHTML="";list.insertAdjacentHTML("beforeend",(d.posts||[]).map(postHtml).join(""));bindFeedCards(list);feedOffset=d.offset||feedOffset+(d.posts||[]).length;feedHasMore=!!d.hasMore;initFeedAlgorithmObserver();if(!feedHasMore&&list.children.length)$("feedEndState")?.classList.remove("hidden")}}catch(e){if(reset)renderFeedError(e);else appToast(e.message,"error")}finally{feedLoading=false;setFeedLoading(false)}}
+function feedSkeletonHtml(){
+  const card=`<article class="post-card post-skeleton"><div class="post-head"><div class="post-avatar skeleton-block"></div><div class="skeleton-lines"><div class="skeleton-block" style="width:120px;height:11px"></div><div class="skeleton-block" style="width:70px;height:9px;margin-top:6px"></div></div></div><div class="skeleton-block skeleton-media"></div><div style="padding:12px 15px"><div class="skeleton-block" style="width:90%;height:11px"></div><div class="skeleton-block" style="width:60%;height:11px;margin-top:8px"></div></div></article>`;
+  return card.repeat(3);
+}
 $("feedNewPostsBanner")?.addEventListener("click",()=>{loadFeed(true,true);$("feedList")?.scrollIntoView?.({behavior:"smooth",block:"start"});});
 function bindFeedCards(root){root.querySelectorAll(".post-card:not([data-feed-bound])").forEach(card=>{card.dataset.feedBound="1";const id=card.dataset.postId;card.querySelector(`[data-like="${id}"]`)?.addEventListener("click",()=>toggleLike(id,card));card.querySelector(`[data-save="${id}"]`)?.addEventListener("click",()=>toggleSave(id));card.querySelector(`[data-comments="${id}"]`)?.addEventListener("click",()=>toggleComments(card,id));card.querySelector(`[data-share="${id}"]`)?.addEventListener("click",()=>{const p={id,body:card.querySelector(".post-body")?.innerText||card.querySelector(".post-caption")?.innerText||""};sharePost(p)});const more=card.querySelector(".post-more"),menu=card.querySelector(".post-menu");more?.addEventListener("click",e=>{e.stopPropagation();document.querySelectorAll(".post-menu:not(.hidden)").forEach(m=>{if(m!==menu)m.classList.add("hidden")});menu?.classList.toggle("hidden")});card.querySelector(`[data-follow-code]`)?.addEventListener("click",()=>toggleFollow(card.querySelector(`[data-follow-code]`)));
   card.querySelector(`[data-delete-post="${id}"]`)?.addEventListener("click",()=>deleteOwnPost(id,card));card.querySelector(`[data-close-post-menu="${id}"]`)?.addEventListener("click",()=>menu?.classList.add("hidden"));card.querySelector("[data-dbltap]")?.addEventListener("dblclick",()=>{const b=card.querySelector(`[data-like="${id}"]`);if(b&&!b.classList.contains("liked"))toggleLike(id,card);else burstHeart(card)});let last=0;card.querySelector("[data-dbltap]")?.addEventListener("touchend",()=>{const now=Date.now();if(now-last<320){const b=card.querySelector(`[data-like="${id}"]`);if(b&&!b.classList.contains("liked"))toggleLike(id,card);else burstHeart(card)}last=now},{passive:true})})}
@@ -2454,6 +2458,7 @@ async function leaveChatRoom(){
   $("videos").innerHTML="";
   $("messages").innerHTML='<div class="empty-chat" id="emptyChat"><div>💬</div><b>Comece a conversa</b><span>Envie uma mensagem para a sala.</span></div>';
   $("app").classList.add("hidden");$("socialPanel")?.classList.add("hidden");
+  window.exitServerWorkspace?.();
   try{history.replaceState(null,"",location.pathname)}catch(e){}
   $("callMenu")?.classList.remove("hidden"); animateMainMenu();
   window.renderFriends?.();
@@ -2806,7 +2811,7 @@ if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.ser
     const empty=(icon,title,text)=>`<div class="servers-empty"><div>${icon}</div><b>${title}</b><small>${text}</small></div>`;
     if(mineBox)mineBox.innerHTML=mine.length?mine.map(serverCard).join(""):empty("✦",query?"Nenhum resultado":"Você ainda não criou ou entrou em comunidades","Crie um servidor ou explore comunidades públicas para começar.");
     if(pubBox)pubBox.innerHTML=discover.length?discover.map(serverCard).join(""):empty("🌐",query?"Nenhuma comunidade encontrada":"Nenhuma comunidade pública disponível","Tente outra busca ou crie a sua própria comunidade.");
-    document.querySelectorAll("[data-open-server]").forEach(b=>b.onclick=()=>openServer(Number(b.dataset.openServer)));
+    document.querySelectorAll("[data-open-server]").forEach(b=>b.onclick=()=>enterServerWorkspace(Number(b.dataset.openServer)));
     document.querySelectorAll("[data-join-server]").forEach(b=>b.onclick=()=>joinServer(Number(b.dataset.joinServer)));
   }
   async function loadServers(){
@@ -2819,17 +2824,17 @@ if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.ser
   async function createServer(){
     const name=$("serverNameInput")?.value.trim(),desc=$("serverDescInput")?.value.trim(),visibility=String($("serverVisibilityInput")?.value||"public").toLowerCase(),isPublic=visibility!=="private";if(!name||name.length<2)return communityToast("Dê um nome com pelo menos 2 caracteres.","error");
     const btn=$("serverCreateBtn");if(btn)btn.disabled=true;
-    try{const d=await api("/api/servers",{method:"POST",body:JSON.stringify({name,description:desc,isPublic})});$("serverNameInput").value="";$("serverDescInput").value="";$("serverCreateBox")?.classList.add("hidden");communityToast("Servidor criado com sucesso!","success");await loadServers();if(d.server?.id)openServer(Number(d.server.id));}
+    try{const d=await api("/api/servers",{method:"POST",body:JSON.stringify({name,description:desc,isPublic})});$("serverNameInput").value="";$("serverDescInput").value="";$("serverCreateBox")?.classList.add("hidden");communityToast("Servidor criado com sucesso!","success");await loadServers();if(d.server?.id)enterServerWorkspace(Number(d.server.id));}
     catch(e){communityToast(e.message||"Não foi possível criar o servidor.","error")}finally{if(btn)btn.disabled=false}
   }
   async function joinServer(id){
     const btn=document.querySelector(`[data-join-server="${CSS.escape(String(id))}"]`);if(btn)btn.disabled=true;
-    try{await api(`/api/servers/${encodeURIComponent(id)}/join`,{method:"POST"});communityToast("Você entrou na comunidade!","success");await loadServers();openServer(id)}catch(e){communityToast(e.message||"Não foi possível entrar.","error")}finally{if(btn)btn.disabled=false}
+    try{await api(`/api/servers/${encodeURIComponent(id)}/join`,{method:"POST"});communityToast("Você entrou na comunidade!","success");await loadServers();enterServerWorkspace(id)}catch(e){communityToast(e.message||"Não foi possível entrar.","error")}finally{if(btn)btn.disabled=false}
   }
   async function joinServerByInvite(){
     const input=$("serverInviteInput"),code=String(input?.value||"").trim().toUpperCase().replace(/\s+/g,"");if(!code)return communityToast("Digite o código do convite.","error");
     const btn=$("serverJoinBtn");if(btn)btn.disabled=true;
-    try{const d=await api("/api/servers/join",{method:"POST",body:JSON.stringify({inviteCode:code})});if(input)input.value="";$("serverJoinBox")?.classList.add("hidden");communityToast("Você entrou na comunidade!","success");await loadServers();if(d.server?.id)openServer(Number(d.server.id));}
+    try{const d=await api("/api/servers/join",{method:"POST",body:JSON.stringify({inviteCode:code})});if(input)input.value="";$("serverJoinBox")?.classList.add("hidden");communityToast("Você entrou na comunidade!","success");await loadServers();if(d.server?.id)enterServerWorkspace(Number(d.server.id));}
     catch(e){communityToast(e.message||"Convite inválido.","error")}finally{if(btn)btn.disabled=false}
   }
   async function leaveServer(){
@@ -2855,6 +2860,90 @@ if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.ser
     }catch(e){detail?.classList.add("hidden");communityToast(e.message||"Não foi possível abrir o servidor.","error")}
   }
   function backServerList(){$("serverDetailSection")?.classList.add("hidden");switchServersTab(serversTab)}
+
+  // ---------- Workspace persistente estilo Discord ----------
+  let workspaceServerId=null, workspaceServerData=null;
+
+  function renderServerRail(){
+    const list=$("serverRailList");if(!list)return;
+    list.innerHTML=(serversData.mine||[]).map(s=>{
+      const initial=messageEscape((s.name||"S").trim().charAt(0).toUpperCase());
+      const active=Number(s.id)===Number(workspaceServerId);
+      return `<button class="server-rail-icon${active?" active":""}" type="button" data-rail-server="${s.id}" title="${messageEscape(s.name)}">${initial}</button>`;
+    }).join("");
+    list.querySelectorAll("[data-rail-server]").forEach(b=>b.onclick=()=>enterServerWorkspace(Number(b.dataset.railServer)));
+  }
+
+  function channelButtonHtml(c){
+    return `<button class="server-channel" type="button" data-community-channel="${c.id}" data-room="${messageEscape(c.room_name)}"><span class="server-channel-icon">${c.type==="voice"?"🔊":"#"}</span><span>${messageEscape(c.name)}</span><small>${c.type==="voice"?"Voz":"Texto"}</small></button>`;
+  }
+
+  function selectServerChannel(room,btnEl,containerEl){
+    containerEl?.querySelectorAll(".server-channel").forEach(b=>b.classList.toggle("active",b===btnEl));
+    joinRoom(room,window.CONVERSA_USER?.name||"Visitante");
+    appToast("Entrando no canal…","success");
+  }
+
+  // Entra no workspace de um servidor: mostra a barra de servidores + lista de
+  // canais persistentes ao lado do chat, em vez de fechar tudo pra abrir a
+  // sala (como funcionava antes). No mobile isso não cabe, então cai de volta
+  // no fluxo antigo (modal).
+  async function enterServerWorkspace(id){
+    if(!Number.isSafeInteger(id)||id<1)return;
+    if(isMobileLayout()){closeServers();return openServer(id);}
+    try{
+      const d=await api(`/api/servers/${encodeURIComponent(id)}`),s=d.server;if(!s)throw new Error("Servidor não encontrado.");
+      workspaceServerId=id;workspaceServerData=s;
+      closeServers();
+      $("app")?.classList.add("server-mode");
+      $("serverRail")?.classList.remove("hidden");$("serverChannelSidebar")?.classList.remove("hidden");
+      if(!serversData.mine?.length)await loadServers();
+      renderServerRail();
+
+      $("serverRailActiveName").textContent=s.name;
+      $("serverRailActiveMeta").textContent=`${Number(s.member_count||0)} membro${Number(s.member_count||0)===1?"":"s"}`;
+      const canManage=["owner","admin"].includes(s.role);
+      const addBtn=$("serverRailAddChannelBtn");
+      if(addBtn){
+        addBtn.classList.toggle("hidden",!canManage);
+        addBtn.onclick=async()=>{
+          const name=await fcPrompt("Escolha o nome que aparecerá na lista de canais.",{title:"Novo canal",confirmText:"Continuar",kicker:"Servidor",inputLabel:"Nome do canal",placeholder:"ex.: geral"});
+          if(!name?.trim())return;
+          const typeRaw=await fcPrompt("Digite text para canal de texto ou voice para canal de voz.",{title:"Tipo do canal",confirmText:"Criar canal",kicker:"Servidor",value:"text",inputLabel:"Tipo",placeholder:"text ou voice"});
+          const type=(typeRaw||"text").toLowerCase();
+          try{await api(`/api/servers/${id}/channels`,{method:"POST",body:JSON.stringify({name,type})});communityToast("Canal criado.","success");enterServerWorkspace(id);}
+          catch(e){communityToast(e.message||"Não foi possível criar o canal.","error")}
+        };
+      }
+      const manageBtn=$("serverRailManageBtn");
+      if(manageBtn)manageBtn.classList.toggle("hidden",!canManage);
+
+      const chBox=$("serverRailChannels"),textCh=(s.channels||[]).filter(c=>c.type!=="voice"),voiceCh=(s.channels||[]).filter(c=>c.type==="voice");
+      if(chBox){
+        chBox.innerHTML=(textCh.length?`<div class="server-channel-group"><small>CANAIS DE TEXTO</small>${textCh.map(channelButtonHtml).join("")}</div>`:"")+
+          (voiceCh.length?`<div class="server-channel-group"><small>CANAIS DE VOZ</small>${voiceCh.map(channelButtonHtml).join("")}</div>`:"")||
+          '<div class="servers-empty mini"><div>＋</div><b>Nenhum canal</b><small>Um administrador pode criar o primeiro.</small></div>';
+        chBox.querySelectorAll("[data-community-channel]").forEach(b=>b.onclick=()=>selectServerChannel(b.dataset.room,b,chBox));
+        // Entra automaticamente no primeiro canal de texto, como o Discord faz.
+        const first=chBox.querySelector('[data-community-channel]');
+        if(first)selectServerChannel(first.dataset.room,first,chBox);
+      }
+      $("serverRailLeaveBtn").onclick=async()=>{
+        if(!await fcConfirm("Você deixará de participar desta comunidade.",{title:"Sair desta comunidade?",confirmText:"Sair",danger:true,kicker:"Comunidade"}))return;
+        try{await api(`/api/servers/${encodeURIComponent(id)}/leave`,{method:"POST"});communityToast("Você saiu da comunidade.","success");exitServerWorkspace();await loadServers();}
+        catch(e){communityToast(e.message||"Não foi possível sair.","error")}
+      };
+    }catch(e){communityToast(e.message||"Não foi possível abrir o servidor.","error")}
+  }
+
+  function exitServerWorkspace(){
+    workspaceServerId=null;workspaceServerData=null;
+    $("app")?.classList.remove("server-mode");
+    $("serverRail")?.classList.add("hidden");$("serverChannelSidebar")?.classList.add("hidden");
+  }
+  $("serverRailHome")?.addEventListener("click",exitServerWorkspace);
+  $("serverRailAdd")?.addEventListener("click",openServers);
+  window.enterServerWorkspace=enterServerWorkspace;window.exitServerWorkspace=exitServerWorkspace;
 
   function stopRandomPolling(){
     if(randomQueueTimer){clearInterval(randomQueueTimer);randomQueueTimer=null}

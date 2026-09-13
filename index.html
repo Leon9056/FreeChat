@@ -169,6 +169,23 @@
   <button id="profileSupportBtn" class="profile-support" type="button"><span>♥</span><span><b>Apoie o criador</b><small>Ajude a manter o FreeChat online!</small></span><i>›</i></button>
 </aside>
 <div id="friendsPanel" class="friends-panel hidden"><div class="friends-panel-head"><b>👥 Amigos</b><button id="friendsClose" class="panel-close-x" type="button" aria-label="Fechar amigos" title="Fechar">×</button></div><div class="friend-add-row"><input id="friendCodeApp" maxlength="20" placeholder="Código CL-XXXXXX"><button id="addFriendApp" class="secondary-btn" type="button" title="Enviar convite">📨</button></div><div id="friendAppStatus" class="status"></div><div class="friends-toolbar"><input id="friendsSearchApp" class="friends-search" placeholder="🔎 Procurar amigo..." autocomplete="off"></div><div id="friendsAppList" class="friends-list"></div></div>
+<aside id="serverRail" class="server-rail hidden" aria-label="Seus servidores">
+  <button id="serverRailHome" class="server-rail-icon server-rail-home" type="button" title="Voltar ao chat">💬</button>
+  <div class="server-rail-divider"></div>
+  <div id="serverRailList" class="server-rail-list"></div>
+  <button id="serverRailAdd" class="server-rail-icon server-rail-add" type="button" title="Adicionar servidor">＋</button>
+</aside>
+<aside id="serverChannelSidebar" class="server-channel-sidebar-v2 hidden">
+  <div class="server-channel-sidebar-v2-head">
+    <div><b id="serverRailActiveName">Servidor</b><small id="serverRailActiveMeta">0 membros</small></div>
+    <button id="serverRailManageBtn" class="icon-btn hidden" type="button" title="Gerenciar">⚙</button>
+  </div>
+  <div id="serverRailChannels" class="server-channels"></div>
+  <div class="server-channel-sidebar-v2-foot">
+    <button id="serverRailAddChannelBtn" class="text-btn hidden" type="button">＋ Novo canal</button>
+    <button id="serverRailLeaveBtn" class="text-btn danger-text" type="button">↪ Sair do servidor</button>
+  </div>
+</aside>
 <main class="main">
 <header><div><b># <span id="headRoom">geral</span></b><small>Conversa em tempo real</small></div>
 <div class="header-actions"><div id="connectionMeter" class="connection-meter"><div class="connection-bars"><i></i><i></i><i></i><i></i><i></i></div><span id="connectionText">Conectando...</span></div><button type="button" id="callOpen">🎥 Call</button></div></header>
