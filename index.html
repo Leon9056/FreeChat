@@ -353,20 +353,18 @@
 
 
 
-<div id="serversPanel" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="serversTitle">
-  <div class="modal-card servers-card servers-v2-card">
-    <div class="servers-v2-top">
-      <div class="servers-v2-brand">
-        <div class="servers-v2-logo">🌐</div>
-        <div><b id="serversTitle">Servidores</b><small>Suas comunidades em um só lugar.</small></div>
-      </div>
-      <div class="servers-head-actions">
-        <button id="serverJoinToggleBtn" class="secondary-btn small-btn" type="button">🔗 Entrar</button>
-        <button id="serverCreateToggleBtn" class="primary-btn small-btn" type="button">＋ Criar</button>
-        <button id="serversClose" class="icon-btn" type="button" aria-label="Fechar">×</button>
-      </div>
+<section id="serversPanel" class="screen servers-screen hidden" role="region" aria-labelledby="serversTitle">
+  <header class="servers-screen-top">
+    <button id="serversBack" class="icon-btn" type="button" aria-label="Voltar">‹</button>
+    <div class="servers-screen-brand"><div class="servers-v2-logo">🌐</div><div><b id="serversTitle">Servidores</b><small>Suas comunidades em um só lugar.</small></div></div>
+    <div class="servers-head-actions">
+      <button id="serverJoinToggleBtn" class="secondary-btn small-btn" type="button">🔗 Entrar</button>
+      <button id="serverCreateToggleBtn" class="primary-btn small-btn" type="button">＋ Criar</button>
+      <button id="serversRefreshBtn" class="icon-btn servers-refresh" type="button" title="Atualizar" aria-label="Atualizar">↻</button>
     </div>
+  </header>
 
+  <div class="servers-screen-scroll">
     <section class="servers-v2-hero">
       <div><span class="servers-eyebrow">COMUNIDADES</span><h2>Encontre onde você pertence.</h2><p>Crie um espaço, descubra comunidades públicas ou entre com um convite.</p></div>
       <div class="servers-v2-hero-actions"><button id="serversDiscoverHeroBtn" class="secondary-btn" type="button">Explorar comunidades</button><button id="serversMyHeroBtn" class="ghost-btn" type="button">Meus servidores</button></div>
@@ -384,13 +382,12 @@
 
     <div class="servers-v2-toolbar">
       <div class="servers-search-wrap"><span>⌕</span><input id="serverSearchInput" type="search" maxlength="60" placeholder="Pesquisar por nome ou descrição..." autocomplete="off"></div>
-      <button id="serversRefreshBtn" class="icon-btn servers-refresh" type="button" title="Atualizar" aria-label="Atualizar">↻</button>
     </div>
     <div id="serversStatus" class="status"></div>
     <nav class="servers-tabs servers-v2-tabs" aria-label="Filtro de servidores"><button type="button" class="servers-tab active" data-servers-tab="mine">Meus servidores <span id="myServersCount" class="servers-count">0</span></button><button type="button" class="servers-tab" data-servers-tab="discover">Descobrir</button></nav>
 
-    <section id="myServersSection"><div id="myServersList" class="servers-list servers-v2-list"></div></section>
-    <section id="discoverServersSection" class="hidden"><div id="discoverServersList" class="servers-list servers-v2-list"></div></section>
+    <section id="myServersSection"><div id="myServersList" class="servers-list servers-v2-list servers-grid"></div></section>
+    <section id="discoverServersSection" class="hidden"><div id="discoverServersList" class="servers-list servers-v2-list servers-grid"></div></section>
 
     <section id="serverDetailSection" class="hidden server-detail server-detail-v2">
       <div class="server-detail-head"><button id="serverDetailBack" class="icon-btn" type="button" aria-label="Voltar">‹</button><div class="server-detail-icon" id="serverDetailIcon">S</div><div class="server-detail-info"><b id="serverDetailName">Servidor</b><small id="serverDetailDesc"></small><span id="serverDetailMeta" class="server-detail-meta"></span></div><div class="server-detail-actions"><button id="serverInviteCopyBtn" class="icon-btn hidden" type="button" title="Copiar convite" aria-label="Copiar convite">📋</button><button id="serverManageBtn" class="icon-btn hidden" type="button" title="Gerenciar servidor" aria-label="Gerenciar servidor">⚙</button><button id="serverLeaveBtn" class="icon-btn" type="button" title="Sair do servidor" aria-label="Sair do servidor">↪</button></div></div>
@@ -398,7 +395,7 @@
       <div class="server-detail-layout server-detail-v3-layout"><aside class="server-channel-sidebar"><div class="server-channel-sidebar-head"><span>CANAIS</span><button id="serverAddChannelBtn" class="icon-btn hidden" type="button" title="Novo canal">＋</button></div><div id="serverChannelsList" class="server-channels"></div><div class="server-sidebar-footer"><small>Comunidade</small><b id="serverSidebarMemberCount">0 membros</b></div></aside><div class="server-detail-main"><div class="server-welcome-banner"><div><span>COMUNIDADE ATIVA</span><h3 id="serverWelcomeTitle">Bem-vindo</h3><p id="serverWelcomeDesc">Escolha um canal para começar.</p></div><div class="server-welcome-mark">✦</div></div><div class="server-detail-grid"><section class="server-info-panel"><div class="server-panel-title"><b>Sobre a comunidade</b><span>🌐</span></div><p id="serverAboutText">—</p><div class="server-stat-row"><span><b id="serverMemberStat">0</b> membros</span><span><b id="serverChannelStat">0</b> canais</span><span><b id="serverTypeStat">Público</b></span></div></section><section class="server-members-panel"><div class="server-panel-title"><b>Membros</b><span>👥</span></div><div id="serverMembersList" class="server-members-list"><span class="muted">Carregando…</span></div></section></div></div></div>
     </section>
   </div>
-</div>
+</section>
 
 <div id="adminPanel" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="adminTitle">
   <div class="modal-card admin-card">

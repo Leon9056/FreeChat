@@ -970,7 +970,7 @@ $("callOpen").onclick=openCall;
 
 // Fallback de fechamento: mantém os botões X funcionais mesmo após re-renderizações.
 document.addEventListener("click",(e)=>{
-  const btn=e.target?.closest?.("#friendsClose,#emojiClose,#callClose,#callPanelClose,#callMusicClose,#callSettingsClose,#settingsClose,#socialClose,#serversClose,#randomCallClose,#postComposerClose,#messagesClose");
+  const btn=e.target?.closest?.("#friendsClose,#emojiClose,#callClose,#callPanelClose,#callMusicClose,#callSettingsClose,#settingsClose,#socialClose,#serversBack,#randomCallClose,#postComposerClose,#messagesClose");
   if(!btn)return;
   e.preventDefault(); e.stopPropagation();
   const actions={
@@ -982,7 +982,7 @@ document.addEventListener("click",(e)=>{
     callSettingsClose:()=>$("callSettingsPanel")?.classList.add("hidden"),
     settingsClose:()=>closeSettings?.(),
     socialClose:()=>closeSocialPanel?.(),
-    serversClose:()=>closeServers?.(),
+    serversBack:()=>closeServers?.(),
     reportClose:()=>window.closeReportModal?.(),
     adminClose:()=>window.closeAdminPanel?.(),
     reportCancelBtn:()=>window.closeReportModal?.(),
@@ -2774,12 +2774,19 @@ if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.ser
   }
 
   let serversTab="mine", serversData={mine:[],discover:[]},serverSearchTimer=null,serverLoading=false;
+  let serversReturnScreen="callMenu";
   function openServers(){
+    serversReturnScreen=($("app")&&!$("app").classList.contains("hidden"))?"app":"callMenu";
+    $("login")?.classList.add("hidden");$("callMenu")?.classList.add("hidden");
+    if(serversReturnScreen==="app"&&!$("app").classList.contains("server-mode"))$("app")?.classList.add("hidden");
     $("serversPanel")?.classList.remove("hidden");
     $("serverCreateBox")?.classList.add("hidden");$("serverJoinBox")?.classList.add("hidden");
     switchServersTab("mine");loadServers();
   }
-  function closeServers(){$("serversPanel")?.classList.add("hidden");selectedServerId=null;$('serverDetailSection')?.classList.add('hidden');}
+  function closeServers(){
+    $("serversPanel")?.classList.add("hidden");selectedServerId=null;$('serverDetailSection')?.classList.add('hidden');
+    if(!$("app")?.classList.contains("server-mode"))$(serversReturnScreen)?.classList.remove("hidden");
+  }
   function switchServersTab(tab){
     serversTab=tab;
     document.querySelectorAll(".servers-tab").forEach(b=>b.classList.toggle("active",b.dataset.serversTab===tab));
@@ -2894,7 +2901,9 @@ if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.ser
     try{
       const d=await api(`/api/servers/${encodeURIComponent(id)}`),s=d.server;if(!s)throw new Error("Servidor não encontrado.");
       workspaceServerId=id;workspaceServerData=s;
-      closeServers();
+      $("serversPanel")?.classList.add("hidden");selectedServerId=null;$('serverDetailSection')?.classList.add('hidden');
+      $("login")?.classList.add("hidden");$("callMenu")?.classList.add("hidden");
+      $("app")?.classList.remove("hidden");
       $("app")?.classList.add("server-mode");
       $("serverRail")?.classList.remove("hidden");$("serverChannelSidebar")?.classList.remove("hidden");
       if(!serversData.mine?.length)await loadServers();
@@ -3207,7 +3216,7 @@ if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.ser
   $("serversDiscoverHeroBtn")?.addEventListener("click",()=>switchServersTab("discover"));
   $("serversMyHeroBtn")?.addEventListener("click",()=>switchServersTab("mine"));
   $("serversBtn")?.addEventListener("click",openServers);
-  $("serversClose")?.addEventListener("click",closeServers);
+  $("serversBack")?.addEventListener("click",closeServers);
   $("serversRefreshBtn")?.addEventListener("click",loadServers);
   $("serverCreateToggleBtn")?.addEventListener("click",toggleCreateBox);
   $("serverJoinToggleBtn")?.addEventListener("click",toggleJoinBox);
